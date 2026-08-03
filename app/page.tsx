@@ -223,7 +223,7 @@ export default async function Tuis() {
           <div className="flex items-center gap-3">
             <span className="bg-siaan h-5 w-1" aria-hidden />
             <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
-              Die bereik
+              Nuuspod bereik
             </span>
           </div>
 
