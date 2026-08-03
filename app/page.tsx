@@ -115,10 +115,10 @@ const WAAROM = [
 ];
 
 const SYFERS = [
-  { syfer: "14 mln", label: "Facebook-kyke per maand", noot: "gemiddeld" },
+  { syfer: "14 miljoen", label: "Facebook-kyke per maand", noot: "gemiddeld" },
   { syfer: "113 000", label: "Volgelinge op Facebook" },
   { syfer: "63 900", label: "Intekenare op YouTube" },
-  { syfer: "22 mln", label: "Kyke op YouTube", noot: "sedert 2020" },
+  { syfer: "22 miljoen", label: "Kyke op YouTube", noot: "sedert 2020" },
 ];
 
 export default async function Tuis() {
