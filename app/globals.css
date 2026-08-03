@@ -1,26 +1,48 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  /* Sampled from the Nuuspod cover art and the on-air graphics, so the site
+     and the social cards read as one brand. */
+  --color-swart: #05070a;
+  --color-paneel: #11161c;
+  --color-rand: #1e2630;
+  --color-rooi: #e53935;
+  --color-siaan: #0faed3;
+  --color-papier: #f4f1e9;
+  --color-grys: #8b939e;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-swart);
+  color: var(--color-papier);
+}
+
+/* The logo's waveform, flattened into a rule under the masthead. */
+@keyframes puls {
+  0%,
+  100% {
+    transform: scaleX(0.35);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.puls {
+  transform-origin: left;
+  animation: puls 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .puls {
+    animation: none;
+    transform: scaleX(1);
+  }
 }
