@@ -165,7 +165,7 @@ export default async function Tuis() {
             </div>
 
             <h1 className="text-papier mt-5 font-display text-4xl leading-[1.05] sm:text-6xl md:text-7xl">
-              14 miljoen mense sien Nuuspod elke maand.
+              14 miljoen kyke elke maand.
             </h1>
 
             <div className="bg-rooi mt-6 h-1 w-40">
@@ -173,10 +173,10 @@ export default async function Tuis() {
             </div>
 
             <p className="text-grys mt-6 max-w-xl font-sans text-lg leading-relaxed">
-              Hoeveel van hulle ken jou besigheid se naam? Nuuspod is &apos;n
-              Afrikaanse nuusbulletin wat elke weeksdag regstreeks uitsaai op
-              Facebook en YouTube — en jou advertensie sit binne-in die nuus,
-              nie langs dit nie.
+              Hoeveel van daardie kyke het jou besigheid se naam op die
+              skerm gehad? Nuuspod is &apos;n Afrikaanse nuusbulletin wat elke
+              weeksdag regstreeks uitsaai op Facebook en YouTube — en jou
+              advertensie sit binne-in die nuus, nie langs dit nie.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
@@ -244,8 +244,8 @@ export default async function Tuis() {
           </dl>
 
           <p className="border-rand text-grys mt-10 border-t pt-6 font-sans text-sm">
-            Meer as <strong className="text-papier">10 000 mense</strong> kyk
-            elke dag die regstreekse uitsending op YouTube alleen — mense wat
+            Meer as <strong className="text-papier">10 000 kyke</strong> per
+            dag op die regstreekse uitsending, op YouTube alleen — mense wat
             doelbewus vir nuus kom, nie verbyrol nie.
           </p>
         </div>
