@@ -1,4 +1,13 @@
 import Image from "next/image";
+import {
+  Chyron,
+  HeroPuls,
+  HeroStap,
+  Onthul,
+  StaggerItem,
+  StaggerLys,
+  TrekLyn,
+} from "./_components/animasie";
 
 const WHATSAPP =
   "https://wa.me/27828385204?text=" +
@@ -35,34 +44,6 @@ async function jongsteVideo() {
   } catch {
     return TERUGVAL_VIDEO;
   }
-}
-
-/**
- * The on-air lower third, used as this page's section marker.
- *
- * Taken from the broadcast rather than invented for the web: it is the graphic
- * the audience already associates with the show.
- */
-function Chyron({
-  kicker,
-  children,
-}: {
-  kicker: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-8 sm:mb-12">
-      <div className="flex items-center gap-3">
-        <span className="h-5 w-1 bg-rooi" aria-hidden />
-        <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
-          {kicker}
-        </span>
-      </div>
-      <h2 className="text-papier mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
-        {children}
-      </h2>
-    </div>
-  );
 }
 
 const PAKKETTE = [
@@ -157,29 +138,31 @@ export default async function Tuis() {
       <section className="border-rand border-b">
         <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 sm:py-24 md:grid-cols-[1.35fr_1fr] md:items-center">
           <div>
-            <div className="flex items-center gap-3">
+            <HeroStap step={0} className="flex items-center gap-3">
               <span className="bg-rooi h-2 w-2 rounded-full" aria-hidden />
               <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
                 Elke weeksdag regstreeks
               </span>
-            </div>
+            </HeroStap>
 
-            <h1 className="text-papier mt-5 font-display text-4xl leading-[1.05] sm:text-6xl md:text-7xl">
-              Nuuspod kry 14 miljoen kyke per maand.
-            </h1>
+            <HeroStap step={1}>
+              <h1 className="text-papier mt-5 font-display text-4xl leading-[1.05] sm:text-6xl md:text-7xl">
+                Nuuspod kry 14 miljoen kyke per maand.
+              </h1>
+            </HeroStap>
 
-            <div className="bg-rooi mt-6 h-1 w-40">
-              <div className="puls bg-siaan h-full w-full" />
-            </div>
+            <HeroPuls />
 
-            <p className="text-grys mt-6 max-w-xl font-sans text-lg leading-relaxed">
+            <HeroStap step={3}>
+              <p className="text-grys mt-6 max-w-xl font-sans text-lg leading-relaxed">
               Hoeveel van daardie kyke het jou besigheid se naam op die
               skerm gehad? Nuuspod is &apos;n Afrikaanse nuusbulletin wat elke
               weeksdag regstreeks uitsaai op Facebook en YouTube — en jou
-              advertensie sit binne-in die nuus, nie langs dit nie.
-            </p>
+                advertensie sit binne-in die nuus, nie langs dit nie.
+              </p>
+            </HeroStap>
 
-            <div className="mt-9 flex flex-wrap gap-3">
+            <HeroStap step={4} className="mt-9 flex flex-wrap gap-3">
               <a
                 href={WHATSAPP}
                 className="bg-rooi text-papier rounded px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-siaan"
@@ -192,10 +175,10 @@ export default async function Tuis() {
               >
                 Sien die pakkette
               </a>
-            </div>
+            </HeroStap>
           </div>
 
-          <div className="relative mx-auto w-full max-w-xs md:mx-0 md:max-w-sm">
+          <HeroStap step={2} className="relative mx-auto w-full max-w-xs md:mx-0 md:max-w-sm">
             <div className="bg-paneel absolute -inset-x-3 top-8 bottom-6" aria-hidden />
             <Image
               src="/izak-duim.jpg"
@@ -213,23 +196,25 @@ export default async function Tuis() {
                 Aanbieder
               </span>
             </div>
-          </div>
+          </HeroStap>
         </div>
       </section>
 
       {/* The numbers, as the strip that runs under a broadcast */}
       <section className="border-rand bg-paneel border-b">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-          <div className="flex items-center gap-3">
-            <span className="bg-siaan h-5 w-1" aria-hidden />
-            <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
-              Nuuspod bereik
-            </span>
-          </div>
+          <Onthul>
+            <div className="flex items-center gap-3">
+              <span className="bg-siaan h-5 w-1" aria-hidden />
+              <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
+                Nuuspod bereik
+              </span>
+            </div>
+          </Onthul>
 
-          <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
+          <StaggerLys className="mt-8 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
             {SYFERS.map((s) => (
-              <div key={s.label}>
+              <StaggerItem key={s.label}>
                 <dt className="text-papier font-display text-4xl leading-none sm:text-5xl">
                   {s.syfer}
                 </dt>
@@ -239,15 +224,17 @@ export default async function Tuis() {
                     <span className="text-grys/70 block text-xs">{s.noot}</span>
                   ) : null}
                 </dd>
-              </div>
+              </StaggerItem>
             ))}
-          </dl>
+          </StaggerLys>
 
-          <p className="border-rand text-grys mt-10 border-t pt-6 font-sans text-sm">
+          <Onthul className="border-rand mt-10 border-t pt-6">
+          <p className="text-grys font-sans text-sm">
             Meer as <strong className="text-papier">10 000 kyke</strong> per
             dag op die regstreekse uitsending, op YouTube alleen — mense wat
             doelbewus vir nuus kom, nie verbyrol nie.
           </p>
+          </Onthul>
         </div>
       </section>
 
@@ -256,7 +243,7 @@ export default async function Tuis() {
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
           <Chyron kicker="Die jongste bulletin">Kyk waarvoor jy betaal.</Chyron>
 
-          <div className="border-rand bg-paneel overflow-hidden border">
+          <Onthul className="border-rand bg-paneel overflow-hidden border">
             <div className="relative aspect-video">
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${video.id}`}
@@ -275,7 +262,7 @@ export default async function Tuis() {
                 Sien die kanaal ↗
               </a>
             </div>
-          </div>
+          </Onthul>
         </div>
       </section>
 
@@ -285,21 +272,14 @@ export default async function Tuis() {
         className="border-rand bg-papier text-swart scroll-mt-20 border-b"
       >
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
-          <div className="mb-10 sm:mb-14">
-            <div className="flex items-center gap-3">
-              <span className="bg-rooi h-5 w-1" aria-hidden />
-              <span className="font-sans text-xs font-bold tracking-[0.22em] text-[#0a6f88] uppercase">
-                Advertensietariewe
-              </span>
-            </div>
-            <h2 className="text-swart mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
-              Vyf maniere om in die nuus te wees.
-            </h2>
-          </div>
+          <Chyron kicker="Advertensietariewe" donker={false}>
+            Vyf maniere om in die nuus te wees.
+          </Chyron>
 
-          <ul className="divide-y divide-[#d8d2c4] border-y border-[#d8d2c4]">
+          <StaggerLys className="divide-y divide-[#d8d2c4] border-y border-[#d8d2c4]">
             {PAKKETTE.map((p) => (
-              <li
+              <StaggerItem
+                as="li"
                 key={p.naam}
                 className="grid gap-2 py-6 sm:grid-cols-[1fr_auto] sm:items-baseline sm:gap-8"
               >
@@ -324,9 +304,9 @@ export default async function Tuis() {
                     {p.per}
                   </span>
                 </div>
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerLys>
 
           <p className="mt-8 font-sans text-sm text-[#4a5058]">
             Wil jy pakkette kombineer, of iets doen wat nie hier staan nie?
@@ -340,19 +320,19 @@ export default async function Tuis() {
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
           <Chyron kicker="Wie kyk">Nie almal nie. Die regtes.</Chyron>
 
-          <div className="grid gap-10 md:grid-cols-3">
+          <StaggerLys className="grid gap-10 md:grid-cols-3">
             {WAAROM.map((k) => (
-              <div key={k.kop}>
-                <div className="bg-rooi h-px w-full" aria-hidden />
+              <StaggerItem key={k.kop}>
+                <TrekLyn className="bg-rooi h-px w-full" />
                 <h3 className="text-papier mt-5 font-display text-2xl">
                   {k.kop}
                 </h3>
                 <p className="text-grys mt-3 font-sans text-sm leading-relaxed">
                   {k.lyf}
                 </p>
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerLys>
         </div>
       </section>
 
@@ -361,16 +341,10 @@ export default async function Tuis() {
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
           <div className="grid gap-12 md:grid-cols-[1.2fr_1fr] md:items-center">
             <div>
-              <div className="flex items-center gap-3">
-                <span className="bg-rooi h-5 w-1" aria-hidden />
-                <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
-                  Kom ons praat
-                </span>
-              </div>
-              <h2 className="text-papier mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
+              <Chyron kicker="Kom ons praat">
                 Stuur &apos;n boodskap. Izak antwoord self.
-              </h2>
-              <p className="text-grys mt-5 max-w-lg font-sans text-base leading-relaxed">
+              </Chyron>
+              <p className="text-grys -mt-4 max-w-lg font-sans text-base leading-relaxed">
                 Sê vir ons wat jou besigheid doen en wat jy wil bereik. Ons sê
                 vir jou eerlik of Nuuspod die regte plek daarvoor is.
               </p>
