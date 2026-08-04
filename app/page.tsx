@@ -165,7 +165,7 @@ export default async function Tuis() {
             </div>
 
             <h1 className="text-papier mt-5 font-display text-4xl leading-[1.05] sm:text-6xl md:text-7xl">
-              14 miljoen kyke elke maand.
+              Nuuspod kry 14 miljoen kyke per maand.
             </h1>
 
             <div className="bg-rooi mt-6 h-1 w-40">
