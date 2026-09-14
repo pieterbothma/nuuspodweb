@@ -9,7 +9,7 @@ export function KontroleerRegistrasie() {
       </p>
       <a
         href="https://www.elections.org.za/pw/Voter/Voter-Information"
-        className="mt-4 inline-block font-sans text-sm font-bold tracking-widest text-siaan uppercase hover:text-papier"
+        className="mt-4 inline-block font-sans text-sm font-bold tracking-widest text-siaan uppercase hover:text-papier focus-visible:outline-2 focus-visible:outline-siaan"
       >
         Kyk by die {KOMMISSIE} ↗
       </a>
