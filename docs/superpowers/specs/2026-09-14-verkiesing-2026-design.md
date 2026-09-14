@@ -102,8 +102,8 @@ more than 5%. **Never join 2021 ward results to 2026 wards on WardID.**
 
 ### 7.1 Supabase
 
-A new dedicated project, `verkiesing-2026`. Creating it costs money, so Piet confirms before it is
-made.
+Dedicated project `verkiesing-2026` (ref `xxysgvanarnirxoxrbkj`, eu-west-1, org Koedoe, $10/month),
+created 14 Sep 2026 with Piet's approval.
 
 | Schema | Tables | Access |
 |---|---|---|
@@ -186,11 +186,18 @@ pages. Only new searches hit the database.
 
 ### 8.2 Verkiesingsprogram episodes (hourly on Fridays, daily otherwise)
 
-- **Rule:** the longest **livestream** published on a Friday (SAST) between 18 Sep and 30 Oct is that
-  week's episode. Seven episodes: 18, 25 Sep; 2, 9, 16, 23, 30 Oct.
-- **Detection:** the channel RSS gives new video IDs. The YouTube Data API `videos.list`
-  (`contentDetails.duration`, `liveStreamingDetails`) gives duration and live status.
-  - Needs a free YouTube Data API key. None exists yet; Piet creates one.
+- **Rule:** any upload on the Nuuspod channel (`UC8WVZnhOnCUwSpJaMIhdQcg`) whose title starts with
+  **"Verkiesings-Vrydag"** is an election episode.
+  - First episode: 11 Sep 2026, `Y9HiKkP7Rmo` ("Verkiesings-Vrydag: Die DA se skynheiligheid Vrydag
+    11 September 2026", 2h01m live).
+  - Remaining Fridays before the vote: 18, 25 Sep; 2, 9, 16, 23, 30 Oct.
+- **Detection:** channel RSS titles only. No YouTube API key is needed.
+  - Do **not** use the RSS `<published>` date for the air date. Scheduled livestreams are dated when
+    scheduled: Monday 14 Sep's show carries 11 Sep.
+  - Sort by the date inside the title, falling back to `<published>`.
+- **Display:** the title is shown **as-is**, like the bulletin on the current site (Piet, 14 Sep).
+  Episodes are Nuuspod's own human journalism, so rule 1 does not apply to them. The neutrality
+  constraints in §3 apply to the data and explainer blocks.
 - **Storage:** detected episodes go into `episodes` and stay there permanently. The RSS feed only
   holds the latest 15 uploads.
 - **Manual override:** a row with `handmatig = true` always wins over detection.
@@ -220,7 +227,7 @@ the results pages.
 
 | Drop | Date | Contents | Blocking inputs |
 |---|---|---|---|
-| 1 | **Thu 17 Sep** | `/`, countdown and timeline, 4 explainers, `/adverteer`, rail, episodes, feedback, Supabase project | Explainer drafts ready Tue 15 Sep evening → Piet reviews Wed 16 Sep; Supabase project approved; YouTube API key |
+| 1 | **Thu 17 Sep** | `/`, countdown and timeline, 4 explainers, `/adverteer`, rail, episodes, feedback, Supabase project | Explainer drafts ready Tue 15 Sep evening → Piet reviews Wed 16 Sep; Supabase project created (`verkiesing-2026`, ref `xxysgvanarnirxoxrbkj`) |
 | 2 | **Fri 25 Sep** | wyk-soeker, `/wyk/*`, `/munisipaliteit/*`, ballots, ward cards | IEC final candidate list (16 Sep) parsed and reconciled; ballot draw (23 Sep); Stats SA place names |
 
 If an explainer isn't approved in time, Drop 1 goes live without it, and each explainer is added as
@@ -237,7 +244,7 @@ it gets approved.
 | Supabase down | Cached pages keep serving; search shows a friendly error |
 | A news feed dies | Rail shows the remaining sources; ingest logs the failure |
 | Episode misdetected | Manual override row |
-| YouTube API unavailable | Latest-episode block shows the last stored episode |
+| YouTube feed unavailable | Episode block shows the last stored episode |
 
 ## 12. Testing
 
