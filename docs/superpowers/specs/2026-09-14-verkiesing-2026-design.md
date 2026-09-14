@@ -34,7 +34,8 @@ Each of B–E gets its own spec. D and E share one IEC live-results ingest.
    - Explainers and other copy are approved by Piet before publishing.
    - IEC/MDB data goes live only through the stage → check → publish step (§7.3).
    - **Deliberate exception:** the "Wat ander berig" rail auto-publishes verbatim headlines from
-     allowlisted outlets (§8.1). Piet has a Telegram "hide" button.
+     allowlisted outlets (§8.1). Piet hides an item by setting `versteek = true` in Supabase
+     (no Telegram in this drop).
 3. **Neutral positioning.**
    - Candidates and parties are ordered alphabetically until the IEC ballot draw (23 Sep), then in
      official ballot order. Never by size or past performance.
@@ -185,8 +186,7 @@ pages. Only new searches hit the database.
 - **Display:** newest first, in `HH:MM · Bron · headline ↗` form, with no images or snippets.
   - Long headlines wrap, never truncate.
   - At most 3 visible items per source in the top 15, so no single outlet dominates.
-- **Hide:** a Telegram message per new item with a "Versteek" button, sent through the existing
-  Nuuspod bot. It sets `versteek = true`.
+- **Hide:** Piet hides an item by setting `versteek = true` in Supabase (no Telegram in this drop).
 
 ### 8.2 Verkiesingsprogram episodes (hourly)
 

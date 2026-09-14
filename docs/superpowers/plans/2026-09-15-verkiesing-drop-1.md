@@ -4,17 +4,20 @@
 
 **Goal:** Turn nuuspod.co.za into the Verkiesing 2026 home page. It carries the countdown, upcoming dates, approved voter explainers, Verkiesings-Vrydag episodes, a verbatim "Wat ander berig" headline rail and a feedback prompt. The advertiser page moves to `/adverteer`.
 
+> **Telegram hide button removed on 15 Sep (Piet):** hiding a headline is done in Supabase
+> (`versteek = true`) plus a herlaai call, not through a Telegram "Versteek" button. No Telegram
+> in this drop at all.
+
 **Architecture:**
 - `nuuspod-web` stays a small Next.js 16 site. It reads a new Supabase project (`verkiesing-2026`) through plain PostgREST `fetch` calls, cached with `next: { revalidate, tags }`. No database client dependency.
-- Ingestion runs as two Vercel crons in the `nuuspod` admin repo, which already has RSS parsing, `CRON_SECRET` crons and the Telegram bot. The crons write to Supabase with the secret key.
-- A Telegram "Versteek" button hides a headline. It calls a site endpoint that expires the cached rail.
+- Ingestion runs as two Vercel crons in the `nuuspod` admin repo, which already has RSS parsing and `CRON_SECRET` crons. The crons write to Supabase with the secret key.
+- A headline is hidden by setting `versteek = true` in Supabase, then calling the site's `/api/herlaai` endpoint to expire the cached rail.
 
 **Tech Stack:**
 - Next.js 16.2 (App Router, no `cacheComponents`), React 19, Tailwind v4, `motion`
 - Supabase Postgres + PostgREST
 - Vitest 4
 - `rss-parser` (admin, already installed)
-- Telegram Bot API (admin client)
 
 **Spec:** `docs/superpowers/specs/2026-09-14-verkiesing-2026-design.md` (read it with this plan)
 
@@ -2504,12 +2507,14 @@ Already confirmed on 14 Sep (The South African excluded, Politicsweb in). Only a
 
 ```bash
 cd ~/nuuspod
-for v in VERKIESING_SUPABASE_URL VERKIESING_SUPABASE_SECRET_KEY NUUSPOD_WEB_HERLAAI_SECRET VERKIESING_TELEGRAM_CHAT_ID; do
+for v in VERKIESING_SUPABASE_URL VERKIESING_SUPABASE_SECRET_KEY NUUSPOD_WEB_HERLAAI_SECRET; do
   grep "^$v=" .env.local | cut -d= -f2- | vercel env add $v production; done
-printf "https://nuuspod.co.za" | vercel env add NUUSPOD_WEB_URL production
+printf "https://www.nuuspod.co.za" | vercel env add NUUSPOD_WEB_URL production
 ```
 
-Expected: five "Added Environment Variable" lines.
+Expected: four "Added Environment Variable" lines. `NUUSPOD_WEB_URL` must be the `www` host —
+`https://nuuspod.co.za` 308-redirects to it, and Node's fetch drops the `Authorization` header
+across that cross-host redirect.
 
 - [ ] **Step 3: Merge and deploy**
 
@@ -2522,16 +2527,16 @@ Claude-Session: https://claude.ai/code/session_018wH6Bu4k15uURamW4fV68p" && git 
 
 Wait for the production deployment to show READY (`vercel ls nuuspod | head -5`).
 
-- [ ] **Step 4: Seed silently, then confirm the cron schedule**
+- [ ] **Step 4: Seed, then confirm the cron schedule**
 
 ```bash
-curl -s "https://www.kremetart.com/api/cron/verkiesing-stroom?stil=1" -H "Authorization: Bearer $CRON_SECRET"; echo
+curl -s "https://www.kremetart.com/api/cron/verkiesing-stroom" -H "Authorization: Bearer $CRON_SECRET"; echo
 curl -s "https://www.kremetart.com/api/cron/verkiesing-episodes" -H "Authorization: Bearer $CRON_SECRET"; echo
 ```
 
-Expected: JSON with counts and no `error`. Within 20 minutes a scheduled run should log `[verkiesing-stroom]` (check with `vercel logs` or MCP `get_runtime_logs`). New items after the seed produce Telegram messages.
+Expected: JSON with counts and no `error`. Within 20 minutes a scheduled run should log `[verkiesing-stroom]` (check with `vercel logs` or MCP `get_runtime_logs`).
 
-Until the site ships (Task 12), `herlaaiWerf` calls to nuuspod.co.za return 404. That is harmless and logged.
+Until the site ships (Task 12), `herlaaiWerf` calls to www.nuuspod.co.za return 404. That is harmless and logged.
 
 ---
 
@@ -2617,12 +2622,15 @@ Claude-Session: https://claude.ai/code/session_018wH6Bu4k15uURamW4fV68p" && git 
 When the deployment is READY:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://nuuspod.co.za/
-curl -s -o /dev/null -w "%{http_code}\n" https://nuuspod.co.za/adverteer
+curl -s -o /dev/null -w "%{http_code}\n" https://www.nuuspod.co.za/
+curl -s -o /dev/null -w "%{http_code}\n" https://www.nuuspod.co.za/adverteer
 set -a; source .env.local; set +a
-curl -s -X POST https://nuuspod.co.za/api/herlaai -H "Authorization: Bearer $HERLAAI_SECRET" -d '{"tag":"nuusstroom"}'; echo
+curl -s -X POST https://www.nuuspod.co.za/api/herlaai -H "Authorization: Bearer $HERLAAI_SECRET" -d '{"tag":"nuusstroom"}'; echo
 ```
 
 Expected: `200`, `200`, `{"ok":true,"tag":"nuusstroom"}`.
 
-Finally, tap "Versteek" on one real Telegram message. Confirm that headline disappears from nuuspod.co.za on reload, then un-hide it in SQL.
+Finally, hide one headline via SQL (`update nuusstroom set versteek = true where id = <id>;`), then
+call `POST https://www.nuuspod.co.za/api/herlaai` with the bearer and `{"tag":"nuusstroom"}`.
+Confirm that headline disappears from nuuspod.co.za on reload, then un-hide it the same way
+(`versteek = false`) plus another herlaai call.
