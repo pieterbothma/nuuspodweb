@@ -1659,7 +1659,7 @@ Claude-Session: https://claude.ai/code/session_018wH6Bu4k15uURamW4fV68p"
 - [ ] **Step 1: Verify the feeds before listing them**
 
 ```bash
-for u in https://www.dailymaverick.co.za/rss/ https://mg.co.za/feed/ https://www.sabcnews.com/sabcnews/feed/ https://www.citizen.co.za/feed/ https://www.thesouthafrican.com/feed/ https://www.politicsweb.co.za/rss.xml https://www.citizen.co.za/lowvelder/feed/ https://www.citizen.co.za/rekord/feed/ https://maroelamedia.co.za/feed/; do
+for u in https://www.dailymaverick.co.za/rss/ https://mg.co.za/feed/ https://www.sabcnews.com/sabcnews/feed/ https://www.citizen.co.za/feed/ https://www.politicsweb.co.za/rss.xml https://www.citizen.co.za/lowvelder/feed/ https://www.citizen.co.za/rekord/feed/ https://maroelamedia.co.za/feed/; do
   printf "%s " "$u"; curl -sL -A "Mozilla/5.0" --max-time 20 "$u" | grep -c "<item" ; done
 ```
 
@@ -1685,7 +1685,6 @@ export const STROOM_BRONNE: StroomBron[] = [
   { naam: "Mail & Guardian", feedUrl: "https://mg.co.za/feed/", tipe: "nasionaal", aktief: true },
   { naam: "SABC News", feedUrl: "https://www.sabcnews.com/sabcnews/feed/", tipe: "openbare uitsaaier", aktief: true },
   { naam: "The Citizen", feedUrl: "https://www.citizen.co.za/feed/", tipe: "nasionaal", aktief: true },
-  { naam: "The South African", feedUrl: "https://www.thesouthafrican.com/feed/", tipe: "nasionaal", aktief: true },
   { naam: "Politicsweb", feedUrl: "https://www.politicsweb.co.za/rss.xml", tipe: "nasionaal", aktief: true },
   { naam: "Lowvelder", feedUrl: "https://www.citizen.co.za/lowvelder/feed/", tipe: "gemeenskap", aktief: true },
   { naam: "Rekord", feedUrl: "https://www.citizen.co.za/rekord/feed/", tipe: "gemeenskap", aktief: true },
@@ -1693,7 +1692,7 @@ export const STROOM_BRONNE: StroomBron[] = [
 ];
 ```
 
-**Before Task 11, Piet must confirm the `aktief: true` set.** Press Council membership of The South African and Politicsweb is unverified; flag both when asking.
+Piet confirmed this list on 14 Sep: Politicsweb is in. The South African is deliberately **excluded** (unreliable clickbait); do not add it back.
 
 - [ ] **Step 3: Write the failing tests**
 
@@ -2499,7 +2498,7 @@ MCP `execute_sql`: `update nuusstroom set versteek = false where id = <ID>;`
 
 - [ ] **Step 1: Piet confirms the allowlist**
 
-Show him `STROOM_BRONNE`: which outlets are `aktief: true`, and that Press Council membership is unverified for The South African and Politicsweb. Adjust per his answer and commit.
+Already confirmed on 14 Sep (The South African excluded, Politicsweb in). Only ask again if a feed failed the Task 7 Step 1 check and had to be set inactive.
 
 - [ ] **Step 2: Production env for the admin (Vercel project `nuuspod`)**
 
