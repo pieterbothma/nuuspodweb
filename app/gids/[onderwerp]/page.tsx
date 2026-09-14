@@ -24,6 +24,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+function bronEtiket(u: string): string {
+  try {
+    const { hostname, pathname } = new URL(u);
+    return hostname + pathname;
+  } catch {
+    return u;
+  }
+}
+
 export default async function GidsBladsy({ params }: Props) {
   const gids = vindGids((await params).onderwerp);
   if (!gids) notFound();
@@ -32,7 +41,7 @@ export default async function GidsBladsy({ params }: Props) {
     <>
       <Kopstuk />
       <main className="mx-auto max-w-2xl px-5 py-12 sm:px-8 sm:py-16">
-        <Link href="/#gidse" className="font-sans text-xs font-bold tracking-widest text-siaan uppercase hover:text-papier">
+        <Link href="/#gidse" className="font-sans text-xs font-bold tracking-widest text-siaan uppercase hover:text-papier focus-visible:outline-2 focus-visible:outline-siaan">
           ← Hoe om te stem
         </Link>
         <h1 className="text-papier mt-6 font-display text-4xl leading-tight text-balance sm:text-5xl">{gids.titel}</h1>
@@ -46,8 +55,8 @@ export default async function GidsBladsy({ params }: Props) {
           <ul className="text-grys mt-3 grid gap-2 font-sans text-sm">
             {gids.bronne.map((u) => (
               <li key={u} className="break-all">
-                <a href={u} className="hover:text-siaan">
-                  {new URL(u).hostname + new URL(u).pathname}
+                <a href={u} className="hover:text-siaan focus-visible:outline-2 focus-visible:outline-siaan">
+                  {bronEtiket(u)}
                 </a>
               </li>
             ))}
