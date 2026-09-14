@@ -723,18 +723,22 @@ Claude-Session: https://claude.ai/code/session_018wH6Bu4k15uURamW4fV68p"
   - `gepubliseerdeGidse(): Gids[]`
   - `vindGids(slug: string): Gids | undefined`
 
-- [ ] **Step 1: Bring the drafts into the repo**
+- [ ] **Step 1: Confirm the drafts are in the repo**
+
+The four drafts were committed on 14 Sep (`5fd59f4`) with all of Piet's editor decisions applied:
+- ID wording follows the IEC email;
+- "OVK" throughout;
+- "R1,50 per SMS";
+- the reg 23B address rule is added;
+- "Voter Information" appears in quotes;
+- Gemini's titles are kept;
+- the wyk-soeker date line is removed.
 
 ```bash
-mkdir -p docs/verkiesing/konsepte
-cp /private/tmp/claude-501/-Users-pieterbothma-nuuspod/0224e63a-68c2-405b-a45a-8387e237ddf8/scratchpad/verduidelikers/{wyk-en-pr-stembrief,spesiale-stemme,wat-om-saam-te-bring,waar-stem-ek}.md docs/verkiesing/konsepte/
+ls docs/verkiesing/konsepte/
 ```
 
-If the scratchpad is gone:
-1. Read the review artifact `https://claude.ai/code/artifact/7293a9bf-8541-4166-923d-7d56bdbd1553` (Artifact `action: "read"`).
-2. Recreate each file as `# <title>`, the body, `---`, and `## Feite en bronne` with the table.
-
-These copies already carry Piet's 14 Sep decisions: the ID wording follows the IEC email, "OVK" throughout, the closing-time wording is unchanged, SMS "R1,50 per SMS", and the wyk-soeker date line is removed. Apply any later answers by editing only the Markdown, and log each change under `## Wysigings ná Gemini` in that file.
+Expected: `spesiale-stemme.md  waar-stem-ek.md  wat-om-saam-te-bring.md  wyk-en-pr-stembrief.md`. Apply any later change by editing only these files, and log it under `## Wysigings ná Gemini`.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -1073,7 +1077,7 @@ Expected: `404`, because every explainer is still a draft.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add docs/verkiesing lib/verkiesing/gidse scripts/gids-na-ts.mjs app/_components/verkiesing/gids-inhoud.tsx "app/gids/[onderwerp]/page.tsx"
+git add lib/verkiesing/gidse scripts/gids-na-ts.mjs app/_components/verkiesing/gids-inhoud.tsx "app/gids/[onderwerp]/page.tsx"
 git commit -m "Verkiesing: gidse uit goedgekeurde Markdown, eers as konsepte
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
