@@ -32,7 +32,7 @@ const sourceSans = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nuuspod.co.za"),
+  metadataBase: new URL("https://www.nuuspod.co.za"),
   title: "Verkiesing 2026 — Nuuspod",
   description:
     "Die plaaslike verkiesing van 4 November 2026 in Afrikaans: belangrike datums, hoe om te stem, en Verkiesings-Vrydag met Izak du Plessis.",

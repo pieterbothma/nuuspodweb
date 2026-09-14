@@ -26,7 +26,14 @@ export function Verkiesingsprogram({ episodes }: { episodes: Episode[] }) {
           {vorige.map((e) => (
             <li key={e.video_id}>
               <a href={`https://www.youtube.com/watch?v=${e.video_id}`} target="_blank" rel="noopener noreferrer" className="group block focus-visible:outline-2 focus-visible:outline-siaan">
-                <Image src={`https://i.ytimg.com/vi/${e.video_id}/mqdefault.jpg`} alt="" width={320} height={180} className="border-rand w-full border" />
+                <Image
+                  src={`https://i.ytimg.com/vi/${e.video_id}/mqdefault.jpg`}
+                  alt=""
+                  width={320}
+                  height={180}
+                  unoptimized
+                  className="border-rand w-full border"
+                />
                 <span className="text-grys group-hover:text-papier mt-2 block font-sans text-sm">{e.titel}</span>
               </a>
             </li>

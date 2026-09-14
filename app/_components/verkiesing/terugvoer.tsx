@@ -22,7 +22,13 @@ export function Terugvoer() {
 
   const stuur = (gevind: boolean) =>
     begin(async () => {
-      await stuurTerugvoer(pad, gevind);
+      try {
+        await stuurTerugvoer(pad, gevind);
+      } catch (err) {
+        // A network hiccup shouldn't block the "Dankie" state from showing — the click still
+        // registered from the reader's point of view, so fail soft rather than throw.
+        console.error("[verkiesing] terugvoer misluk:", err);
+      }
       setGestuur(true);
     });
 

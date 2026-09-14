@@ -1,13 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-
-const SKAKELS = [
-  { href: "/#gidse", teks: "Hoe om te stem" },
-  { href: "/#program", teks: "Verkiesings-Vrydag" },
-  { href: "/#wat-ander-berig", teks: "Wat ander berig" },
-];
+import { gepubliseerdeGidse } from "@/lib/verkiesing/gidse";
 
 export function Kopstuk() {
+  const skakels = [
+    ...(gepubliseerdeGidse().length > 0 ? [{ href: "/#gidse", teks: "Hoe om te stem" }] : []),
+    { href: "/#program", teks: "Verkiesings-Vrydag" },
+    { href: "/#wat-ander-berig", teks: "Wat ander berig" },
+  ];
   return (
     <header className="border-rand bg-swart/95 sticky top-0 z-20 border-b backdrop-blur">
       <div className="h-[3px] bg-linear-to-r from-siaan to-rooi" aria-hidden />
@@ -22,7 +22,7 @@ export function Kopstuk() {
           </span>
         </Link>
         <nav aria-label="Afdelings" className="hidden gap-6 font-sans text-xs font-bold tracking-widest uppercase md:flex">
-          {SKAKELS.map((s) => (
+          {skakels.map((s) => (
             <a key={s.href} href={s.href} className="text-grys hover:text-papier focus-visible:outline-2 focus-visible:outline-siaan">
               {s.teks}
             </a>

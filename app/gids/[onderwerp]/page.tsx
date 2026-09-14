@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${gids.titel} — Nuuspod`,
     description: gids.opsomming,
-    openGraph: { title: gids.titel, description: gids.opsomming, url: `https://nuuspod.co.za/gids/${gids.slug}` },
+    openGraph: { title: gids.titel, description: gids.opsomming, url: `https://www.nuuspod.co.za/gids/${gids.slug}` },
   };
 }
 
