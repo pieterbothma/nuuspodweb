@@ -47,6 +47,8 @@ Each of B–E gets its own spec. D and E share one IEC live-results ingest.
 5. **Headlines from other outlets are shown exactly as published.** No translation, shortening,
    truncation or cleanup. English stays English. Only our own labels (source type, relative time)
    are Afrikaans.
+6. **No public launch promises.** Nothing on the site announces upcoming Nuuspod features or dates
+   (Piet, 14 Sep). Drop dates in this spec are internal targets only.
 
 ## 4. Verified facts (corrections to the original brief)
 
@@ -72,11 +74,11 @@ more than 5%. **Never join 2021 ward results to 2026 wards on WardID.**
 
 | Route | Drop | Content |
 |---|---|---|
-| `/` | 1 | Countdown to 4 Nov 07:00; "Hierdie week" timeline (always shows the next deadline); wyk-soeker box ("kom op 25 Sep" in Drop 1); Verkiesingsprogram; explainer cards; "Wat ander berig" rail; Real411 link |
+| `/` | 1 | Countdown to 4 Nov 07:00; "Hierdie week" timeline (always shows the next deadline); link to the IEC voter lookup (replaced by the wyk-soeker only once it is live); Verkiesingsprogram; explainer cards; "Wat ander berig" rail; Real411 link |
 | `/gids/wyk-en-pr-stembrief` | 1 | 2 ballots (metros) vs 3 ballots (local municipalities, incl. DC); seat allocation in plain terms |
 | `/gids/spesiale-stemme` | 1 | who, how to apply (online, form, SMS 32249), dates |
 | `/gids/wat-om-saam-te-bring` | 1 | valid ID, voters' roll closed, no travelling vote |
-| `/gids/waar-stem-ek` | 1 | finding your station, hours, queue at 21:00; IEC lookup until the wyk-soeker is live |
+| `/gids/waar-stem-ek` | 1 | finding your station, hours, queue at 21:00; IEC lookup |
 | `/wyk/[wykId]` | 2 | ward page (§9.1–9.3) |
 | `/munisipaliteit/[kode]` | 2 | wards list, official 2021 council result, parties contesting (§9.7) |
 | `/adverteer` | 1 | current sales page moved unchanged, plus a footer link |
@@ -173,8 +175,10 @@ pages. Only new searches hit the database.
   - Only Press Council of SA members and BCCSA broadcasters are eligible.
   - Each source is labelled by type: `nasionaal · streek · gemeenskap · openbare uitsaaier`.
   - No left/right bias labels.
-- **Filter:** bilingual keyword match only, no model. Terms include verkiesing/election, IEC/VKK,
-  wyk/ward, raad/council, kandidaat/candidate, the municipality names, plus later additions.
+- **Filter:** bilingual keyword match only, no model, on title + categories + the first 300
+  characters of the description. Terms include verkiesing/election, IEC/VKK, ward councillor,
+  by-election, special votes, coalition, candidate lists. Municipality names alone are excluded:
+  they would pull in every Cape Town or Tshwane story. Items older than 7 days are skipped.
 - **Stored per item:** `titel` exactly as in the feed (entities decoded, nothing else), `bron`,
   `bron_tipe`, `url` (unique), `gepubliseer_om`, `versteek` (default false). Feed bodies (Citizen and
   SABC include full text) are discarded before insert.
@@ -184,7 +188,7 @@ pages. Only new searches hit the database.
 - **Hide:** a Telegram message per new item with a "Versteek" button, sent through the existing
   Nuuspod bot. It sets `versteek = true`.
 
-### 8.2 Verkiesingsprogram episodes (hourly on Fridays, daily otherwise)
+### 8.2 Verkiesingsprogram episodes (hourly)
 
 - **Rule:** any upload on the Nuuspod channel (`UC8WVZnhOnCUwSpJaMIhdQcg`) whose title starts with
   **"Verkiesings-Vrydag"** is an election episode.
