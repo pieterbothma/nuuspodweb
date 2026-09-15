@@ -124,7 +124,7 @@ export default async function Adverteer() {
   return (
     <main>
       {/* Masthead */}
-      <header className="border-rand bg-swart/95 sticky top-0 z-20 border-b backdrop-blur">
+      <header className="border-rand bg-grond/95 sticky top-0 z-20 border-b backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-3 sm:px-8">
           <Image
             src="/logo.jpg"
@@ -134,7 +134,7 @@ export default async function Adverteer() {
             className="rounded-full"
           />
           <div className="flex-1 leading-none">
-            <div className="text-papier font-display text-xl tracking-[0.14em]">
+            <div className="text-ink font-display text-xl tracking-[0.14em]">
               NUUSPOD
             </div>
             <div className="text-grys mt-1 font-sans text-[0.7rem]">
@@ -143,7 +143,7 @@ export default async function Adverteer() {
           </div>
           <a
             href={WHATSAPP}
-            className="bg-rooi text-papier rounded px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-siaan"
+            className="bg-rooi text-white rounded px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
           >
             WhatsApp
           </a>
@@ -156,13 +156,13 @@ export default async function Adverteer() {
           <div>
             <HeroStap step={0} className="flex items-center gap-3">
               <span className="bg-rooi h-2 w-2 rounded-full" aria-hidden />
-              <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
+              <span className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
                 Elke weeksdag regstreeks
               </span>
             </HeroStap>
 
             <HeroStap step={1}>
-              <h1 className="text-papier mt-5 font-display text-4xl leading-[1.05] sm:text-6xl md:text-7xl">
+              <h1 className="text-ink mt-5 font-display text-4xl leading-[1.05] sm:text-6xl md:text-7xl">
                 Nuuspod kry 14 miljoen kyke per maand.
               </h1>
             </HeroStap>
@@ -181,13 +181,13 @@ export default async function Adverteer() {
             <HeroStap step={4} className="mt-9 flex flex-wrap gap-3">
               <a
                 href={WHATSAPP}
-                className="bg-rooi text-papier rounded px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-siaan"
+                className="bg-rooi text-white rounded px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
               >
                 WhatsApp Izak
               </a>
               <a
                 href="#pakkette"
-                className="border-rand text-papier rounded border px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:border-siaan focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-siaan"
+                className="border-rand text-ink rounded border px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:border-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
               >
                 Sien die pakkette
               </a>
@@ -205,10 +205,10 @@ export default async function Adverteer() {
               priority
             />
             <div className="bg-rooi relative flex items-baseline gap-3 px-4 py-3">
-              <span className="text-papier font-display text-lg">
+              <span className="text-white font-display text-lg">
                 Izak du Plessis
               </span>
-              <span className="text-papier/80 font-sans text-xs tracking-widest uppercase">
+              <span className="text-white/80 font-sans text-xs tracking-widest uppercase">
                 Aanbieder
               </span>
             </div>
@@ -221,8 +221,8 @@ export default async function Adverteer() {
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
           <Onthul>
             <div className="flex items-center gap-3">
-              <span className="bg-siaan h-5 w-1" aria-hidden />
-              <span className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
+              <span className="bg-rooi h-5 w-1" aria-hidden />
+              <span className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
                 Nuuspod bereik
               </span>
             </div>
@@ -231,7 +231,7 @@ export default async function Adverteer() {
           <StaggerLys className="mt-8 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
             {SYFERS.map((s) => (
               <StaggerItem key={s.label}>
-                <dt className="text-papier font-display text-4xl leading-none sm:text-5xl">
+                <dt className="text-ink font-display text-4xl leading-none sm:text-5xl">
                   {s.syfer}
                 </dt>
                 <dd className="text-grys mt-3 font-sans text-sm leading-snug">
@@ -246,7 +246,7 @@ export default async function Adverteer() {
 
           <Onthul className="border-rand mt-10 border-t pt-6">
           <p className="text-grys font-sans text-sm">
-            Meer as <strong className="text-papier">10 000 kyke</strong> per
+            Meer as <strong className="text-ink">10 000 kyke</strong> per
             dag op die regstreekse uitsending, op YouTube alleen — mense wat
             doelbewus vir nuus kom, nie verbyrol nie.
           </p>
@@ -270,10 +270,10 @@ export default async function Adverteer() {
               />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <span className="text-papier font-sans text-sm">{video.title}</span>
+              <span className="text-ink font-sans text-sm">{video.title}</span>
               <a
                 href={YOUTUBE}
-                className="hover:text-papier font-sans text-xs font-bold tracking-widest text-siaan uppercase"
+                className="font-bold text-ink hover:text-rooi font-sans text-xs tracking-widest uppercase"
               >
                 Sien die kanaal ↗
               </a>
@@ -285,14 +285,14 @@ export default async function Adverteer() {
       {/* Packages — the one block set on newsprint, like the cards */}
       <section
         id="pakkette"
-        className="border-rand bg-papier text-swart scroll-mt-20 border-b"
+        className="bg-paneel border-rand text-ink scroll-mt-20 border-y"
       >
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
           <Chyron kicker="Advertensietariewe" donker={false}>
             Vyf maniere om in die nuus te wees.
           </Chyron>
 
-          <StaggerLys className="divide-y divide-[#d8d2c4] border-y border-[#d8d2c4]">
+          <StaggerLys className="divide-rand border-rand divide-y border-y">
             {PAKKETTE.map((p) => (
               <StaggerItem
                 as="li"
@@ -300,23 +300,23 @@ export default async function Adverteer() {
                 className="grid gap-2 py-6 sm:grid-cols-[1fr_auto] sm:items-baseline sm:gap-8"
               >
                 <div>
-                  <h3 className="text-swart font-sans text-lg font-bold">
+                  <h3 className="text-ink font-sans text-lg font-bold">
                     {p.naam}
                     {p.uit ? (
-                      <span className="bg-rooi text-papier ml-3 inline-block px-2 py-0.5 align-middle font-sans text-[0.6rem] font-bold tracking-widest uppercase">
+                      <span className="bg-rooi text-white ml-3 inline-block px-2 py-0.5 align-middle font-sans text-[0.6rem] font-bold tracking-widest uppercase">
                         Gewildste
                       </span>
                     ) : null}
                   </h3>
-                  <p className="mt-1 max-w-xl font-sans text-sm leading-relaxed text-[#4a5058]">
+                  <p className="mt-1 max-w-xl font-sans text-sm leading-relaxed text-grys">
                     {p.wat}
                   </p>
                 </div>
                 <div className="sm:text-right">
-                  <span className="text-swart font-display text-3xl">
+                  <span className="text-ink font-display text-3xl">
                     {p.prys}
                   </span>
-                  <span className="ml-2 font-sans text-xs tracking-widest text-[#4a5058] uppercase">
+                  <span className="ml-2 font-sans text-xs tracking-widest text-grys uppercase">
                     {p.per}
                   </span>
                 </div>
@@ -324,7 +324,7 @@ export default async function Adverteer() {
             ))}
           </StaggerLys>
 
-          <p className="mt-8 font-sans text-sm text-[#4a5058]">
+          <p className="mt-8 font-sans text-sm text-grys">
             Wil jy pakkette kombineer, of iets doen wat nie hier staan nie?
             Stuur &apos;n boodskap — ons werk iets uit wat by jou begroting pas.
           </p>
@@ -340,7 +340,7 @@ export default async function Adverteer() {
             {WAAROM.map((k) => (
               <StaggerItem key={k.kop}>
                 <TrekLyn className="bg-rooi h-px w-full" />
-                <h3 className="text-papier mt-5 font-display text-2xl">
+                <h3 className="text-ink mt-5 font-display text-2xl">
                   {k.kop}
                 </h3>
                 <p className="text-grys mt-3 font-sans text-sm leading-relaxed">
@@ -368,13 +368,13 @@ export default async function Adverteer() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href={WHATSAPP}
-                  className="bg-rooi text-papier rounded px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-siaan"
+                  className="bg-rooi text-white rounded px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
                 >
                   WhatsApp 082 838 5204
                 </a>
                 <a
                   href={`mailto:${EPOS}?subject=${encodeURIComponent("Adverteer by Nuuspod")}`}
-                  className="border-rand text-papier rounded border px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:border-siaan focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-siaan"
+                  className="border-rand text-ink rounded border px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:border-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
                 >
                   Stuur e-pos
                 </a>
@@ -401,16 +401,16 @@ export default async function Adverteer() {
             © {new Date().getFullYear()} Nuuspod · Afrikaanse nuus en aktualiteit
           </div>
           <nav className="flex flex-wrap gap-5 font-sans text-xs font-bold tracking-widest uppercase">
-            <a href={YOUTUBE} className="text-grys hover:text-siaan">
+            <a href={YOUTUBE} className="font-bold text-ink hover:text-rooi">
               YouTube
             </a>
-            <a href={FACEBOOK} className="text-grys hover:text-siaan">
+            <a href={FACEBOOK} className="font-bold text-ink hover:text-rooi">
               Facebook
             </a>
-            <a href={X} className="text-grys hover:text-siaan">
+            <a href={X} className="font-bold text-ink hover:text-rooi">
               X
             </a>
-            <a href={`mailto:${EPOS}`} className="text-grys hover:text-siaan">
+            <a href={`mailto:${EPOS}`} className="font-bold text-ink hover:text-rooi">
               E-pos
             </a>
           </nav>

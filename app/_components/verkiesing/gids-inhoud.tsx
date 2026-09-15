@@ -5,7 +5,7 @@ function Teks({ teks }: { teks: string }) {
     <>
       {vetDele(teks).map((d, i) =>
         d.vet ? (
-          <strong key={i} className="text-papier font-bold">
+          <strong key={i} className="text-ink font-bold">
             {d.teks}
           </strong>
         ) : (
@@ -18,17 +18,17 @@ function Teks({ teks }: { teks: string }) {
 
 export function GidsInhoud({ blokke }: { blokke: Blok[] }) {
   return (
-    <div className="text-papier/90 grid gap-5 font-sans text-lg leading-relaxed">
+    <div className="text-ink/90 grid gap-5 font-sans text-lg leading-relaxed">
       {blokke.map((b, i) => {
         if (b.tipe === "h2")
           return (
-            <h2 key={i} className="text-papier mt-4 font-display text-2xl text-balance">
+            <h2 key={i} className="text-ink mt-4 font-display text-2xl text-balance">
               {b.teks}
             </h2>
           );
         if (b.tipe === "ul")
           return (
-            <ul key={i} className="grid list-disc gap-2 pl-6 marker:text-siaan">
+            <ul key={i} className="grid list-disc gap-2 pl-6 marker:text-grys">
               {b.items.map((it, j) => (
                 <li key={j}>
                   <Teks teks={it} />

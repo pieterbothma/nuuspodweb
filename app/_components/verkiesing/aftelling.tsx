@@ -24,7 +24,7 @@ export function Aftelling({ teikenIso, nouMs }: { teikenIso: string; nouMs: numb
 
   const a = aftelling(new Date(nou), new Date(teikenIso));
   if (a.verby) {
-    return <p className="text-papier font-display text-4xl">Stemdag is Woensdag 4 November.</p>;
+    return <p className="text-ink font-display text-4xl">Stemdag is Woensdag 4 November.</p>;
   }
 
   const dele = [
@@ -37,7 +37,7 @@ export function Aftelling({ teikenIso, nouMs }: { teikenIso: string; nouMs: numb
     <div role="timer" aria-label={`Nog ${a.dae} dae, ${a.ure} uur en ${a.minute} minute tot stemdag`} className="flex gap-6 sm:gap-10">
       {dele.map((d, i) => (
         <div key={i} className="flex flex-col" aria-hidden>
-          <span className="text-papier relative block overflow-hidden font-display text-5xl leading-none tabular-nums sm:text-7xl">
+          <span className="text-ink relative block overflow-hidden font-display text-5xl leading-none tabular-nums sm:text-7xl">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={d.waarde}

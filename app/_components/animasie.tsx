@@ -22,11 +22,11 @@ const KYK_EEN_KEER = { once: true, amount: 0.25 } as const;
 export function Chyron({
   kicker,
   children,
-  donker = true,
 }: {
   kicker: string;
   children: React.ReactNode;
-  /** False on the newsprint block, where the kicker takes the darker cyan. */
+  /** Kept in the type for callers, but no longer changes colour — lig-neon
+   * uses text-ink for both the kicker and heading regardless of this prop. */
   donker?: boolean;
 }) {
   const min = useReducedMotion();
@@ -45,18 +45,14 @@ export function Chyron({
           aria-hidden
         />
         <motion.span
-          className={`font-sans text-xs font-bold tracking-[0.22em] uppercase ${
-            donker ? "text-siaan" : "text-[#0a6f88]"
-          }`}
+          className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase"
           variants={min ? undefined : kickerIn}
         >
           {kicker}
         </motion.span>
       </div>
       <motion.h2
-        className={`mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl ${
-          donker ? "text-papier" : "text-swart"
-        }`}
+        className="mt-3 font-display text-3xl leading-tight text-ink sm:text-4xl md:text-5xl"
         variants={min ? undefined : chyronWipe}
       >
         {children}
@@ -193,7 +189,7 @@ export function HeroPuls() {
       transition={min ? undefined : { duration: 0.55, delay: 0.4, ease: EASE.SAG }}
       aria-hidden
     >
-      <div className="puls h-full w-full bg-siaan" />
+      <div className="puls h-full w-full bg-linear-to-r from-neon-siaan to-neon-rooi" />
     </motion.div>
   );
 }

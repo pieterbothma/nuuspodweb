@@ -41,10 +41,10 @@ export default async function GidsBladsy({ params }: Props) {
     <>
       <Kopstuk />
       <main className="mx-auto max-w-2xl px-5 py-12 sm:px-8 sm:py-16">
-        <Link href="/#gidse" className="font-sans text-xs font-bold tracking-widest text-siaan uppercase hover:text-papier focus-visible:outline-2 focus-visible:outline-siaan">
+        <Link href="/#gidse" className="font-sans text-xs font-bold tracking-widest text-ink uppercase underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi">
           ← Hoe om te stem
         </Link>
-        <h1 className="text-papier mt-6 font-display text-4xl leading-tight text-balance sm:text-5xl">{gids.titel}</h1>
+        <h1 className="text-ink mt-6 font-display text-4xl leading-tight text-balance sm:text-5xl">{gids.titel}</h1>
         <div className="mt-8">
           <GidsInhoud blokke={gids.blokke} />
         </div>
@@ -55,7 +55,7 @@ export default async function GidsBladsy({ params }: Props) {
           <ul className="text-grys mt-3 grid gap-2 font-sans text-sm">
             {gids.bronne.map((u) => (
               <li key={u} className="break-all">
-                <a href={u} className="hover:text-siaan focus-visible:outline-2 focus-visible:outline-siaan">
+                <a href={u} className="underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi">
                   {bronEtiket(u)}
                 </a>
               </li>

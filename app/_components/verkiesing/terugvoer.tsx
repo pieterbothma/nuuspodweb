@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { stuurTerugvoer } from "@/app/aksies";
 
 const KNOPPIE =
-  "border-rand text-papier rounded border px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase hover:border-siaan focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-siaan disabled:opacity-50";
+  "border-rand text-ink rounded border px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase hover:border-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi disabled:opacity-50";
 
 export function Terugvoer() {
   const pad = usePathname();
@@ -34,7 +34,7 @@ export function Terugvoer() {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <p className="text-papier font-sans text-sm">Het jy gekry wat jy soek?</p>
+      <p className="text-ink font-sans text-sm">Het jy gekry wat jy soek?</p>
       <button type="button" disabled={besig} onClick={() => stuur(true)} className={KNOPPIE}>
         Ja
       </button>
