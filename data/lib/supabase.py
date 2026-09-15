@@ -108,17 +108,29 @@ def plaas_bondels(
 def kry_alles(
     pad: str,
     parameters: dict[str, str] | None = None,
+    *,
+    orde: str,
     klient: httpx.Client | None = None,
     bladsy_grootte: int = 1000,
 ) -> list[dict]:
     """GET pad (e.g. "stg_wyke") with optional query `parameters`, paginated via the
     PostgREST `Range` header, returning every row.
 
+    `orde` is required and sent as PostgREST's `order` parameter (e.g. "wyk_id" or
+    "sp_kode,wyk_id"). Without an explicit, unique ordering Postgres may return rows in
+    a different order per page, so Range paging could skip or repeat rows.
+
     Keeps requesting `[begin, begin+bladsy_grootte)` windows until a page comes back
     shorter than `bladsy_grootte` (the last page). No retry logic — reads are used only
     for verslag diagnostics, so a transient failure should surface immediately as a
     SupabaseFout rather than being silently retried.
     """
+    if not orde or not orde.strip():
+        raise ValueError("kry_alles vereis 'n nie-leë orde (PostgREST order) vir stabiele blaai")
+    if parameters and "order" in parameters:
+        raise ValueError("gee die ordening via orde=, nie as 'n 'order'-parameter nie")
+    navraag = {**(parameters or {}), "order": orde}
+
     eie_klient = klient is None
     aktiewe_klient = klient if klient is not None else _bou_klient()
     alle_rye: list[dict] = []
@@ -126,7 +138,7 @@ def kry_alles(
         begin = 0
         while True:
             koptekste = {"Range-Unit": "items", "Range": f"{begin}-{begin + bladsy_grootte - 1}"}
-            resp = aktiewe_klient.get(pad, params=parameters, headers=koptekste)
+            resp = aktiewe_klient.get(pad, params=navraag, headers=koptekste)
             if resp.status_code >= 400:
                 raise SupabaseFout(_kort_boodskap(resp))
             bladsy = resp.json()

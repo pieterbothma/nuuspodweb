@@ -479,7 +479,7 @@ def gather_munisipaliteite(klient: httpx.Client) -> dict:
     metro = telling(klient, "stg_munisipaliteite", {"tipe": "eq.metro"})
     plaaslik = telling(klient, "stg_munisipaliteite", {"tipe": "eq.plaaslik"})
     distrik = telling(klient, "stg_munisipaliteite", {"tipe": "eq.distrik"})
-    munis = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam,provinsie"}, klient=klient)
+    munis = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam,provinsie"}, orde="kode", klient=klient)
     return {
         "metro": metro,
         "plaaslik": plaaslik,
@@ -500,7 +500,7 @@ def gather_wyke(klient: httpx.Client, muni_provinsie: dict[str, str]) -> dict:
             raise supabase.SupabaseFout(resp.text[:500])
         sonder_geom_lys = [r["wyk_id"] for r in resp.json()]
 
-    wyk_munis = supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, klient=klient)
+    wyk_munis = supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, orde="wyk_id", klient=klient)
     per_provinsie = tel_per_sleutel([w["muni_kode"] for w in wyk_munis], muni_provinsie)
 
     return {
@@ -519,10 +519,12 @@ def gather_wyk_selftoets(klient: httpx.Client) -> dict:
 
 def gather_stemstasies(klient: httpx.Client, muni_provinsie: dict[str, str]) -> dict:
     totaal = telling(klient, "stg_stemstasies")
-    stasies = supabase.kry_alles("stg_stemstasies", {"select": "vd_nommer,muni_kode,wyk_id"}, klient=klient)
+    stasies = supabase.kry_alles(
+        "stg_stemstasies", {"select": "vd_nommer,muni_kode,wyk_id"}, orde="vd_nommer", klient=klient
+    )
     per_provinsie = tel_per_sleutel([r["muni_kode"] for r in stasies], muni_provinsie)
 
-    wyk_ids = {r["wyk_id"] for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id"}, klient=klient)}
+    wyk_ids = {r["wyk_id"] for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id"}, orde="wyk_id", klient=klient)}
     stasie_wyk_ids = {r["wyk_id"] for r in stasies}
     onbekende_wyk = vind_ontbrekende(stasie_wyk_ids, wyk_ids)
 
@@ -547,17 +549,21 @@ def gather_plekke(klient: httpx.Client, muni_naam: dict[str, str]) -> dict:
     plek_wyke_totaal = telling(klient, "stg_plek_wyke")
     alias_totaal = telling(klient, "stg_plek_aliasse")
 
-    alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, klient=klient)
-    plek_wyke_rye = supabase.kry_alles("stg_plek_wyke", {"select": "sp_kode,wyk_id"}, klient=klient)
+    alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, orde="sp_kode", klient=klient)
+    plek_wyke_rye = supabase.kry_alles(
+        "stg_plek_wyke", {"select": "sp_kode,wyk_id"}, orde="sp_kode,wyk_id", klient=klient
+    )
     met_wyk = {r["sp_kode"] for r in plek_wyke_rye}
     by_kode = {r["sp_kode"]: r for r in alle_plekke}
     sonder_wyk = [by_kode[k] for k in vind_ontbrekende({r["sp_kode"] for r in alle_plekke}, met_wyk)]
 
-    alias_rye = supabase.kry_alles("stg_plek_aliasse", {"select": "alias,sp_kode"}, klient=klient)
+    alias_rye = supabase.kry_alles(
+        "stg_plek_aliasse", {"select": "alias,sp_kode"}, orde="alias,sp_kode", klient=klient
+    )
     alias_tellings = dict(sorted(Counter(r["alias"] for r in alias_rye).items()))
     wyk_muni = {
         r["wyk_id"]: r["muni_kode"]
-        for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, klient=klient)
+        for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, orde="wyk_id", klient=klient)
     }
     alias_opsomming = bou_alias_opsomming(
         lees_alias_name(ALIASSE_CSV_PAD), alias_rye, plek_wyke_rye, wyk_muni, muni_naam
@@ -579,10 +585,16 @@ def gather_raadsetels(klient: httpx.Client) -> dict:
     uitslae_totaal = telling(klient, "stg_raad_uitslae_2021")
     grootte_totaal = telling(klient, "stg_raad_grootte_2021")
     uitslae_rye = supabase.kry_alles(
-        "stg_raad_uitslae_2021", {"select": "muni_kode,party_naam,setels_totaal"}, klient=klient
+        "stg_raad_uitslae_2021",
+        {"select": "muni_kode,party_naam,setels_totaal"},
+        orde="muni_kode,party_naam",
+        klient=klient,
     )
     grootte_rye = supabase.kry_alles(
-        "stg_raad_grootte_2021", {"select": "muni_kode,raadsgrootte_totaal,onafhanklike_setels"}, klient=klient
+        "stg_raad_grootte_2021",
+        {"select": "muni_kode,raadsgrootte_totaal,onafhanklike_setels"},
+        orde="muni_kode",
+        klient=klient,
     )
     grootte_by_kode = {r["muni_kode"]: r for r in grootte_rye}
     return {

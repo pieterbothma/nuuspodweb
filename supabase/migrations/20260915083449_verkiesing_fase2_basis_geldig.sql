@@ -1,5 +1,5 @@
 -- Verkiesing 2026, Fase 2a — herstel-rondte 1: bou_plek_wyke hanteer ongeldige geometrie.
--- Fix-forward na verkiesing_fase2_basis (20260915100000). Toegepas met die Supabase MCP
+-- Fix-forward na verkiesing_fase2_basis (20260915082741). Toegepas met die Supabase MCP
 -- apply_migration-hulpmiddel.
 
 set search_path = public, extensions;

@@ -149,7 +149,7 @@ def bou_url(muni_kode: str, provinsie: str) -> str:
 
 def kry_munisipaliteite() -> list[dict]:
     """Elke 213 plaaslike/metro-raad (kode, naam, tipe, provinsie) — distrikte uitgesluit."""
-    rye = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam,tipe,provinsie"})
+    rye = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam,tipe,provinsie"}, orde="kode")
     return [r for r in rye if r["tipe"] in ("plaaslik", "metro")]
 
 

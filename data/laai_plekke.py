@@ -754,8 +754,8 @@ def hoof(volledig: bool = False) -> int:
 
     # --- lees stg_plek_wyke + stg_plekke terug (REST) vir opsomming + aliasse ---
     try:
-        alle_plek_wyke = supabase.kry_alles("stg_plek_wyke", {"select": "sp_kode,wyk_id"})
-        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"})
+        alle_plek_wyke = supabase.kry_alles("stg_plek_wyke", {"select": "sp_kode,wyk_id"}, orde="sp_kode,wyk_id")
+        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, orde="sp_kode")
     except supabase.SupabaseFout as fout:
         print(f"kon nie stg_plek_wyke/stg_plekke terug lees nie: {fout}", file=sys.stderr)
         return 1
@@ -807,7 +807,7 @@ def hoof(volledig: bool = False) -> int:
     print(f"Aliasse: {len(alias_rye)} gelaai / {len(aliasse_csv_rye)} CSV-rye "
           f"({len(onopgeloste_aliasse)} onopgelos)")
 
-    migrasie_lêernaam = "20260915100200_bou_plek_wyke_reeks.sql" if gebruik_bondel else ""
+    migrasie_lêernaam = "20260915093428_bou_plek_wyke_reeks.sql" if gebruik_bondel else ""
 
     kommentaar = [
         "`stg_plekke` het geen primêre sleutel nie (dis 'n staging-tabel), maar al "
@@ -896,7 +896,7 @@ def hoof_net_aliasse() -> int:
         return 1
 
     try:
-        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"})
+        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, orde="sp_kode")
     except supabase.SupabaseFout as fout:
         print(f"kon nie stg_plekke lees nie: {fout}", file=sys.stderr)
         return 1
@@ -969,7 +969,7 @@ def hoof_net_oorvleueling_vir(sp_kodes: list[str]) -> int:
     tydstempel = time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     try:
-        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"})
+        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, orde="sp_kode")
     except supabase.SupabaseFout as fout:
         print(f"kon nie stg_plekke lees nie: {fout}", file=sys.stderr)
         return 1

@@ -234,7 +234,7 @@ def ontleed_met_diagnostiek(
 
 def haal_wyk_voorvoegsels() -> dict[str, str]:
     """{eerste 5 syfers van wyk_id: muni_kode} vir elke ry reeds in stg_wyke."""
-    rye = supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"})
+    rye = supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, orde="wyk_id")
     voorvoegsels: dict[str, str] = {}
     for ry in rye:
         voorvoegsels.setdefault(ry["wyk_id"][:5], ry["muni_kode"])
@@ -243,12 +243,12 @@ def haal_wyk_voorvoegsels() -> dict[str, str]:
 
 def haal_munisipaliteit_kodes() -> dict[str, str]:
     """{genormaliseerde naam: kode} vir elke ry in stg_munisipaliteite."""
-    rye = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam"})
+    rye = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam"}, orde="kode")
     return {teks.normaliseer(ry["naam"]): ry["kode"] for ry in rye}
 
 
 def haal_bestaande_wyk_ids() -> set[str]:
-    rye = supabase.kry_alles("stg_wyke", {"select": "wyk_id"})
+    rye = supabase.kry_alles("stg_wyke", {"select": "wyk_id"}, orde="wyk_id")
     return {ry["wyk_id"] for ry in rye}
 
 

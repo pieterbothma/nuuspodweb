@@ -136,7 +136,7 @@ def test_kry_alles_pages_until_short_page(monkeypatch):
         return httpx.Response(200, json=alle_rye[begin : einde + 1])
 
     klient = _klient(handler)
-    resultaat = supabase.kry_alles("stg_wyke", klient=klient, bladsy_grootte=2)
+    resultaat = supabase.kry_alles("stg_wyke", orde="wyk_id", klient=klient, bladsy_grootte=2)
 
     assert resultaat == alle_rye
     assert oproepe == ["0-1", "2-3", "4-5"]
@@ -147,7 +147,7 @@ def test_kry_alles_returns_empty_list_for_empty_table(monkeypatch):
         return httpx.Response(200, json=[])
 
     klient = _klient(handler)
-    resultaat = supabase.kry_alles("stg_stemstasies", klient=klient)
+    resultaat = supabase.kry_alles("stg_stemstasies", orde="vd_nommer", klient=klient)
     assert resultaat == []
 
 
@@ -161,6 +161,7 @@ def test_kry_alles_passes_query_parameters(monkeypatch):
     resultaat = supabase.kry_alles(
         "stg_wyke",
         {"select": "wyk_id,muni_kode", "muni_kode": "eq.NC451"},
+        orde="wyk_id",
         klient=klient,
     )
     assert resultaat == [{"wyk_id": "34501001", "muni_kode": "NC451"}]
@@ -172,4 +173,31 @@ def test_kry_alles_raises_on_error(monkeypatch):
 
     klient = _klient(handler)
     with pytest.raises(supabase.SupabaseFout):
-        supabase.kry_alles("stg_wyke", klient=klient)
+        supabase.kry_alles("stg_wyke", orde="wyk_id", klient=klient)
+
+
+def test_kry_alles_stuur_orde_as_order_op_elke_bladsy():
+    alle_rye = [{"sp_kode": str(i), "wyk_id": "1"} for i in range(3)]
+    ordes = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        ordes.append(request.url.params.get("order"))
+        begin_s, _, einde_s = request.headers["range"].partition("-")
+        return httpx.Response(200, json=alle_rye[int(begin_s) : int(einde_s) + 1])
+
+    klient = _klient(handler)
+    resultaat = supabase.kry_alles(
+        "stg_plek_wyke", {"select": "sp_kode,wyk_id"}, orde="sp_kode,wyk_id", klient=klient, bladsy_grootte=2
+    )
+    assert resultaat == alle_rye
+    assert ordes == ["sp_kode,wyk_id", "sp_kode,wyk_id"]
+
+
+def test_kry_alles_vereis_orde():
+    klient = _klient(lambda request: httpx.Response(200, json=[]))
+    with pytest.raises(TypeError):
+        supabase.kry_alles("stg_wyke", klient=klient)  # type: ignore[call-arg]
+    with pytest.raises(ValueError):
+        supabase.kry_alles("stg_wyke", orde=" ", klient=klient)
+    with pytest.raises(ValueError):
+        supabase.kry_alles("stg_wyke", {"order": "wyk_id"}, orde="wyk_id", klient=klient)

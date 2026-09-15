@@ -8,7 +8,7 @@
 -- Shape matches the review's ruling exactly for the stg_ table (muni_kode as its own
 -- primary key here, unlike stg_raad_uitslae_2021 which has many rows per council —
 -- this table has exactly one). Public counterpart follows the existing
--- public/stg_ pairing convention from 20260915100000_verkiesing_fase2_basis.sql.
+-- public/stg_ pairing convention from 20260915082741_verkiesing_fase2_basis.sql.
 
 set search_path = public, extensions;
 
