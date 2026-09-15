@@ -19,5 +19,5 @@ export const waarStemEk: GidsBron = {
     "https://wa.me/+27600880000"
   ],
   "nagegaan": "2026-09-14",
-  "gepubliseer": false
+  "gepubliseer": true
 };

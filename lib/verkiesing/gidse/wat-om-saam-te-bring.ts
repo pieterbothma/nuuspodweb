@@ -17,5 +17,5 @@ export const watOmSaamTeBring: GidsBron = {
     "https://www.elections.org.za/pw/Voter/How-To-Vote"
   ],
   "nagegaan": "2026-09-14",
-  "gepubliseer": false
+  "gepubliseer": true
 };

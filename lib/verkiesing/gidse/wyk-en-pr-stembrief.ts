@@ -17,5 +17,5 @@ export const wykEnPrStembrief: GidsBron = {
     "https://www.parliament.gov.za/bill/2321873"
   ],
   "nagegaan": "2026-09-14",
-  "gepubliseer": false
+  "gepubliseer": true
 };

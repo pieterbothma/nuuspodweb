@@ -13,5 +13,5 @@ export const spesialeStemme: GidsBron = {
     "https://www.elections.org.za/pw/Voter/Voter-Information"
   ],
   "nagegaan": "2026-09-14",
-  "gepubliseer": false
+  "gepubliseer": true
 };
