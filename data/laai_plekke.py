@@ -44,8 +44,9 @@ Vier modusse (`ontleed_argumente` ontleed die CLI-argumente hieronder):
       Herbereken NET die gegewe sp_kodes se `bou_plek_wyke`-oorvleuelings — een plek op
       'n slag (`bou_plek_wyke(rn, rn)`, rn = row_number oor stg_plekke geordend per
       sp_kode), tot 3 pogings met 'n 10s-pouse tussenin. Verwyder eers enige bestaande
-      `stg_plek_wyke`-rye vir hierdie sp_kodes (idempotensie — 'n reeks-oproep vee
-      andersins nooit bestaande rye uit nie). Voeg 'n "## Herberekening:
+      `stg_plek_wyke`-rye vir hierdie sp_kodes (gordel-en-kruisbande: sedert migrasie
+      `20260915123045_stg_unieke_sleutels` vervang 'n reeks-oproep self sy reeks se rye,
+      en 'n unieke indeks op (sp_kode, wyk_id) keer duplikate). Voeg 'n "## Herberekening:
       --net-oorvleueling-vir"-afdeling by die bestaande verslag; die res bly ongeskonde.
 """
 
@@ -242,9 +243,10 @@ def roep_bou_plek_wyke_enkel_plek(rn: int) -> tuple[int | None, float, str | Non
 
 def _verwyder_plek_wyke_vir(sp_kodes: list[str]) -> None:
     """Verwyder bestaande `stg_plek_wyke`-rye vir hierdie sp_kodes — idempotensie-wagter
-    vir `--net-oorvleueling-vir` (`bou_plek_wyke(van, tot)` vee self nooit bestaande rye
-    uit as 'n reeks gegee word nie, sien migrasie, so 'n herhaalde oproep vir 'n reeds-
-    berekende plek sou andersins duplikate skep).
+    vir `--net-oorvleueling-vir`. Sedert migrasie `20260915123045_stg_unieke_sleutels`
+    vee `bou_plek_wyke(van, tot)` self eers sy reeks se bestaande rye uit (en keer 'n
+    unieke indeks op (sp_kode, wyk_id) duplikate), so dié stap is nou oortollig maar
+    onskadelik — dit bly vir 'n databasis waarop daardie migrasie nog nie toegepas is nie.
 
     Gebruik PostgREST se **outomatiese REST-DELETE-eindpunt** (`DELETE
     /rest/v1/stg_plek_wyke?sp_kode=in.(...)`), nie 'n RPC nie — dié dra reeds 'n
@@ -273,10 +275,11 @@ def roep_bou_plek_wyke_in_bondels(
 ) -> tuple[int, list[tuple[int, int, int, float]], list[tuple[int, int, str]]]:
     """Roep rpc/bou_plek_wyke(van, tot) in bondels van BOU_PLEK_WYKE_BONDEL.
 
-    Die eerste oproep (van=1) leeg self stg_plek_wyke (sien migrasie — delete-all
-    gebeur net as van/tot albei NULL is; ons gee dus eers 'n eksplisiete
-    `stg_leeg`-oproep vooraf, dan elke bondel met sy eie reeks, wat nooit bestaande
-    rye uitvee nie). 'n Reeks wat steeds ná herhalings 'n statement-timeout tref, word
+    Delete-all gebeur net as van/tot albei NULL is, so ons gee eers 'n eksplisiete
+    `stg_leeg`-oproep vooraf, dan elke bondel met sy eie reeks. Sedert migrasie
+    `20260915123045_stg_unieke_sleutels` vee 'n reeks-oproep eers sy eie reeks se
+    bestaande rye uit voor dit invoeg, so 'n herhaalde bondel (bv. ná 'n kliënt-kant-
+    timeout terwyl die bediener tog klaargemaak het) skep nooit duplikate nie. 'n Reeks wat steeds ná herhalings 'n statement-timeout tref, word
     gehalveer (sien `_roep_bou_plek_wyke_reeks`); 'n hardnekkige enkel-plek-reeks word
     oorgeslaan, nie die hele laai laat val nie. Gee (totaal_ingevoeg,
     [(van, tot, ingevoeg, tyd_s), ...], [(van, tot, fout), ...]) terug — die
@@ -554,8 +557,9 @@ def skryf_verslag(**kw) -> None:
             "- Vervolgens is 'n voorwaartse migrasie toegepas wat 'n opsionele "
             "`(van int, tot int)`-reeks by `bou_plek_wyke` voeg (rye van `stg_plekke` "
             "georden per `row_number() over (order by sp_kode)`; `delete from stg_plek_wyke` "
-            "gebeur net wanneer albei parameters NULL is — 'n reeks-oproep vee dus nooit "
-            "bestaande rye uit nie). Migrasie: "
+            "gebeur net wanneer albei parameters NULL is; sedert "
+            "`20260915123045_stg_unieke_sleutels` vervang 'n reeks-oproep sy eie reeks se "
+            "rye, so 'n herhaling is idempotent). Migrasie: "
             f"`{kw['migrasie_lêernaam']}` (toegepas via MCP `apply_migration`)."
         )
         r.append(f"- Bondelgrootte: {BOU_PLEK_WYKE_BONDEL} plekke per oproep — gekalibreer teen die "

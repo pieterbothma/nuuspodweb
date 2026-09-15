@@ -441,6 +441,11 @@ def hoof() -> int:
         if len(voorbeelde) >= 30:
             break
 
+    if duplikaat_vds:
+        # stg_stemstasies has a unique index on vd_nommer; fail before emptying the table.
+        print(f"Fout: duplikaat VD-nommers — niks is gelaai nie: {sorted(duplikaat_vds)[:20]}", file=sys.stderr)
+        return 1
+
     # --- laai (idempotent: leeg eers) ---
     laai_begin = time.monotonic()
     try:
