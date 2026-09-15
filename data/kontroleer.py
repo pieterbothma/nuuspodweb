@@ -957,7 +957,7 @@ def skryf_verslag(**kw) -> None:
             "stg_plek_wyke) is met direkte SQL bereken omdat elke PostgREST-oproep na 8s "
             "uitval, selfs vir een plek op 'n slag. 'n Volle herlaai van `laai_plekke.py` "
             "(sonder `--net-oorvleueling-vir`) vee dit uit — die publiseer-draaiboek moet dit "
-            "weer met direkte SQL doen (sien Task-5-verslag)."
+            "weer met direkte SQL doen (stappe in `data/README.md`)."
         )
 
     fout = formatteer_afdeling_fout("raadsetels_2021", sectie_foute)
@@ -1132,7 +1132,7 @@ def hoof() -> int:
     )
 
     if wyke_res:
-        print(f"Wyke: {wyke_res['totaal']} (verwag {VERWAG_WYKE})")
+        print(f"Wyke: {wyke_res['totaal']} (verwag {VERWAG_WYKE_GELAAI}; amptelik {VERWAG_WYKE})")
     if muni_res:
         print(f"Munisipaliteite: {muni_res['metro'] + muni_res['plaaslik']} (+ {muni_res['distrik']} distrikte)")
     if stasies_res:
