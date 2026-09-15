@@ -18,7 +18,10 @@ gemaskeerde ID-nommer-kolom se indeks word wel in `kry_kolom_indekse` se resulta
 opgeneem (om te bevestig die kolom bestáán in die kop-ry), maar sy WAARDE word nooit uit
 'n rou ry gelees of aan enige veranderlike toegeken nie — dit verskyn dus nêrens in
 `Kandidaat`, in logs, of in die verslag nie. `bou_kandidaat` lees slegs die ses ander
-kolomme se waardes.
+kolomme se waardes. (`bron_ry` en `lys_posisie` is heelgetal-velde wat uitsluitlik uit
+die bladsy/ry-teller en die Ward\\List-kolom afgelei word — nooit uit die ID-kolom nie —
+en word dus doelbewus uitgesluit van die "geen 6+-syfer-string"-skans; dié skans geld die
+tekstuele velde wat regstreeks uit PDF-selle oorgeneem word.)
 
 Reël vir die "Ward \\ List Order"-kolom: 'n presies-8-syfer waarde beteken 'n wyk-kandidaat
 (`stembrief="wyk"`, `wyk_id` gestel); enige ander suiwer-syfer waarde is 'n PV-lyspossie
@@ -27,7 +30,13 @@ begin met "DC" of bevat "District", bv. "DC1 - West Coast") teenoor `pv_plaaslik
 Onafhanklikes (`party == "INDEPENDENT"`, gevalsonsensitief) kom net op wyk-rye voor —
 PR-lyste het per definisie 'n party.
 
-Gebruik (CLI, druk tellings per stembrief en per munisipaliteit — nooit name nie):
+FAIL LOUDLY OP LEË SELLE (beheerder-uitspraak, fix round 1): 'n leë munisipaliteit- of
+party-sel word NOOIT stilweg oorgedra van 'n vorige ry nie (soos 'n uitgedrukte Excel-
+lêer soms doen) — `bou_kandidaat` gooi `KandidaatOntledingFout` en noem die bladsy en ry.
+As die 2026-lys werklik sulke oorgedra-selle gebruik, is dit 'n beleidsbesluit vir dan.
+
+Gebruik (CLI, druk tellings per stembrief, per munisipaliteit, en 'n munisipaliteit x
+stembrief-kruistabel — nooit kandidaatname nie):
 
     cd data && uv run --with pdfplumber python kandidate_ontleder.py <pdf> [--verslag pad]
 """
@@ -148,13 +157,20 @@ def is_distrik(muni_sel_rou: str) -> bool:
 
 
 def bron_ry_kode(bladsy_nr: int, ry_nr: int) -> int:
-    """Enkodeer (bladsy, ry) as een heelgetal, soortgelyk aan `laai_stemstasies`
-    (`bron_ry_kode`) maar met 'n *100-vermenigvuldiger i.p.v. *1000: die 2021 WC-lys se
-    digste bladsy dra 50 data-rye, so *100 hou hierdie waarde veilig onder 6 syfers (sien
-    die verpligte "geen syfer-string >=6" toets). 'n Baie groter 2026-nasionale lêer met
-    >=100 rye/bladsy of duisende bladsye sal dié aanname moet hersien — sien
-    task-7-report.md §Kommentaar."""
-    return bladsy_nr * 100 + ry_nr
+    """Enkodeer (bladsy, ry) as een heelgetal: `bladsy_nr * 10000 + ry_nr` (soortgelyk aan
+    `laai_stemstasies.bron_ry_kode`, maar *10000 i.p.v. *1000 sodat dit ook 'n 2026-lêer
+    met tot 9 999 rye/bladsy sonder botsing verdra — die 2021 WC-lys se digste bladsy dra
+    slegs 50 data-rye). Gooi `KandidaatOntledingFout` as `ry_nr >= 10000`: die enkodering
+    kan dan nie meer waarborg twee rye op dieselfde bladsy kry verskillende `bron_ry`-
+    waardes nie. Hierdie veld is 'n heelgetal-teller, nooit uit die ID-kolom afgelei nie —
+    sien PERSONAL DATA RULE hierbo vir waarom dit uitgesluit is van die "geen 6+-syfer"-
+    skans op `Kandidaat`-velde."""
+    if ry_nr >= 10000:
+        raise KandidaatOntledingFout(
+            f"te veel rye op bladsy {bladsy_nr} ({ry_nr}) — bron_ry-enkodering (*10000) "
+            "kan nie meer 'n unieke waarde per ry waarborg nie"
+        )
+    return bladsy_nr * 10000 + ry_nr
 
 
 def bou_kandidaat(
@@ -172,6 +188,20 @@ def bou_kandidaat(
     wyklys_rou = rou_ry[kolom_indekse["wyklys"]]
     volle_naam_rou = rou_ry[kolom_indekse["volle_naam"]]
     van_rou = rou_ry[kolom_indekse["van"]]
+
+    # FAIL LOUDLY OP LEË SELLE (beheerder-uitspraak, fix round 1): 'n leë munisipaliteit-
+    # of party-sel word nooit stilweg vanaf 'n vorige ry oorgedra nie (soos 'n
+    # uitgedrukte-Excel-lêer soms doen) — dit sou 'n ry stilweg verkeerd klassifiseer.
+    if not (muni_rou and str(muni_rou).strip()):
+        raise KandidaatOntledingFout(
+            f"leë munisipaliteit-sel op {bron_lêer} bladsy {bladsy_nr} ry {ry_nr} — "
+            "word nie stilweg oorgedra van 'n vorige ry nie"
+        )
+    if not (party_rou and str(party_rou).strip()):
+        raise KandidaatOntledingFout(
+            f"leë party-sel op {bron_lêer} bladsy {bladsy_nr} ry {ry_nr} — "
+            "word nie stilweg oorgedra van 'n vorige ry nie"
+        )
 
     muni_naam, muni_kode = ontleed_muni(muni_rou)
     party_naam = skoon(party_rou)
@@ -243,12 +273,59 @@ def ontleed(pdf_pad: Path | str) -> Iterator[Kandidaat]:
                     yield bou_kandidaat(rou_ry, kolom_indekse, bladsy_idx, ry_nr, bron_lêer)
 
 
-# --- CLI: tellings per stembrief en per munisipaliteit (nooit name nie) --------------
+# --- CLI: tellings per stembrief, per munisipaliteit, en 'n kruistabel (nooit name nie) ---
+
+
+def kruistabel_rye(kandidate: list[Kandidaat]) -> list[tuple[str, int, int, int, int]]:
+    """Bou `Counter((muni_naam, stembrief))` en gee dit terug as gesorteerde
+    `(muni_naam, wyk, pv_plaaslik, pv_distrik, onafhanklik)`-rye — een ry per
+    munisipaliteit, kolomme = stembrief-tellings plus 'n aparte onafhanklik-kolom
+    (onafhanklikes is 'n subversameling van `wyk`, nie 'n aparte stembrief nie, so hy
+    word ekstra getel eerder as in plaas van `wyk`)."""
+    tellings: Counter[tuple[str, str]] = Counter()
+    onafhanklik_tellings: Counter[str] = Counter()
+    for k in kandidate:
+        tellings[(k.muni_naam, k.stembrief)] += 1
+        if k.onafhanklik:
+            onafhanklik_tellings[k.muni_naam] += 1
+
+    munisipaliteite = sorted({muni for muni, _stembrief in tellings})
+    rye: list[tuple[str, int, int, int, int]] = []
+    for muni in munisipaliteite:
+        rye.append(
+            (
+                muni,
+                tellings[(muni, "wyk")],
+                tellings[(muni, "pv_plaaslik")],
+                tellings[(muni, "pv_distrik")],
+                onafhanklik_tellings[muni],
+            )
+        )
+    return rye
+
+
+def kies_steekproef(kandidate: list[Kandidaat]) -> list[Kandidaat]:
+    """Gestratifiseerde steekproef vir die verslag: tot 3 `wyk` (nie-onafhanklik, om
+    oorvleueling met die onafhanklik-emmer te vermy), 3 `pv_plaaslik`, 2 `pv_distrik`, 2
+    onafhanklikes — minder as daar nie genoeg beskikbaar is nie. Nooit ID-data nie
+    (`Kandidaat` het sowieso geen ID-veld nie)."""
+    wyk = [k for k in kandidate if k.stembrief == "wyk" and not k.onafhanklik]
+    pv_plaaslik = [k for k in kandidate if k.stembrief == "pv_plaaslik"]
+    pv_distrik = [k for k in kandidate if k.stembrief == "pv_distrik"]
+    onafhanklik = [k for k in kandidate if k.onafhanklik]
+
+    steekproef: list[Kandidaat] = []
+    steekproef.extend(wyk[:3])
+    steekproef.extend(pv_plaaslik[:3])
+    steekproef.extend(pv_distrik[:2])
+    steekproef.extend(onafhanklik[:2])
+    return steekproef
 
 
 def formateer_verslag_teks(kandidate: list[Kandidaat], ontleedtyd: float) -> str:
     """Bou die teks wat die CLI druk: totale, tellings per stembrief, tellings per
-    munisipaliteit. Bevat doelbewus nooit 'n kandidaatnaam nie."""
+    munisipaliteit, en 'n munisipaliteit x stembrief-kruistabel. Bevat doelbewus nooit 'n
+    kandidaatnaam nie — net munisipaliteitname en telling-getalle."""
     stembrief_tellings = Counter(k.stembrief for k in kandidate)
     muni_tellings = Counter(k.muni_naam for k in kandidate)
     onafhanklik_tal = sum(1 for k in kandidate if k.onafhanklik)
@@ -261,15 +338,22 @@ def formateer_verslag_teks(kandidate: list[Kandidaat], ontleedtyd: float) -> str
     reëls.append("Per munisipaliteit:")
     for muni in sorted(muni_tellings):
         reëls.append(f"  {muni}: {muni_tellings[muni]}")
+    reëls.append("Per munisipaliteit x stembrief (wyk / pv_plaaslik / pv_distrik / onafhanklik):")
+    for muni, wyk, pv_plaaslik, pv_distrik, onafhanklik in kruistabel_rye(kandidate):
+        reëls.append(
+            f"  {muni}: wyk={wyk} pv_plaaslik={pv_plaaslik} pv_distrik={pv_distrik} "
+            f"onafhanklik={onafhanklik}"
+        )
     return "\n".join(reëls)
 
 
 def skryf_fixture_verslag(
     verslag_pad: Path, bron_lêer: str, kandidate: list[Kandidaat], ontleedtyd: float
 ) -> None:
-    """Skryf die vastrigger-verslag: tellings (via `formateer_verslag_teks`) plus 10
-    steekproefrye SONDER enige ID-veld (`Kandidaat` het sowieso geen ID-veld nie — sien
-    PERSONAL DATA RULE)."""
+    """Skryf die vastrigger-verslag: tellings (via `formateer_verslag_teks`), 'n
+    munisipaliteit x stembrief-kruistabel, en 'n gestratifiseerde steekproef (via
+    `kies_steekproef`) SONDER enige ID-veld (`Kandidaat` het sowieso geen ID-veld nie —
+    sien PERSONAL DATA RULE)."""
     verslag_pad.parent.mkdir(parents=True, exist_ok=True)
     r: list[str] = []
     r.append("# Kandidaatlys-verslag (Task 7)")
@@ -282,10 +366,19 @@ def skryf_fixture_verslag(
     r.append(formateer_verslag_teks(kandidate, ontleedtyd))
     r.append("```")
     r.append("")
-    r.append("## Steekproef (10 rye, sonder enige ID-veld)")
+    r.append("## Munisipaliteit x stembrief")
+    r.append("| munisipaliteit | wyk | pv_plaaslik | pv_distrik | onafhanklik |")
+    r.append("|---|---:|---:|---:|---:|")
+    for muni, wyk, pv_plaaslik, pv_distrik, onafhanklik in kruistabel_rye(kandidate):
+        r.append(f"| {muni} | {wyk} | {pv_plaaslik} | {pv_distrik} | {onafhanklik} |")
+    r.append("")
+    r.append(
+        "## Steekproef (gestratifiseer: tot 3 wyk, 3 pv_plaaslik, 2 pv_distrik, "
+        "2 onafhanklik — minder as nie genoeg beskikbaar nie; sonder enige ID-veld)"
+    )
     r.append("| munisipaliteit | party | onafhanklik | stembrief | wyk_id | lys_posisie | volle_naam | van |")
     r.append("|---|---|---|---|---|---|---|---|")
-    for k in kandidate[:10]:
+    for k in kies_steekproef(kandidate):
         r.append(
             f"| {k.muni_naam} | {k.party_naam} | {k.onafhanklik} | {k.stembrief} | "
             f"{k.wyk_id or ''} | {k.lys_posisie if k.lys_posisie is not None else ''} | "

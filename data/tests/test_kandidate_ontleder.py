@@ -128,6 +128,45 @@ def test_bou_kandidaat_onbekende_wyklys_waarde_gooi_fout():
         ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=5, bron_lêer="toets.pdf")
 
 
+# --- eenheidstoetse: leë munisipaliteit/party-selle (beheerder-uitspraak, fix round 1) ---
+
+
+def test_bou_kandidaat_leë_munisipaliteit_gooi_fout_met_bladsy_en_ry():
+    ry = ["", "SOME PARTY", "1", "8001015009087", "A B", "C"]
+    with pytest.raises(ko.KandidaatOntledingFout) as fout:
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=3, ry_nr=7, bron_lêer="toets.pdf")
+    boodskap = str(fout.value)
+    assert "bladsy 3" in boodskap
+    assert "ry 7" in boodskap
+
+
+def test_bou_kandidaat_none_munisipaliteit_gooi_fout():
+    ry = [None, "SOME PARTY", "1", "8001015009087", "A B", "C"]
+    with pytest.raises(ko.KandidaatOntledingFout):
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=1, bron_lêer="toets.pdf")
+
+
+def test_bou_kandidaat_wit_spasie_munisipaliteit_gooi_fout():
+    ry = ["   ", "SOME PARTY", "1", "8001015009087", "A B", "C"]
+    with pytest.raises(ko.KandidaatOntledingFout):
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=1, bron_lêer="toets.pdf")
+
+
+def test_bou_kandidaat_leë_party_gooi_fout_met_bladsy_en_ry():
+    ry = ["CPT - City of Cape Town", "", "1", "8001015009087", "A B", "C"]
+    with pytest.raises(ko.KandidaatOntledingFout) as fout:
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=5, ry_nr=9, bron_lêer="toets.pdf")
+    boodskap = str(fout.value)
+    assert "bladsy 5" in boodskap
+    assert "ry 9" in boodskap
+
+
+def test_bou_kandidaat_none_party_gooi_fout():
+    ry = ["CPT - City of Cape Town", None, "1", "8001015009087", "A B", "C"]
+    with pytest.raises(ko.KandidaatOntledingFout):
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=1, bron_lêer="toets.pdf")
+
+
 def test_bou_kandidaat_id_kolom_word_nooit_in_die_objek_nie():
     """PERSONAL DATA RULE: die gemaskeerde ID-nommer word posisioneel oorgeslaan — dit
     mag nooit in enige Kandidaat-veld verskyn nie, ongeag wat in die ID-kolom staan."""
@@ -146,8 +185,74 @@ def test_kandidaat_het_geen_id_veld_nie():
 
 
 def test_bron_ry_kode():
-    assert ko.bron_ry_kode(1, 1) == 101
-    assert ko.bron_ry_kode(249, 50) == 24950
+    assert ko.bron_ry_kode(1, 1) == 10001
+    assert ko.bron_ry_kode(249, 50) == 2490050
+    assert ko.bron_ry_kode(1, 9999) == 19999  # net onder die grens moet steeds werk
+
+
+def test_bron_ry_kode_te_veel_rye_gooi_fout():
+    with pytest.raises(ko.KandidaatOntledingFout):
+        ko.bron_ry_kode(1, 10000)
+
+
+def test_skoon_vou_nuwe_lyn_en_dubbel_spasie_ineen():
+    assert ko.skoon("VUYANI\nPUNCTUAL") == "VUYANI PUNCTUAL"
+    assert ko.skoon("A  B") == "A B"
+
+
+# --- eenheidstoetse: gestratifiseerde steekproef -------------------------------------
+
+
+def _maak_kandidaat(stembrief: str, onafhanklik: bool = False, i: int = 0) -> ko.Kandidaat:
+    return ko.Kandidaat(
+        muni_naam="Toetsmuni",
+        muni_kode=None,
+        party_naam="INDEPENDENT" if onafhanklik else "SOME PARTY",
+        onafhanklik=onafhanklik,
+        stembrief=stembrief,
+        wyk_id="1" * 8 if stembrief == "wyk" else None,
+        lys_posisie=None if stembrief == "wyk" else i,
+        volle_naam=f"NAAM{i}",
+        van=f"VAN{i}",
+        bron_lêer="toets.pdf",
+        bron_ry=i,
+    )
+
+
+def test_kies_steekproef_stratifiseer():
+    kandidate = (
+        [_maak_kandidaat("wyk", i=i) for i in range(5)]
+        + [_maak_kandidaat("pv_plaaslik", i=i) for i in range(5)]
+        + [_maak_kandidaat("pv_distrik", i=i) for i in range(5)]
+        + [_maak_kandidaat("wyk", onafhanklik=True, i=i) for i in range(5)]
+    )
+    steekproef = ko.kies_steekproef(kandidate)
+    # Onafhanklikes dra self stembrief=="wyk" (dis 'n subversameling, nie 'n aparte
+    # stembrief nie), so die "wyk"-emmer (3, nie-onafhanklik) en die
+    # "onafhanklik"-emmer (2, ook stembrief=="wyk") tel saam op tot 5 wyk-rye.
+    niet_onafhanklik_wyk = [k for k in steekproef if k.stembrief == "wyk" and not k.onafhanklik]
+    assert len(niet_onafhanklik_wyk) == 3
+    tellings = Counter(k.stembrief for k in steekproef)
+    assert tellings["wyk"] == 5
+    assert tellings["pv_plaaslik"] == 3
+    assert tellings["pv_distrik"] == 2
+    assert sum(1 for k in steekproef if k.onafhanklik) == 2
+    assert len(steekproef) == 10
+
+
+def test_kies_steekproef_minder_beskikbaar():
+    # Net 1 pv_distrik en geen onafhanklikes nie — die steekproef moet minder neem,
+    # nie faal nie.
+    kandidate = (
+        [_maak_kandidaat("wyk", i=i) for i in range(5)]
+        + [_maak_kandidaat("pv_plaaslik", i=i) for i in range(5)]
+        + [_maak_kandidaat("pv_distrik", i=0)]
+    )
+    steekproef = ko.kies_steekproef(kandidate)
+    tellings = Counter(k.stembrief for k in steekproef)
+    assert tellings["pv_distrik"] == 1
+    assert sum(1 for k in steekproef if k.onafhanklik) == 0
+    assert len(steekproef) == 3 + 3 + 1
 
 
 # --- vastrigger-toetse: die werklike 2021 WC-PDF (oorgeslaan as die lêer nie daar is nie) ---
@@ -189,10 +294,14 @@ def test_ontleed_wc_onafhanklik_slegs_op_wyk(wc_kandidate):
 
 def test_ontleed_wc_geen_id_lek_nie(wc_kandidate):
     """Verpligte skans (PERSONAL DATA RULE): geen syfer-string van >=6 syfers mag in enige
-    veld voorkom nie, behalwe wyk_id self (wat altyd presies 8 syfers is)."""
+    tekstuele veld voorkom nie, behalwe wyk_id self (wat altyd presies 8 syfers is).
+    `bron_ry` en `lys_posisie` is heelgetal-velde wat uitsluitlik uit die bladsy/ry-teller
+    en die Ward\\List-kolom afgelei word (nooit uit die ID-kolom nie) — hulle is dus
+    uitgesluit van hierdie skans op dieselfde gronde as `wyk_id` (sien module-dosstring
+    §PERSONAL DATA RULE), nie omdat ID-data daar sou kon beland nie."""
     for k in wc_kandidate:
         for veldnaam, veldwaarde in vars(k).items():
-            if veldnaam == "wyk_id":
+            if veldnaam in {"wyk_id", "bron_ry", "lys_posisie"}:
                 continue
             treffers = DIGIT_LOOP_PATROON.findall(str(veldwaarde) if veldwaarde is not None else "")
             assert treffers == [], (veldnaam, veldwaarde, k)
@@ -233,6 +342,26 @@ def test_formateer_verslag_teks_bevat_tellings(wc_kandidate):
         assert k.volle_naam not in teks
 
 
+def test_formateer_verslag_teks_bevat_kruistabel(wc_kandidate):
+    teks = ko.formateer_verslag_teks(wc_kandidate, ontleedtyd=1.23)
+    assert "Per munisipaliteit x stembrief" in teks
+    # CPT (metro, geen distrik) se presiese tellings, self bereken tydens ontdekking.
+    assert "City of Cape Town: wyk=3896 pv_plaaslik=1424 pv_distrik=0 onafhanklik=" in teks
+    # DC1 het net PV-kandidate, geen wyk-kandidate nie.
+    assert "West Coast: wyk=0 pv_plaaslik=0 pv_distrik=72 onafhanklik=0" in teks
+
+
+def test_kruistabel_rye_vorm(wc_kandidate):
+    rye = ko.kruistabel_rye(wc_kandidate)
+    per_muni = {muni: (wyk, pvp, pvd, onaf) for muni, wyk, pvp, pvd, onaf in rye}
+    assert per_muni["City of Cape Town"] == (3896, 1424, 0, per_muni["City of Cape Town"][3])
+    assert per_muni["West Coast"] == (0, 0, 72, 0)
+    # Som van al die kruistabel se wyk/pv_plaaslik/pv_distrik-selle == totale tellings.
+    assert sum(wyk for _m, wyk, _p, _d, _o in rye) == VERWAGTE_WYK
+    assert sum(pvp for _m, _w, pvp, _d, _o in rye) == VERWAGTE_PV_PLAASLIK
+    assert sum(pvd for _m, _w, _p, pvd, _o in rye) == VERWAGTE_PV_DISTRIK
+
+
 def test_hoof_cli_skryf_verslag(tmp_path):
     if not BRON_PAD.exists():
         pytest.skip(f"bronlêer nie gevind nie: {BRON_PAD}")
@@ -243,6 +372,7 @@ def test_hoof_cli_skryf_verslag(tmp_path):
     inhoud = verslag_pad.read_text()
     assert f"Totaal: {VERWAGTE_TOTAAL}" in inhoud
     assert "## Steekproef" in inhoud
+    assert "## Munisipaliteit x stembrief" in inhoud
     # Geen ID-agtige lang syfer-string in die hele verslag nie (behalwe 8-syfer wyk_id's,
     # wat hulself nie ID-nommers is nie).
     for reël in inhoud.splitlines():
