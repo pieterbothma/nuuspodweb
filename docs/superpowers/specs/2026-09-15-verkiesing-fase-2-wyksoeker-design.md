@@ -51,7 +51,7 @@ Sensus 2011 (eie verwerking)", plus "© GeoNames" if its aliases are used.
 
 Extensions: `postgis`, `pg_trgm`.
 
-| Table (`public`, each mirrored in `staging`) | Key columns |
+| Table (`public`, each mirrored as `stg_<name>` in `public`, service-role only) | Key columns |
 |---|---|
 | `munisipaliteite` | `kode` pk (e.g. `WC024`, `CPT`), `naam`, `tipe` (`metro` / `plaaslik` / `distrik`), `distrik_kode`, `provinsie` |
 | `wyke` | `wyk_id` text pk (8-digit), `wyk_nr` int, `muni_kode`, `geom` MultiPolygon 4326 **nullable** (3 Free State wards are missing from the MDB file) |
@@ -83,9 +83,12 @@ GiST on `wyke.geom` and `plekke.geom`.
 ## 5. Pipeline (`nuuspod-web/data/`)
 
 ### 5.1 Tools
-- Python scripts run with `uv run --with pdfplumber,pyshp,shapely,psycopg`.
-- Data loads into `staging` over a direct Postgres connection. **This needs the database connection string**, which Piet copies from the Supabase dashboard into the site `.env.local` as `VERKIESING_DB_URL` (never committed).
-- Geometry goes in as GeoJSON through `ST_GeomFromGeoJSON`; reprojection is done in SQL with `ST_Transform`.
+- Python scripts run with `uv run --with pdfplumber,pyshp,shapely,httpx`.
+- **No direct Postgres connection** (Piet, 15 Sep). DDL (tables, RLS, functions) is applied as migrations via the Supabase MCP. Data loads through PostgREST with the existing secret key (`VERKIESING_SUPABASE_URL` / `VERKIESING_SUPABASE_SECRET_KEY` in `~/nuuspod/.env.local`), batched with retries.
+- **Staging tables** live in `public` with a `stg_` prefix, because PostgREST exposes only `public`. They get RLS enabled, no policies and no anon grants, so they are invisible to the site. The service role bypasses RLS.
+- **Geometry** is sent as EWKT text (`SRID=4326;MULTIPOLYGON(...)`) from shapely and cast by PostGIS on insert. Reprojection from EPSG:3857 is done in Python (pyproj or shapely transform) before sending.
+- **Server-side steps** — overlaps, checks and the staging → public swap — are SQL functions called via RPC. They are `SECURITY DEFINER`, with `EXECUTE` revoked from `public`, `anon` and `authenticated`, and granted to `service_role` only.
+- **Large source files** go in `data/bron/`, which is gitignored.
 
 ### 5.2 Scripts (each idempotent; each writes `data/uitvoer/<datastel>-verslag.md`)
 1. `laai_wyke.py`: MDB shapefile → `staging.wyke` + `staging.munisipaliteite`.
@@ -110,7 +113,7 @@ GiST on `wyke.geom` and `plekke.geom`.
 - A diff against the currently published version (rows added, removed, changed).
 
 Piet reads the report and says "publiseer". `data/publiseer.py` then:
-1. Swaps `staging` into `public` in one transaction.
+1. Calls the `publiseer_fase2(datastelle text[])` RPC, which swaps each `stg_` table into its public table in one transaction.
 2. Writes `data_weergawes`.
 3. POSTs `/api/herlaai` for the tags `wyke` and `kandidate`. The route's allowlist is extended.
 
@@ -236,7 +239,7 @@ Same process as 15 Sep: verified facts plus slot briefs go to `gemini-3.5-flash`
 
 ## 11. Dependencies and open questions
 
-1. **`VERKIESING_DB_URL`** (Postgres connection string) from the Supabase dashboard, pasted by Piet into `nuuspod-web/.env.local`.
+1. ~~Postgres connection string~~ — not needed (loads go via PostgREST + secret key, 15 Sep).
 2. **Real format of the 16 Sep candidate list:** PDF or Excel/CSV, and how district PR lists and independents appear.
 3. **Ballot-order publication after the 23 Sep draw.**
 4. **Party abbreviations:** is there an IEC list of contesting parties with abbreviations? If not, show full names only.
