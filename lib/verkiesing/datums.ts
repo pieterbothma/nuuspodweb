@@ -63,6 +63,19 @@ export function komendeMylpale(nou: Date, aantal = 3): Mylpaal[] {
   return MYLPALE.filter((m) => new Date(m.einde).getTime() > nou.getTime()).slice(0, aantal);
 }
 
+const SPESIALE_STEM_OOP = new Date("2026-09-21T00:00:00+02:00");
+const SPESIALE_STEM_TOE = new Date("2026-10-12T17:00:00+02:00");
+
+export type SpesialeStemStatus = "toe" | "oop" | "verby";
+
+/** Application window for a special vote: closed until 21 Sep, open until 17:00 on 12 Oct, then closed for good. */
+export function spesialeStemStatus(nou: Date): SpesialeStemStatus {
+  const t = nou.getTime();
+  if (t < SPESIALE_STEM_OOP.getTime()) return "toe";
+  if (t < SPESIALE_STEM_TOE.getTime()) return "oop";
+  return "verby";
+}
+
 export function aftelling(nou: Date, teiken: Date = STEMDAG) {
   const ms = teiken.getTime() - nou.getTime();
   if (ms <= 0) return { dae: 0, ure: 0, minute: 0, verby: true };

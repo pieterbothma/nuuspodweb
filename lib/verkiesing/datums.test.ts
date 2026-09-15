@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aftelling, komendeMylpale, STEMDAG } from "./datums";
+import { aftelling, komendeMylpale, spesialeStemStatus, STEMDAG } from "./datums";
 
 describe("aftelling", () => {
   it("counts whole days, hours and minutes to 07:00 on election day", () => {
@@ -31,5 +31,23 @@ describe("komendeMylpale", () => {
 
   it("is empty after voting closes", () => {
     expect(komendeMylpale(new Date("2026-11-04T21:01:00+02:00"))).toEqual([]);
+  });
+});
+
+describe("spesialeStemStatus", () => {
+  it("is 'toe' before applications open on 21 September", () => {
+    expect(spesialeStemStatus(new Date("2026-09-20T23:59:00+02:00"))).toBe("toe");
+  });
+
+  it("is 'oop' the moment applications open at 00:00 on 21 September", () => {
+    expect(spesialeStemStatus(new Date("2026-09-21T00:00:00+02:00"))).toBe("oop");
+  });
+
+  it("is still 'oop' at 16:59 on 12 October", () => {
+    expect(spesialeStemStatus(new Date("2026-10-12T16:59:00+02:00"))).toBe("oop");
+  });
+
+  it("is 'verby' at 17:00 on 12 October", () => {
+    expect(spesialeStemStatus(new Date("2026-10-12T17:00:00+02:00"))).toBe("verby");
   });
 });

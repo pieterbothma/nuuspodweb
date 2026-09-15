@@ -3,16 +3,18 @@ import { GidsKaarte } from "./_components/verkiesing/gids-kaarte";
 import { Kopstuk } from "./_components/verkiesing/kopstuk";
 import { KontroleerRegistrasie } from "./_components/verkiesing/kontroleer-registrasie";
 import { Nuusstroom } from "./_components/verkiesing/nuusstroom";
+import { OvkAksies } from "./_components/verkiesing/ovk-aksies";
 import { Verkiesingsprogram } from "./_components/verkiesing/verkiesingsprogram";
 import { Voet } from "./_components/verkiesing/voet";
 import { WatKom } from "./_components/verkiesing/wat-kom";
-import { STEMDAG } from "@/lib/verkiesing/datums";
+import { spesialeStemStatus, STEMDAG } from "@/lib/verkiesing/datums";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { haalEpisodes, haalStroom } from "@/lib/verkiesing/lees";
 
 export default async function Tuis() {
   const nou = new Date();
   const [stroom, episodes] = await Promise.all([haalStroom(), haalEpisodes()]);
+  const spesialeStem = spesialeStemStatus(nou);
 
   return (
     <>
@@ -39,6 +41,8 @@ export default async function Tuis() {
             </div>
           </div>
         </section>
+
+        <OvkAksies spesialeStem={spesialeStem} />
 
         <div className="mx-auto grid max-w-6xl gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[1fr_22rem]">
           <div className="grid content-start gap-14">
