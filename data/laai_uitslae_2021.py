@@ -16,22 +16,37 @@ Wes-Kaap s'n is "WP", Gauteng s'n is "GP" (nie "GT" nie), KwaZulu-Natal s'n is "
 
 Die PDF dra twee tabelle wat albei met "Party Name" begin: die kwota-berekeningstabel
 (bladsy 1) en die setel-opsplitsingstabel (gewoonlik bladsy 2, kolomme "Total Party
-Seats (x)", "Ward Seats (y)", "PR List Seats (x-y)"). Net laasgenoemde word gelaai.
-Partynaam word presies soos gedruk gehou, behalwe dat die PDF se gedwonge reëlbreuk
-(cel te smal vir die naam) na 'n enkele spasie saamgevou word — dis geen inhoudelike
-wysiging nie, net die herstel van die gedrukte naam uit die tabel se veelvuldige fisiese
-lyne.
+Seats (x)", "Ward Seats (y)", "PR List Seats (x-y)"). Net laasgenoemde word gelaai. Vir
+groot rade (metro's, party-ryk lyste) loop dié tabel oor 2-3 bladsye, met die kopry op
+elke bladsy herhaal — `_kry_setel_tabel` kombineer al daardie bladsye se rye voor
+ontleding (sien dié funksie se dokstring vir die fout wat dit regmaak). Partynaam word
+presies soos gedruk gehou, behalwe (a) dat die PDF se gedwonge reëlbreuk (cel te smal
+vir die naam) na 'n enkele spasie saamgevou word — dis geen inhoudelike wysiging nie,
+net die herstel van die gedrukte naam uit die tabel se veelvuldige fisiese lyne — en
+(b) dat die IEC se oormaat-setel-voetnootmerker (" *", bv. "AFRICAN NATIONAL CONGRESS
+*") gestroop word — dis 'n verwysing na 'n voetnoot onderaan die bladsy, nie deel van
+die partynaam nie.
 
 Amptelike setels alleen: setels word NOOIT uit stem-CSV's bereken nie, net gelees soos
 die IEC dit gedruk het.
 
-Idempotent: leeg eers `stg_raad_uitslae_2021` via `rpc/stg_leeg`, laai dan vars. PDF's
-word na `data/bron/setelberekening-2021/` afgelaai (gitignored) en behou tussen lopies —
-'n reeds-afgelaaide lêer word nie weer gehaal nie. Skryf
-`data/uitvoer/uitslae-2021-verslag.md`. Termineer met 'n nie-nul afsluitkode as die
-Supabase-laai self misluk; individuele PDF-aflaai-/ontledingsmislukkings (bronprobleme)
-word in die verslag aangeteken maar veroorsaak nie 'n nie-nul afsluitkode nie, tensy
-GEEN enkele raad suksesvol gelaai kon word nie.
+Elke raad se koptekssyfers — raadsgrootte totaal (B) en onafhanklike wykraadslede sonder
+party-affiliasie (C) — word ook uit dieselfde PDF gelees en na `stg_raad_grootte_2021`
+gelaai (een ry per raad). Dit bestaan omdat `stg_raad_uitslae_2021` per ontwerp net
+partye dra: 'n raad se ware grootte (party-setels + onafhanklikes) is nodig om
+"geen-meerderheid" reg te bereken (teen die volle raad, nie net die party-som nie) en
+om 'n toekomstige bladsy die C-syfer te kan wys. Voor die Supabase-laai word dit
+bevestig dat raadsgrootte_totaal = som(party-setels) + onafhanklike_setels vir elke
+gelaaide raad; 'n teenstrydigheid staak die hele laai (sien `verifieer_raadsgrootte`).
+
+Idempotent: leeg eers `stg_raad_uitslae_2021` én `stg_raad_grootte_2021` via
+`rpc/stg_leeg`, laai dan vars. PDF's word na `data/bron/setelberekening-2021/`
+afgelaai (gitignored) en behou tussen lopies — 'n reeds-afgelaaide lêer word nie weer
+gehaal nie. Skryf `data/uitvoer/uitslae-2021-verslag.md`. Termineer met 'n nie-nul
+afsluitkode as die Supabase-laai self misluk, of as die raadsgrootte-verifikasie
+hierbo faal; individuele PDF-aflaai-/ontledingsmislukkings (bronprobleme) word in die
+verslag aangeteken maar veroorsaak nie 'n nie-nul afsluitkode nie, tensy GEEN enkele
+raad suksesvol gelaai kon word nie.
 
 Gebruik: cd data && uv run --with pdfplumber,shapely,pyproj,pyshp,httpx python laai_uitslae_2021.py
 """
@@ -81,6 +96,11 @@ RAADSGROOTTE_ETIKET = "Total Seats Available in Municipality"
 ONAFHANKLIKES_ETIKET = "Independent Ward Councillors Elected"
 RY_STOP_ETIKETTE = {"Total Party Seats", "Independents", "Total Seats"}
 
+# Die IEC merk die party wat 'n oormaat setel(s) veroorsaak het met 'n hangende "*" ná
+# die partynaam (voetnoot: "Denotes the party that resulted in an excessive seat(s)...").
+# Dié merker is nie deel van die partynaam nie — gestroop by ontleding, nie gestoor nie.
+OORMAAT_VOETNOOT_PATROON = re.compile(r"\s*\*\s*$")
+
 AFLAAI_VERTRAGING_S = 0.2
 AFLAAI_TIMEOUT_S = 30
 
@@ -98,7 +118,12 @@ class MuniOntledingResultaat:
     onafhanklike_setels: int | None = None
     waarskuwings: list[str] = field(default_factory=list)
     # Raadsgrootte-verskille wat presies deur onafhanklike raadslede (C) verklaar word —
-    # nie 'n ontledingsfout nie, party_naam-tabelle dra per ontwerp net partye.
+    # nie 'n ontledingsfout nie. Onafhanklikes IS nou wel gestoor: sien
+    # `stg_raad_grootte_2021` (`raadsgrootte_totaal`, `onafhanklike_setels`), gebou uit
+    # `raadsgrootte_koptekst`/`onafhanklike_setels` hierbo. `stg_raad_uitslae_2021` self
+    # dra steeds net partye — die geen-meerderheid-berekening in `hoof()` gebruik
+    # `stg_raad_grootte_2021.raadsgrootte_totaal` (party + onafhanklikes) as noemer, nie
+    # net die party-som nie.
     verklaarde_verskille: list[str] = field(default_factory=list)
 
 
@@ -229,10 +254,14 @@ def ontleed_setel_tabel(tabel: list[list], muni_kode: str) -> tuple[list[dict], 
                 f"!= setels_totaal({totaal})"
             )
 
+        # Stroop die IEC se oormaat-setel-voetnootmerker ("*") — dis nie deel van die
+        # partynaam nie, net 'n verwysing na 'n voetnoot onderaan die bladsy.
+        party_naam = OORMAAT_VOETNOOT_PATROON.sub("", etiket)
+
         party_rye.append(
             {
                 "muni_kode": muni_kode,
-                "party_naam": etiket,
+                "party_naam": party_naam,
                 "setels_wyk": wyk,
                 "setels_pv": pv,
                 "setels_totaal": totaal,
@@ -262,7 +291,10 @@ def _kry_onafhanklike_setels_koptekst(pdf: "pdfplumber.PDF") -> int | None:
     `stg_raad_uitslae_2021` dra net partye, dus is 'n raadsgrootte-koptekssyfer (B) wat
     presies `onafhanklike_setels` hoër is as die som van party-setels GEEN ontledingsfout
     nie — dis die C-onafhanklikes wat, per ontwerp, nie in die setel-opsplitsingstabel se
-    party-ry's voorkom nie.
+    party-ry's voorkom nie. Word wél gestoor: `hoof()` skryf hierdie syfer, saam met die
+    raadsgrootte-koptekssyfer (B), na `stg_raad_grootte_2021` (een ry per raad), sodat 'n
+    latere geen-meerderheid-berekening (en die werf self) teen die VOLLE raadsgrootte kan
+    toets, nie net teen die som van party-setels nie.
     """
     return _kry_koptekstal(pdf, ONAFHANKLIKES_ETIKET)
 
@@ -360,11 +392,47 @@ def ontleed_pdf(pdf_pad: Path, verwagte_muni_kode: str) -> MuniOntledingResultaa
         )
 
 
+# --- raadsgrootte-verifikasie (harde poort voor die Supabase-laai) ------------------
+
+
+def verifieer_raadsgrootte(alle_party_rye: list[dict], raad_grootte_rye: list[dict]) -> list[str]:
+    """Bevestig raadsgrootte_totaal = som(party-setels) + onafhanklike_setels, per raad.
+
+    Gee 'n lys probleme terug (leeg = alles klop, vir elke raad in `raad_grootte_rye`).
+    `hoof()` roep dit voor die Supabase-laai — 'n teenstrydige raad word nooit gelaai
+    nie, die hele laai staak eerder hard.
+    """
+    party_som_per_muni: dict[str, int] = {}
+    for ry in alle_party_rye:
+        party_som_per_muni[ry["muni_kode"]] = (
+            party_som_per_muni.get(ry["muni_kode"], 0) + ry["setels_totaal"]
+        )
+
+    probleme: list[str] = []
+    for rg in raad_grootte_rye:
+        muni_kode = rg["muni_kode"]
+        party_som = party_som_per_muni.get(muni_kode, 0)
+        verwag = party_som + rg["onafhanklike_setels"]
+        if rg["raadsgrootte_totaal"] != verwag:
+            probleme.append(
+                f"{muni_kode}: raadsgrootte_totaal({rg['raadsgrootte_totaal']}) != "
+                f"party-som({party_som}) + onafhanklike_setels({rg['onafhanklike_setels']}) "
+                f"= {verwag}"
+            )
+    return probleme
+
+
 # --- geen-meerderheid-statistiek (verslag-statistiek; die werf bereken sy eie) -------
 
 
-def kry_geen_meerderheid_rade(alle_party_rye: list[dict]) -> list[dict]:
-    """Rade waar geen party > 50% van die raad se setels het nie.
+def kry_geen_meerderheid_rade(alle_party_rye: list[dict], raad_grootte_rye: list[dict]) -> list[dict]:
+    """Rade waar geen party > 50% van die VOLLE raad se setels het nie.
+
+    Die noemer is `raadsgrootte_totaal` uit `raad_grootte_rye` (party-setels +
+    onafhanklike_setels — die amptelike raadsgrootte, B), nie die som van party-setels
+    alleen nie: 'n raad met onafhanklike wykraadslede kan andersins vals as "meerderheid"
+    tel (die grootste party se aandeel van die party-som lyk groter as sy werklike aandeel
+    van die volle raad).
 
     Gee 'n lys van {"muni_kode", "raadsgrootte", "grootste_party", "grootste_setels"}
     terug, een per raad sonder meerderheid, gesorteer op muni_kode.
@@ -373,10 +441,12 @@ def kry_geen_meerderheid_rade(alle_party_rye: list[dict]) -> list[dict]:
     for ry in alle_party_rye:
         per_muni.setdefault(ry["muni_kode"], []).append(ry)
 
+    raadsgrootte_per_muni = {rg["muni_kode"]: rg["raadsgrootte_totaal"] for rg in raad_grootte_rye}
+
     geen_meerderheid: list[dict] = []
     for muni_kode, rye in sorted(per_muni.items()):
-        raadsgrootte = sum(r["setels_totaal"] for r in rye)
-        if raadsgrootte == 0:
+        raadsgrootte = raadsgrootte_per_muni.get(muni_kode)
+        if not raadsgrootte:
             continue
         grootste = max(rye, key=lambda r: r["setels_totaal"])
         het_meerderheid = grootste["setels_totaal"] * 2 > raadsgrootte
@@ -449,9 +519,24 @@ def skryf_verslag(**kw) -> None:
 
     r.append("## Rye gelaai")
     r.append(f"- Party-rye na `stg_raad_uitslae_2021`: **{kw['rye_gelaai']}**")
+    r.append(f"- Raad-rye na `stg_raad_grootte_2021` (een per raad): **{kw['raad_grootte_rye_gelaai']}**")
+    r.append(
+        "- `stg_raad_grootte_2021` dra, per raad, die koptekssyfer B "
+        "(`raadsgrootte_totaal`, party-setels + onafhanklikes) en C "
+        "(`onafhanklike_setels`) uit dieselfde PDF — dis waarteen die "
+        "geen-meerderheid-telling hieronder bereken word, nie net die party-som nie."
+    )
+    r.append(
+        f"- Raadsgrootte-verifikasie (raadsgrootte_totaal = som(party-setels) + "
+        f"onafhanklike_setels, vir elke gelaaide raad): "
+        f"{'**geslaag** vir al ' + str(kw['raad_grootte_rye_gelaai']) + ' rade.' if not kw['raadsgrootte_probleme'] else '**GEFAAL** — sien hieronder.'}"
+    )
+    if kw["raadsgrootte_probleme"]:
+        for p in kw["raadsgrootte_probleme"]:
+            r.append(f"  - {p}")
     r.append("")
 
-    r.append("## Rade sonder meerderheid (geen party > 50% van die raad se setels nie)")
+    r.append("## Rade sonder meerderheid (geen party > 50% van die volle raad se setels nie)")
     r.append(f"- Telling: **{len(kw['geen_meerderheid'])}**")
     if kw["geen_meerderheid"]:
         r.append("")
@@ -469,8 +554,10 @@ def skryf_verslag(**kw) -> None:
         "`stg_raad_uitslae_2021` dra net partye; 'n raad se koptekssyfer (B, totale "
         "setels) kan hoër wees as die som van party-setels wanneer een of meer "
         "onafhanklike kandidate 'n wyk gewen het (\"Independent Ward Councillors "
-        "Elected - (C)\" in die bron). Dis GEEN ontledingsfout nie — hieronder is dit "
-        "geverifieer dat die verskil presies ooreenstem met C."
+        "Elected - (C)\" in die bron). Dis GEEN ontledingsfout nie — die C-syfer word "
+        "gestoor in `stg_raad_grootte_2021.onafhanklike_setels` (saam met B in "
+        "`raadsgrootte_totaal`), en hieronder is dit geverifieer dat die verskil presies "
+        "ooreenstem met C."
     )
     r.append(f"- Rade met so 'n verklaarde verskil: **{len(kw['verklaarde_verskille'])}**")
     for v in kw["verklaarde_verskille"]:
@@ -551,6 +638,7 @@ def hoof() -> int:
     # --- ontleed ---
     ontleding_begin = time.monotonic()
     alle_party_rye: list[dict] = []
+    raad_grootte_rye: list[dict] = []
     ontledings_waarskuwings: list[str] = []
     verklaarde_verskille: list[str] = []
     kode_teenstrydighede: list[str] = []
@@ -576,29 +664,61 @@ def hoof() -> int:
         alle_party_rye.extend(resultaat.party_rye)
         rade_gedek.append(m["kode"])
 
+        if resultaat.raadsgrootte_koptekst is not None and resultaat.onafhanklike_setels is not None:
+            raad_grootte_rye.append(
+                {
+                    "muni_kode": m["kode"],
+                    "raadsgrootte_totaal": resultaat.raadsgrootte_koptekst,
+                    "onafhanklike_setels": resultaat.onafhanklike_setels,
+                }
+            )
+        else:
+            ontledings_waarskuwings.append(
+                f"{m['kode']}: geen raadsgrootte- en/of onafhanklikes-koptekssyfer gevind "
+                "nie (B/C) — kan nie na stg_raad_grootte_2021 gelaai word nie"
+            )
+
     ontleding_tyd = time.monotonic() - ontleding_begin
 
     alle_kodes = {m["kode"] for m in munisipaliteite}
     rade_nie_gedek = sorted(alle_kodes - set(rade_gedek))
+
+    # --- raadsgrootte-verifikasie (harde poort — voor enige Supabase-skrywe) ---
+    raadsgrootte_probleme = verifieer_raadsgrootte(alle_party_rye, raad_grootte_rye)
+    ontbrekende_raadsgrootte = sorted(set(rade_gedek) - {rg["muni_kode"] for rg in raad_grootte_rye})
+    if ontbrekende_raadsgrootte:
+        raadsgrootte_probleme.append(
+            f"{len(ontbrekende_raadsgrootte)} raad/rade sonder raadsgrootte-ry: "
+            f"{ontbrekende_raadsgrootte}"
+        )
+    if raadsgrootte_probleme:
+        print("Fout: raadsgrootte-verifikasie het misluk — niks is gelaai nie:", file=sys.stderr)
+        for p in raadsgrootte_probleme:
+            print(f"  - {p}", file=sys.stderr)
+        return 1
 
     # --- laai (idempotent: leeg eers) ---
     laai_begin = time.monotonic()
     try:
         supabase.rpc("stg_leeg", {"tabel": "stg_raad_uitslae_2021"})
         supabase.plaas_bondels("stg_raad_uitslae_2021", alle_party_rye, grootte=500)
+        supabase.rpc("stg_leeg", {"tabel": "stg_raad_grootte_2021"})
+        supabase.plaas_bondels("stg_raad_grootte_2021", raad_grootte_rye, grootte=500)
     except supabase.SupabaseFout as fout:
         print(f"Laai het misluk: {fout}", file=sys.stderr)
         return 1
     laai_tyd = time.monotonic() - laai_begin
 
-    geen_meerderheid = kry_geen_meerderheid_rade(alle_party_rye)
+    geen_meerderheid = kry_geen_meerderheid_rade(alle_party_rye, raad_grootte_rye)
 
     kommentaar = [
-        "Die 'geen-meerderheid'-toets hierbo is 'n verslag-statistiek vir hierdie taak; "
-        "die werf bereken sy eie meerderheidstatus later uit dieselfde stg-data.",
-        "Party_naam word presies soos deur die IEC gedruk gehou (net PDF-reëlbreuk na "
-        "spasie saamgevou, en rand-whitespace gestroop) — geen normalisering of "
-        "afkorting-uitbreiding nie.",
+        "Die 'geen-meerderheid'-toets hierbo is 'n verslag-statistiek vir hierdie taak, "
+        "bereken teen die volle raadsgrootte (stg_raad_grootte_2021.raadsgrootte_totaal "
+        "= party-setels + onafhanklikes), nie net die party-som nie; die werf bereken sy "
+        "eie meerderheidstatus later uit dieselfde stg-data.",
+        "Party_naam word presies soos deur die IEC gedruk gehou (PDF-reëlbreuk na spasie "
+        "saamgevou, rand-whitespace gestroop, en die oormaat-setel-voetnootmerker \" *\" "
+        "gestroop) — geen normalisering of afkorting-uitbreiding nie.",
         f"Provinsie-vouerkodes wat gebruik is: {vouer_tabel_teks}.",
     ]
     if aflaai_mislukkings:
@@ -618,6 +738,8 @@ def hoof() -> int:
         rade_nie_gedek=rade_nie_gedek,
         kode_teenstrydighede=kode_teenstrydighede,
         rye_gelaai=len(alle_party_rye),
+        raad_grootte_rye_gelaai=len(raad_grootte_rye),
+        raadsgrootte_probleme=raadsgrootte_probleme,
         geen_meerderheid=geen_meerderheid,
         ontledings_waarskuwings=ontledings_waarskuwings,
         verklaarde_verskille=verklaarde_verskille,
@@ -630,7 +752,8 @@ def hoof() -> int:
     print(f"Munisipaliteite: {len(munisipaliteite)}; rade gedek: {len(rade_gedek)}")
     print(f"Aflaai-mislukkings: {len(aflaai_mislukkings)}")
     print(f"Rye gelaai na stg_raad_uitslae_2021: {len(alle_party_rye)}")
-    print(f"Rade sonder meerderheid: {len(geen_meerderheid)}")
+    print(f"Rye gelaai na stg_raad_grootte_2021: {len(raad_grootte_rye)}")
+    print(f"Rade sonder meerderheid (teen volle raadsgrootte): {len(geen_meerderheid)}")
     print(f"Aflaai-tyd: {aflaai_tyd:.1f}s, ontleding-tyd: {ontleding_tyd:.1f}s, laai-tyd: {laai_tyd:.1f}s")
     print(f"Verslag: {VERSLAG_PAD}")
 
