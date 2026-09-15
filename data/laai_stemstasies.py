@@ -12,15 +12,14 @@ maar word steeds ondersteun soos deur die taakbrief vereis.
 
 Idempotent: leeg eers `stg_stemstasies` via `rpc/stg_leeg`, laai dan vars (bondelgrootte
 500). Skryf `data/uitvoer/stemstasies-verslag.md`. Termineer met 'n nie-nul afsluitkode
-as die laai self misluk (Supabase-foute); onopgeloste munisipaliteite of NC451-gapings
-word in die verslag aangeteken maar veroorsaak nie 'n nie-nul afsluitkode nie (dis 'n
-bronprobleem, nie 'n laaifout nie).
+as die laai self misluk (Supabase-foute); onopgeloste munisipaliteite of stasies met 'n
+onbekende wyk word in die verslag aangeteken maar veroorsaak nie 'n nie-nul afsluitkode
+nie (kontroleer.py hou die harde hek).
 
-Beheerder-bygevoegde stap (ná stasies-laai): herwin NC451 (Joe Morolong) se 15 wyke wat
-Taak 3 oorgeslaan het omdat die MDB-shapefile se WardID "NC451_<nr>" i.s.p. 'n 8-syfer
-ID dra. Die 15 wyk_id's kom nou uit die ontleeide stasiedata (NC451-stasierye se wyk_id
-is wél 8 syfers); dié word per wyknommer (laaste 3 syfers) teen die shapefile se WardNo
-gekarteer. Sien `bou_nc451_wyk_rye`.
+NC451 (Joe Morolong): hierdie laaier skryf NIE meer na `stg_wyke` nie. Die herwinning
+van die 15 NC451-wyke woon nou in `laai_wyke.py` (wat die NC-stasie-PDF self lees), so
+`laai_wyke.py` alleen lewer al die wyke. Loop dus altyd `laai_wyke.py` eerste (sien
+`data/README.md`).
 
 Gebruik: cd data && uv run --with pdfplumber,shapely,pyproj,pyshp,httpx python laai_stemstasies.py
 """
@@ -30,14 +29,13 @@ from __future__ import annotations
 import re
 import sys
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 import pdfplumber
 
-import laai_wyke
-from lib import geo, supabase, teks
+from lib import supabase, teks
 
 BASIS_PAD = Path(__file__).parent
 BRON_DIR = BASIS_PAD / "bron"
@@ -231,56 +229,6 @@ def ontleed_met_diagnostiek(
     return rye, diagnostiek
 
 
-# --- NC451-herwinning (beheerder-bygevoegde stap) ------------------------------------
-
-
-def nc451_wyk_id_versameling(alle_stasie_rye: list[dict]) -> dict[int, str]:
-    """{wyknommer: wyk_id} vir elke unieke NC451-wyk in die ontleeide stasiedata.
-
-    wyknommer = die laaste 3 syfers van wyk_id (bv. "34501001" -> 1).
-    """
-    resultaat: dict[int, str] = {}
-    for ry in alle_stasie_rye:
-        if ry["muni_kode"] != "NC451":
-            continue
-        wyk_nr = int(ry["wyk_id"][-3:])
-        resultaat[wyk_nr] = ry["wyk_id"]
-    return resultaat
-
-
-def bou_nc451_wyk_rye(
-    nc451_wyk_ids: dict[int, str], vorm_rekord_pare: list[tuple[Any, dict]]
-) -> tuple[list[dict], list[str]]:
-    """Karteer NC451-wyknommers (uit stasiedata) na die MDB-shapefile se NC451_<nr>-rekords.
-
-    Gee (wyk_rye, gapings) terug — 'n wyk_rye-inskrywing het dieselfde vorm as
-    `laai_wyke.bou_wyk_rye` s'n (wyk_id, wyk_nr, muni_kode, geom). 'n Gaping is 'n
-    wyknommer wat nié na presies een shapefile-rekord karteer nie (0 of >1 passings);
-    dié wyk word nie gelaai nie en word in die verslag gelys, nie geraai nie.
-    """
-    per_wyk_nr: defaultdict[int, list[tuple[Any, dict]]] = defaultdict(list)
-    for vorm, rekord in vorm_rekord_pare:
-        if rekord.get("CAT_B") != "NC451":
-            continue
-        per_wyk_nr[rekord["WardNo"]].append((vorm, rekord))
-
-    rye: list[dict] = []
-    gapings: list[str] = []
-    for wyk_nr, wyk_id in sorted(nc451_wyk_ids.items()):
-        passings = per_wyk_nr.get(wyk_nr, [])
-        if len(passings) != 1:
-            ward_ids = [rekord["WardID"] for _, rekord in passings]
-            gapings.append(
-                f"wyk {wyk_nr} (wyk_id {wyk_id}): {len(passings)} passings in die "
-                f"shapefile (verwag 1) — {ward_ids}"
-            )
-            continue
-        vorm, _rekord = passings[0]
-        ewkt = geo.na_ewkt_4326(vorm, laai_wyke.BRON_EPSG)
-        rye.append({"wyk_id": wyk_id, "wyk_nr": wyk_nr, "muni_kode": "NC451", "geom": ewkt})
-    return rye, gapings
-
-
 # --- REST-opzoekings vir munisipaliteit-terugval + verslag ---------------------------
 
 
@@ -408,42 +356,21 @@ def skryf_verslag(**kw) -> None:
         r.append(f"Geen — al {kw['totaal_gelaai']} VD-nommers is nasionaal uniek.")
     r.append("")
 
-    r.append("## Stasies wie se wyk_id nie (voor NC451-herwinning) in stg_wyke was nie")
+    r.append("## Stasies wie se wyk_id nie in stg_wyke is nie")
     r.append(
         f"- {kw['wyk_id_nie_in_stg_wyke_totaal']} stasie-rye verwys na 'n wyk_id wat nie in "
-        f"stg_wyke was voor die herwinningstap hieronder nie ({kw['wyk_id_nie_in_stg_wyke_wyktal']} "
-        "unieke wyk_id's)."
+        f"stg_wyke is nie ({kw['wyk_id_nie_in_stg_wyke_wyktal']} unieke wyk_id's). Verwag 0 "
+        "ná 'n volle `laai_wyke.py`-loop (wat NC451 self herwin)."
     )
     for wyk_id, prov in sorted(kw["wyk_id_nie_in_stg_wyke_voorbeelde"]):
         r.append(f"  - `{wyk_id}` ({prov})")
     if kw["wyk_id_nie_in_stg_wyke_wyktal"] > len(kw["wyk_id_nie_in_stg_wyke_voorbeelde"]):
-        r.append("  - … (sien §NC451-herwinning en §Kommentaar vir die Vrystaat-gapings)")
-    r.append("")
-
-    r.append("## NC451-herwinning (Joe Morolong, beheerder-bygevoegde stap)")
-    n = kw["nc451"]
-    r.append(f"- Unieke NC451-wyknommers in die ontleeide stasiedata: {n['wyknommer_tal']}")
-    if n["gapings"]:
-        r.append(f"- **Gapings gevind — herwinning oorgeslaan.** {len(n['gapings'])} wyknommer(s) "
-                  "karteer nie skoon na presies een shapefile-rekord nie:")
-        for gaping in n["gapings"]:
-            r.append(f"  - {gaping}")
-        r.append("- `stg_wyke` is NIE gewysig nie; `rpc/kontroleer_wyke` is nie weer aangeroep nie.")
-    else:
-        r.append(f"- Al {n['wyknommer_tal']} wyknommers karteer skoon na presies een shapefile-rekord.")
-        r.append(f"- Reeds in stg_wyke (idempotensie-wagter): {n['reeds_gelaai']}")
-        r.append(f"- Nuut gelaai: {n['nuut_gelaai']}")
-        st = n["selftoets"]
-        r.append(f"- `rpc/kontroleer_wyke` ná herwinning: wyke_totaal={st['wyke_totaal']}, "
-                  f"met_geom={st['met_geom']}, sonder_geom={st['sonder_geom']}, "
-                  f"selftoets_geslaag={st['selftoets_geslaag']}, selftoets_gefaal={st['selftoets_gefaal']}")
-        r.append(f"- **Verwag 4 485; gekry {st['wyke_totaal']}.**")
+        r.append("  - … (meer — sien logs)")
     r.append("")
 
     r.append("## Tydsberekening")
     r.append(f"- Ontleding (al 9 provinsies): {kw['totale_ontleedtyd']:.1f}s")
     r.append(f"- Laai na stg_stemstasies (leeg + plaas_bondels): {kw['laai_tyd']:.1f}s")
-    r.append(f"- NC451-herwinning (shapefile-lees + laai + selftoets): {kw['nc451']['tyd']:.1f}s")
     r.append("")
 
     r.append("## Kommentaar")
@@ -524,45 +451,6 @@ def hoof() -> int:
         return 1
     laai_tyd = time.monotonic() - laai_begin
 
-    # --- NC451-herwinning ---
-    nc451_begin = time.monotonic()
-    nc451_wyk_ids = nc451_wyk_id_versameling(alle_rye)
-    try:
-        laai_wyke.pak_uit()
-        vorm_rekord_pare = laai_wyke.lees_vorm_rekord_pare()
-    except Exception as fout:  # noqa: BLE001 — enige leesfout is 'n bronprobleem, nie 'n laaifout nie
-        print(f"kon nie die MDB-shapefile lees vir NC451-herwinning nie: {fout}", file=sys.stderr)
-        nc451_wyk_rye, nc451_gapings = [], [f"shapefile-leesfout: {fout}"]
-        vorm_rekord_pare = []
-    else:
-        nc451_wyk_rye, nc451_gapings = bou_nc451_wyk_rye(nc451_wyk_ids, vorm_rekord_pare)
-
-    nc451_kw: dict[str, Any] = {
-        "wyknommer_tal": len(nc451_wyk_ids),
-        "gapings": nc451_gapings,
-    }
-
-    if nc451_gapings:
-        nc451_kw["tyd"] = time.monotonic() - nc451_begin
-    else:
-        nuwe_wyk_ids = {r["wyk_id"] for r in nc451_wyk_rye}
-        reeds_gelaai = nuwe_wyk_ids & bestaande_wyk_ids_voor
-        te_laai = [r for r in nc451_wyk_rye if r["wyk_id"] not in bestaande_wyk_ids_voor]
-        try:
-            if te_laai:
-                supabase.plaas_bondels("stg_wyke", te_laai, grootte=laai_wyke.WYKE_GROOTTE)
-            selftoets_rye = supabase.rpc("kontroleer_wyke", {})
-        except supabase.SupabaseFout as fout:
-            print(f"NC451-herwinning se laai/selftoets het misluk: {fout}", file=sys.stderr)
-            return 1
-        selftoets = selftoets_rye[0] if isinstance(selftoets_rye, list) else selftoets_rye
-        nc451_kw["reeds_gelaai"] = len(reeds_gelaai)
-        nc451_kw["nuut_gelaai"] = len(te_laai)
-        nc451_kw["selftoets"] = selftoets
-        nc451_kw["tyd"] = time.monotonic() - nc451_begin
-        print(f"NC451-herwinning: {len(te_laai)} nuut gelaai, {len(reeds_gelaai)} reeds daar; "
-              f"stg_wyke totaal ná herwinning: {selftoets['wyke_totaal']}")
-
     kommentaar = [
         "Al 9 provinsies se PDF's druk 'n eksplisiete munisipaliteitskode — die "
         "wyk-voorvoegsel- en naam-terugvalle in `bou_stasie_ry` is dus nooit werklik "
@@ -571,19 +459,17 @@ def hoof() -> int:
         "`data/tests/test_stemstasies.py`.",
         "Geen duplikaat VD-nommers is gevind nie, binne of oor provinsies heen — die "
         "IEC se VD-nommers is blykbaar nasionaal uniek.",
-        "Die 'stasies wie se wyk_id nie in stg_wyke was nie'-lys bevat, in hierdie loop, "
-        "uitsluitlik die 15 NC451-wyke (hierbo herwin). Die bekende 3 ontbrekende "
-        "Vrystaatse wyke (Task 3-verslag) het GEEN ooreenstemmende stasie-ry nie — al "
+        "NC451 se 15 wyke word deur `laai_wyke.py` herwin (nie meer hier nie). Die bekende "
+        "3 ontbrekende Vrystaatse wyke (Task 3-verslag) het GEEN ooreenstemmende stasie-ry "
+        "nie — al "
         "308 Vrystaatse wyk_id's wat wél in stg_stemstasies voorkom, was reeds in "
         "stg_wyke; met ander woorde, geen IEC-stemlokaal in hierdie datastel verwys na "
         "een van daardie 3 ontbrekende wyke nie. Die Vrystaat-gaping bly 'n bronprobleem "
         "in die MDB-shapefile self (aan MDB te rapporteer, buite hierdie taak se bestek) "
-        "en kon dus nie via stasiedata herwin word soos NC451 nie.",
+        "en kan dus nie via stasiedata herwin word soos NC451 nie.",
         "`stg_stemstasies` het geen primêre sleutel nie (dis 'n staging-tabel); die laaier "
         "leeg dit eers heeltemal (`rpc/stg_leeg`) voor dit vars laai, so 'n herloop is "
-        "idempotent vir die stasietabel self. Die NC451-herwinningstap laai net "
-        "wyk_id's wat nog nie in stg_wyke is nie (`te_laai`-filter), so 'n herloop van "
-        "hierdie skrip voeg nie duplikate by stg_wyke nie.",
+        "idempotent vir die stasietabel self. Hierdie skrip skryf nie na stg_wyke nie.",
     ]
 
     skryf_verslag(
@@ -598,7 +484,6 @@ def hoof() -> int:
         wyk_id_nie_in_stg_wyke_totaal=len(wyk_id_nie_in_stg_wyke),
         wyk_id_nie_in_stg_wyke_wyktal=len(wyk_id_nie_in_stg_wyke_unieke),
         wyk_id_nie_in_stg_wyke_voorbeelde=voorbeelde,
-        nc451=nc451_kw,
         laai_tyd=laai_tyd,
         kommentaar=kommentaar,
     )
@@ -613,9 +498,10 @@ def hoof() -> int:
             "word nie — sien die verslag.",
             file=sys.stderr,
         )
-    if nc451_gapings:
+    if wyk_id_nie_in_stg_wyke:
         print(
-            f"Waarskuwing: NC451-herwinning het {len(nc451_gapings)} gaping(s) — sien die verslag.",
+            f"Waarskuwing: {len(wyk_id_nie_in_stg_wyke)} stasie(s) verwys na 'n wyk_id wat nie "
+            "in stg_wyke is nie — loop eers laai_wyke.py; sien die verslag.",
             file=sys.stderr,
         )
 

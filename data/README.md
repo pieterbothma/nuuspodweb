@@ -30,10 +30,65 @@ runs through `uv run --with ...` so there's nothing to install or activate.
 - `uitvoer/` — loader run-reports (gitignored; each loader writes
   `uitvoer/<datastel>-verslag.md`).
 
+## Loader run order
+
+Every loader reads credentials via `lib.omgewing.lees()`, empties its own `stg_` table(s)
+first, writes `uitvoer/<datastel>-verslag.md`, and exits non-zero on failure. Run from
+`data/` with
+`uv run --with pdfplumber,pyshp,shapely,pyproj,httpx python <script>`:
+
+1. `laai_wyke.py` — `stg_munisipaliteite` (213 councils + 44 districts) and `stg_wyke`.
+   It recovers NC451 (Joe Morolong)'s 15 wards itself from
+   `bron/stemstasies-2026-NC.pdf` (the MDB shapefile gives them non-numeric WardIDs), so
+   this script alone yields all 4,485 wards. Any NC451 mapping gap is a hard failure
+   before any write. `--net-ontleed` parses and prints counts without touching Supabase.
+2. `laai_stemstasies.py` — `stg_stemstasies` (needs step 1; it no longer writes wards).
+3. `laai_plekke.py` — `stg_plekke`, `stg_plek_wyke` (chunked `rpc/bou_plek_wyke`),
+   `stg_plek_aliasse` (needs step 1). An alias row in `aliasse.csv` that resolves to 0
+   sub places is a hard failure. `--net-aliasse` reloads only the aliases (cheap).
+4. `laai_uitslae_2021.py` — `stg_raad_uitslae_2021` + `stg_raad_grootte_2021` (needs
+   step 1; exits non-zero and writes nothing unless all 213 councils parse).
+5. `kontroleer.py` — read-only; writes `uitvoer/kontroleverslag.md` and exits 1 if any
+   hard gate fails (counts, unknown wards, places without a ward, duplicate keys,
+   empty aliases).
+
+`kandidate_ontleder.py` is a pure parser (no DB yet).
+
+### The 4 rural places after a full places reload
+
+A full `laai_plekke.py` run (no flags) empties `stg_plek_wyke` and recomputes overlaps
+through PostgREST, where the `authenticator` role's 8 s `statement_timeout` applies.
+Four very large rural sub places never finish within 8 s, even one at a time:
+
+| sp_kode | Place |
+|---|---|
+| 271002001 | Mnquna (spelled "Mnquma" elsewhere) |
+| 290003001 | Ngquza Hill |
+| 292002001 | Nyandeni |
+| 966002001 | Thulamela |
+
+After a full places reload their `stg_plek_wyke` rows (156 in the 2026-09-15 load) must be
+recomputed with **direct SQL** (Supabase SQL editor / MCP `execute_sql`, no 8 s limit),
+one place per call, using the row number of each sp_kode in `stg_plekke` ordered by
+sp_kode:
+
+```sql
+with n as (select sp_kode, row_number() over (order by sp_kode) as rn
+           from stg_plekke where geom is not null)
+select sp_kode, rn from n
+where sp_kode in ('271002001', '290003001', '292002001', '966002001');
+-- then, for each rn:
+select bou_plek_wyke(<rn>, <rn>);
+```
+
+The ranged `bou_plek_wyke(van, tot)` deletes the range's existing rows first, so a retry
+never duplicates. `kontroleer.py` fails if any of the four has 0 wards or if more than
+the 3 known harbour slivers have no ward.
+
 ## Running the tests
 
 ```sh
-cd data && uv run --with pytest,shapely,pyproj,pyshp,httpx pytest -q
+cd data && uv run --with pdfplumber,pyshp,shapely,pyproj,httpx,pytest pytest -q
 ```
 
 `conftest.py` at the top of `data/` puts `data/` on `sys.path` so tests (and future loader
