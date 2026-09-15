@@ -19,7 +19,32 @@ Idempotent: leeg eers `stg_plekke`, `stg_plek_wyke` en `stg_plek_aliasse` via
 of plekke sonder wyke word in die verslag aangeteken maar veroorsaak nie 'n nie-nul
 afsluitkode nie (dis 'n bronprobleem, nie 'n laaifout nie).
 
-Gebruik: cd data && uv run --with shapely,pyproj,pyshp,httpx python laai_plekke.py
+Vier modusse (`ontleed_argumente` ontleed die CLI-argumente hieronder):
+
+  cd data && uv run --with shapely,pyproj,pyshp,httpx python laai_plekke.py
+      Volle laai: stg_plekke (leeg + herlaai), dan `rpc/bou_plek_wyke` in bondels van
+      BOU_PLEK_WYKE_BONDEL (**verstek** — die param-lose oproep kan nie binne
+      PostgREST se 8s `statement_timeout` klaarmaak nie, sien Fix round 1), dan
+      aliasse, dan die volle verslag.
+
+  cd data && uv run --with shapely,pyproj,pyshp,httpx python laai_plekke.py --volledig
+      Soos bo, maar met die onbondelde, param-lose `rpc/bou_plek_wyke()`-oproep —
+      hou net vir toetsing/vergelyking; misluk in die praktyk feitlik altyd.
+
+  cd data && uv run --with shapely,pyproj,pyshp,httpx python laai_plekke.py --net-aliasse
+      Verfris NET `stg_plek_aliasse` uit `aliasse.csv` (leeg + herlaai) teen die reeds-
+      gelaaide `stg_plekke` — raak stg_plekke/stg_plek_wyke nie aan nie (dus geen
+      48-minuut bou_plek_wyke-loop nie). Herskryf net die "## Aliasse"-afdeling van
+      die bestaande verslag; die res van die lêer bly ongeskonde.
+
+  cd data && uv run --with shapely,pyproj,pyshp,httpx python laai_plekke.py \
+      --net-oorvleueling-vir <sp_kode,sp_kode,...>
+      Herbereken NET die gegewe sp_kodes se `bou_plek_wyke`-oorvleuelings — een plek op
+      'n slag (`bou_plek_wyke(rn, rn)`, rn = row_number oor stg_plekke geordend per
+      sp_kode), tot 3 pogings met 'n 10s-pouse tussenin. Verwyder eers enige bestaande
+      `stg_plek_wyke`-rye vir hierdie sp_kodes (idempotensie — 'n reeks-oproep vee
+      andersins nooit bestaande rye uit nie). Voeg 'n "## Herberekening:
+      --net-oorvleueling-vir"-afdeling by die bestaande verslag; die res bly ongeskonde.
 """
 
 from __future__ import annotations
@@ -31,9 +56,10 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+import httpx
 import shapefile
 
-from lib import geo, supabase, teks
+from lib import geo, omgewing, supabase, teks
 
 BASIS_PAD = Path(__file__).parent
 BRON_SP_ZIP = BASIS_PAD / "bron" / "plekke" / "Subplace.zip"
@@ -51,6 +77,9 @@ BOU_PLEK_WYKE_BONDEL = 100  # rye per bou_plek_wyke(van, tot)-oproep — kalibre
 # `authenticator`-rol se 8s statement_timeout (sien Task-5-verslag §rpc/bou_plek_wyke se
 # kalibrasietabel: 50 rye ~3.5s, 100 rye ~5.75s, 150 rye ~6.9s, 300 rye tref reeds die
 # 8s-limiet). 100 laat genoeg marge oor vir netwerkwisseling.
+
+NET_OORVLEUELING_HERHALINGS = 3  # --net-oorvleueling-vir: totale pogings per plek
+NET_OORVLEUELING_VERTRAGING_S = 10.0  # ...met hierdie pouse tussen pogings
 
 
 def pak_uit() -> None:
@@ -186,6 +215,57 @@ def _roep_bou_plek_wyke_reeks(
     return ingevoeg
 
 
+def roep_bou_plek_wyke_enkel_plek(rn: int) -> tuple[int | None, float, str | None]:
+    """--net-oorvleueling-vir: roep bou_plek_wyke(rn, rn) tot NET_OORVLEUELING_HERHALINGS
+    pogings, met 'n NET_OORVLEUELING_VERTRAGING_S-pouse tussen pogings (nie voor die
+    eerste een nie). Gee (ingevoeg, tyd_van_laaste_poging_s, fout) terug — `ingevoeg` is
+    None as al die pogings misluk het (`fout` dra dan die laaste fout se boodskap).
+    """
+    laaste_fout: str | None = None
+    tyd = 0.0
+    for poging in range(1, NET_OORVLEUELING_HERHALINGS + 1):
+        begin = time.monotonic()
+        try:
+            ingevoeg = supabase.rpc("bou_plek_wyke", {"van": rn, "tot": rn})
+            return ingevoeg, time.monotonic() - begin, None
+        except supabase.SupabaseFout as fout:
+            tyd = time.monotonic() - begin
+            laaste_fout = str(fout)
+            print(f"  rn={rn} poging {poging}/{NET_OORVLEUELING_HERHALINGS} het misluk "
+                  f"({tyd:.1f}s): {laaste_fout}")
+            if poging < NET_OORVLEUELING_HERHALINGS:
+                time.sleep(NET_OORVLEUELING_VERTRAGING_S)
+    return None, tyd, laaste_fout
+
+
+def _verwyder_plek_wyke_vir(sp_kodes: list[str]) -> None:
+    """Verwyder bestaande `stg_plek_wyke`-rye vir hierdie sp_kodes — idempotensie-wagter
+    vir `--net-oorvleueling-vir` (`bou_plek_wyke(van, tot)` vee self nooit bestaande rye
+    uit as 'n reeks gegee word nie, sien migrasie, so 'n herhaalde oproep vir 'n reeds-
+    berekende plek sou andersins duplikate skep).
+
+    Gebruik PostgREST se **outomatiese REST-DELETE-eindpunt** (`DELETE
+    /rest/v1/stg_plek_wyke?sp_kode=in.(...)`), nie 'n RPC nie — dié dra reeds 'n
+    filter/WHERE-bepaling, so dit tref nie die `safeupdate`-wagter wat 'n kaal DELETE
+    binne 'n RPC-liggaam blokkeer nie (sien Task-5-verslag §rpc/bou_plek_wyke). Bou sy
+    eie httpx-kliënt (soos `lib.supabase._bou_klient`) i.p.v. om `lib/supabase.py` te
+    wysig — daardie lêer is buite hierdie taak se bestek.
+    """
+    if not sp_kodes:
+        return
+    omgewing_waardes = omgewing.lees()
+    basis_url = omgewing_waardes["url"].rstrip("/") + "/rest/v1/"
+    koptekste = {
+        "apikey": omgewing_waardes["sleutel"],
+        "Authorization": f"Bearer {omgewing_waardes['sleutel']}",
+    }
+    lys = ",".join(sp_kodes)
+    with httpx.Client(base_url=basis_url, headers=koptekste, timeout=30.0) as klient:
+        resp = klient.delete("stg_plek_wyke", params={"sp_kode": f"in.({lys})"})
+        if resp.status_code >= 400:
+            raise supabase.SupabaseFout(resp.text[:500])
+
+
 def roep_bou_plek_wyke_in_bondels(
     plek_totaal: int,
 ) -> tuple[int, list[tuple[int, int, int, float]], list[tuple[int, int, str]]]:
@@ -297,7 +377,92 @@ def bou_alias_rye(
     return aliasse, onopgelos
 
 
+def bou_alias_resolusie_tabel(
+    aliasse_csv_rye: list[dict],
+    plekke_per_naam_mp: dict[tuple[str, str | None], list[str]],
+    plekke_per_mp: dict[str, list[str]],
+) -> list[dict]:
+    """Een inskrywing per aliasse.csv-ry: {alias, naam, mp_naam, opgelos, sp_kode_tal}."""
+    tabel: list[dict] = []
+    for csv_ry in aliasse_csv_rye:
+        sp_kodes, _ = los_alias_op(csv_ry, plekke_per_naam_mp, plekke_per_mp)
+        tabel.append(
+            {
+                "alias": csv_ry["alias"],
+                "naam": csv_ry["naam"],
+                "mp_naam": csv_ry.get("mp_naam") or None,
+                "opgelos": bool(sp_kodes),
+                "sp_kode_tal": len(sp_kodes),
+            }
+        )
+    return tabel
+
+
 # --- verslag ---------------------------------------------------------------------
+
+
+def bou_alias_afdeling_reëls(
+    aliasse_csv_totaal: int,
+    aliasse_opgelos: int,
+    aliasse_gelaai: int,
+    alias_resolusie_tabel: list[dict],
+    onopgeloste_aliasse: list[dict],
+) -> list[str]:
+    """Die inhoud van die "## Aliasse"-afdeling (sonder die kop self) — gedeel tussen
+    `skryf_verslag` (volle laai) en `hoof_net_aliasse` (--net-aliasse), sodat albei
+    presies dieselfde tabel-formaat gee."""
+    r: list[str] = []
+    r.append(f"- Rye in `{ALIASSE_CSV_PAD.name}`: {aliasse_csv_totaal}")
+    r.append(f"- Opgelos (sp_kode gevind): {aliasse_opgelos}")
+    r.append(f"- Gelaai na `stg_plek_aliasse`: **{aliasse_gelaai}**")
+    r.append("")
+    r.append("### Alias-resolusietabel")
+    r.append("| alias | naam | mp_naam | opgelos? | sp_kode-tal |")
+    r.append("|---|---|---|---|---:|")
+    for reël in alias_resolusie_tabel:
+        r.append(
+            f"| {reël['alias']} | {reël['naam']} | {reël['mp_naam'] or ''} | "
+            f"{'ja' if reël['opgelos'] else '**nee**'} | {reël['sp_kode_tal']} |"
+        )
+    r.append("")
+    if onopgeloste_aliasse:
+        r.append("### Onopgeloste aliasse (nie gelaai nie — nie geraai nie)")
+        for csv_ry in onopgeloste_aliasse:
+            r.append(f"- `{csv_ry['alias']}` -> `{csv_ry['naam']}` (mp_naam: `{csv_ry.get('mp_naam') or ''}`)")
+        r.append("")
+    return r
+
+
+def vervang_verslag_afdeling(teks: str, kop: str, nuwe_reëls: list[str]) -> str:
+    """Vervang (of voeg by, as dit nie bestaan nie) een '## '-afdeling in 'n bestaande
+    verslag-teks. 'n Afdeling strek van sy `kop`-lyn (presies, bv. "## Aliasse") tot net
+    voor die volgende lyn wat met "## " begin, of tot die einde van die lêer.
+
+    Gebruik deur `--net-aliasse` en `--net-oorvleueling-vir` om net een afdeling van
+    `data/uitvoer/plekke-verslag.md` op te dateer, sonder om die res van 'n vorige volle
+    laai se verslag (48-minuut `bou_plek_wyke`-loop) te laat val.
+    """
+    reëls = teks.splitlines()
+    nuwe_afdeling = [kop] + nuwe_reëls + [""]
+
+    begin_idx = None
+    for i, reël in enumerate(reëls):
+        if reël.strip() == kop:
+            begin_idx = i
+            break
+
+    if begin_idx is None:
+        if reëls and reëls[-1] != "":
+            reëls.append("")
+        return "\n".join(reëls + nuwe_afdeling)
+
+    eind_idx = len(reëls)
+    for i in range(begin_idx + 1, len(reëls)):
+        if reëls[i].startswith("## "):
+            eind_idx = i
+            break
+
+    return "\n".join(reëls[:begin_idx] + nuwe_afdeling + reëls[eind_idx:])
 
 
 def skryf_verslag(**kw) -> None:
@@ -439,24 +604,15 @@ def skryf_verslag(**kw) -> None:
     r.append("")
 
     r.append("## Aliasse")
-    r.append(f"- Rye in `{ALIASSE_CSV_PAD.name}`: {kw['aliasse_csv_totaal']}")
-    r.append(f"- Opgelos (sp_kode gevind): {kw['aliasse_opgelos']}")
-    r.append(f"- Gelaai na `stg_plek_aliasse`: **{kw['aliasse_gelaai']}**")
-    r.append("")
-    r.append("### Alias-resolusietabel")
-    r.append("| alias | naam | mp_naam | opgelos? | sp_kode-tal |")
-    r.append("|---|---|---|---|---:|")
-    for reël in kw["alias_resolusie_tabel"]:
-        r.append(
-            f"| {reël['alias']} | {reël['naam']} | {reël['mp_naam'] or ''} | "
-            f"{'ja' if reël['opgelos'] else '**nee**'} | {reël['sp_kode_tal']} |"
+    r.extend(
+        bou_alias_afdeling_reëls(
+            aliasse_csv_totaal=kw["aliasse_csv_totaal"],
+            aliasse_opgelos=kw["aliasse_opgelos"],
+            aliasse_gelaai=kw["aliasse_gelaai"],
+            alias_resolusie_tabel=kw["alias_resolusie_tabel"],
+            onopgeloste_aliasse=kw["onopgeloste_aliasse"],
         )
-    r.append("")
-    if kw["onopgeloste_aliasse"]:
-        r.append("### Onopgeloste aliasse (nie gelaai nie — nie geraai nie)")
-        for csv_ry in kw["onopgeloste_aliasse"]:
-            r.append(f"- `{csv_ry['alias']}` -> `{csv_ry['naam']}` (mp_naam: `{csv_ry.get('mp_naam') or ''}`)")
-        r.append("")
+    )
 
     r.append("## Steekproef-/smoke-navrae")
     r.append(kw["smoke_navrae"])
@@ -474,7 +630,7 @@ def skryf_verslag(**kw) -> None:
     VERSLAG_PAD.write_text("\n".join(r))
 
 
-def hoof() -> int:
+def hoof(volledig: bool = False) -> int:
     tydstempel = time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     if not ALIASSE_CSV_PAD.exists():
@@ -512,7 +668,9 @@ def hoof() -> int:
     print(f"Gelaai na stg_plekke: {len(plek_rye)} / {sp_rekordtal} (oorgeslaan geom: {len(oorgeslaan_geom)})")
     print(f"Laai-tyd: {laai_tyd:.1f}s")
 
-    gebruik_bondel = "--bondel" in sys.argv[1:]
+    gebruik_bondel = not volledig  # bondel is verstek; --volledig kies eksplisiet die
+    # ou param-lose pad (misluk in die praktyk feitlik altyd binne PostgREST se 8s
+    # statement_timeout — sien Fix round 1).
 
     # --- rpc/bou_plek_wyke ---
     bpw_metode: str
@@ -595,18 +753,7 @@ def hoof() -> int:
     plekke_per_naam_mp, plekke_per_mp = bou_alias_indeks(alle_plekke)
     alias_rye, onopgeloste_aliasse = bou_alias_rye(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
 
-    alias_resolusie_tabel = []
-    for csv_ry in aliasse_csv_rye:
-        sp_kodes, _ = los_alias_op(csv_ry, plekke_per_naam_mp, plekke_per_mp)
-        alias_resolusie_tabel.append(
-            {
-                "alias": csv_ry["alias"],
-                "naam": csv_ry["naam"],
-                "mp_naam": csv_ry.get("mp_naam") or None,
-                "opgelos": bool(sp_kodes),
-                "sp_kode_tal": len(sp_kodes),
-            }
-        )
+    alias_resolusie_tabel = bou_alias_resolusie_tabel(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
 
     try:
         supabase.plaas_bondels("stg_plek_aliasse", alias_rye, grootte=200)
@@ -696,5 +843,208 @@ def kw_volledig_fout_boodskap() -> str:
     )
 
 
+# --- --net-aliasse -----------------------------------------------------------------
+
+
+def hoof_net_aliasse() -> int:
+    """`--net-aliasse`: leeg + herlaai net `stg_plek_aliasse` uit `aliasse.csv` teen die
+    reeds-gelaaide `stg_plekke` — raak `stg_plekke`/`stg_plek_wyke` glad nie aan nie
+    (dus geen 48-minuut `bou_plek_wyke`-loop nie). Herskryf net die "## Aliasse"-
+    afdeling van die bestaande verslag; die res van die lêer bly ongeskonde.
+    """
+    tydstempel = time.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    if not ALIASSE_CSV_PAD.exists():
+        print(f"aliasse.csv nie gevind nie: {ALIASSE_CSV_PAD}", file=sys.stderr)
+        return 1
+
+    try:
+        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"})
+    except supabase.SupabaseFout as fout:
+        print(f"kon nie stg_plekke lees nie: {fout}", file=sys.stderr)
+        return 1
+
+    if not alle_plekke:
+        print(
+            "stg_plekke is leeg — laai eers die volle datastel (sonder --net-aliasse).",
+            file=sys.stderr,
+        )
+        return 1
+
+    aliasse_csv_rye = lees_aliasse_csv(ALIASSE_CSV_PAD)
+    plekke_per_naam_mp, plekke_per_mp = bou_alias_indeks(alle_plekke)
+    alias_rye, onopgeloste_aliasse = bou_alias_rye(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
+    alias_resolusie_tabel = bou_alias_resolusie_tabel(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
+
+    try:
+        supabase.rpc("stg_leeg", {"tabel": "stg_plek_aliasse"})
+        supabase.plaas_bondels("stg_plek_aliasse", alias_rye, grootte=200)
+    except supabase.SupabaseFout as fout:
+        print(f"Aliasse-laai het misluk: {fout}", file=sys.stderr)
+        return 1
+
+    print(
+        f"Aliasse: {len(alias_rye)} gelaai / {len(aliasse_csv_rye)} CSV-rye "
+        f"({len(onopgeloste_aliasse)} onopgelos)"
+    )
+
+    if VERSLAG_PAD.exists():
+        afdeling_reëls = [
+            f"_Laaste verfris: {tydstempel} (`--net-aliasse` — stg_plekke/stg_plek_wyke "
+            "nie aangeraak nie)_",
+            "",
+        ]
+        afdeling_reëls += bou_alias_afdeling_reëls(
+            aliasse_csv_totaal=len(aliasse_csv_rye),
+            aliasse_opgelos=len(aliasse_csv_rye) - len(onopgeloste_aliasse),
+            aliasse_gelaai=len(alias_rye),
+            alias_resolusie_tabel=alias_resolusie_tabel,
+            onopgeloste_aliasse=onopgeloste_aliasse,
+        )
+        nuwe_teks = vervang_verslag_afdeling(VERSLAG_PAD.read_text(), "## Aliasse", afdeling_reëls)
+        VERSLAG_PAD.write_text(nuwe_teks)
+        print(f"Verslag se '## Aliasse'-afdeling herskryf: {VERSLAG_PAD}")
+    else:
+        print(
+            f"Waarskuwing: {VERSLAG_PAD} bestaan nie — verslag nie opgedateer nie "
+            "(net stg_plek_aliasse self is verfris).",
+            file=sys.stderr,
+        )
+
+    if onopgeloste_aliasse:
+        print(
+            f"Waarskuwing: {len(onopgeloste_aliasse)} alias(se) kon nie opgelos word nie.",
+            file=sys.stderr,
+        )
+
+    return 0
+
+
+# --- --net-oorvleueling-vir ----------------------------------------------------------
+
+
+def hoof_net_oorvleueling_vir(sp_kodes: list[str]) -> int:
+    """`--net-oorvleueling-vir <sp_kode,...>`: herbereken net hierdie plekke se
+    `bou_plek_wyke`-oorvleuelings, een plek op 'n slag (met tot
+    `NET_OORVLEUELING_HERHALINGS` pogings en 'n `NET_OORVLEUELING_VERTRAGING_S`-pouse
+    tussenin), sonder om die res van `stg_plek_wyke` aan te raak. Voeg 'n "##
+    Herberekening: --net-oorvleueling-vir"-afdeling by die bestaande verslag.
+    """
+    tydstempel = time.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    try:
+        alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"})
+    except supabase.SupabaseFout as fout:
+        print(f"kon nie stg_plekke lees nie: {fout}", file=sys.stderr)
+        return 1
+
+    if not alle_plekke:
+        print("stg_plekke is leeg — laai eers die volle datastel.", file=sys.stderr)
+        return 1
+
+    plekke_geordend = sorted(alle_plekke, key=lambda ry: ry["sp_kode"])
+    rn_per_sp_kode = {ry["sp_kode"]: i + 1 for i, ry in enumerate(plekke_geordend)}
+    plekke_by_sp_kode = {ry["sp_kode"]: ry for ry in alle_plekke}
+
+    onbekend = [sp for sp in sp_kodes if sp not in rn_per_sp_kode]
+    for sp in onbekend:
+        print(f"Waarskuwing: sp_kode {sp} nie in stg_plekke gevind nie — oorgeslaan.", file=sys.stderr)
+    bekend = [sp for sp in sp_kodes if sp in rn_per_sp_kode]
+    if not bekend:
+        print("Geen geldige sp_kodes om te herbereken nie.", file=sys.stderr)
+        return 1
+
+    try:
+        _verwyder_plek_wyke_vir(bekend)
+    except supabase.SupabaseFout as fout:
+        print(f"Kon nie bestaande stg_plek_wyke-rye vir {bekend} verwyder nie: {fout}", file=sys.stderr)
+        return 1
+
+    resultate: list[dict] = []
+    for sp in bekend:
+        rn = rn_per_sp_kode[sp]
+        naam = plekke_by_sp_kode[sp]["naam"]
+        print(f"Herbereken {sp} ({naam}, row_number {rn})...")
+        ingevoeg, tyd, fout = roep_bou_plek_wyke_enkel_plek(rn)
+        resultate.append({"sp_kode": sp, "naam": naam, "rn": rn, "ingevoeg": ingevoeg, "tyd": tyd, "fout": fout})
+        if ingevoeg is None:
+            print(
+                f"  {sp} het steeds misluk ná {NET_OORVLEUELING_HERHALINGS} pogings: {fout}",
+                file=sys.stderr,
+            )
+        else:
+            print(f"  {sp}: {ingevoeg} stg_plek_wyke-ry(e) ingevoeg ({tyd:.1f}s)")
+
+    if VERSLAG_PAD.exists():
+        afdeling_reëls = [
+            f"Uitgevoer: {tydstempel} — `--net-oorvleueling-vir {','.join(sp_kodes)}`.",
+            "",
+            "| sp_kode | naam | row_number | ingevoeg | tyd (s) | fout |",
+            "|---|---|---:|---:|---:|---|",
+        ]
+        for res in resultate:
+            afdeling_reëls.append(
+                f"| {res['sp_kode']} | {res['naam']} | {res['rn']} | "
+                f"{res['ingevoeg'] if res['ingevoeg'] is not None else '—'} | {res['tyd']:.1f} | "
+                f"{('`' + res['fout'][:120] + '`') if res['fout'] else ''} |"
+            )
+        afdeling_reëls.append("")
+        nuwe_teks = vervang_verslag_afdeling(
+            VERSLAG_PAD.read_text(), "## Herberekening: --net-oorvleueling-vir", afdeling_reëls
+        )
+        VERSLAG_PAD.write_text(nuwe_teks)
+        print(f"Verslag-afdeling '## Herberekening: --net-oorvleueling-vir' bygewerk: {VERSLAG_PAD}")
+    else:
+        print(
+            f"Waarskuwing: {VERSLAG_PAD} bestaan nie — verslag nie opgedateer nie.",
+            file=sys.stderr,
+        )
+
+    misluk = [res for res in resultate if res["ingevoeg"] is None]
+    if misluk:
+        print(f"Waarskuwing: {len(misluk)} plek(ke) het steeds misluk.", file=sys.stderr)
+
+    return 0
+
+
+# --- CLI-argumente ---------------------------------------------------------------------
+
+
+def ontleed_argumente(argv: list[str]) -> dict:
+    """Ontleed CLI-argumente na 'n modus-woordeboek.
+
+    - geen argumente: {"modus": "vol", "volledig": False}
+    - `--volledig`: {"modus": "vol", "volledig": True}
+    - `--net-aliasse`: {"modus": "net_aliasse"}
+    - `--net-oorvleueling-vir <sp_kode,sp_kode,...>`:
+      {"modus": "net_oorvleueling_vir", "sp_kodes": [...]}
+
+    Gooi `ValueError` vir onbekende of onvolledige argumente (leë sp_kode-lys ingesluit).
+    """
+    argv = list(argv)
+    if not argv:
+        return {"modus": "vol", "volledig": False}
+    if argv == ["--volledig"]:
+        return {"modus": "vol", "volledig": True}
+    if argv == ["--net-aliasse"]:
+        return {"modus": "net_aliasse"}
+    if len(argv) == 2 and argv[0] == "--net-oorvleueling-vir":
+        sp_kodes = [s.strip() for s in argv[1].split(",") if s.strip()]
+        if not sp_kodes:
+            raise ValueError("--net-oorvleueling-vir het ten minste een sp_kode nodig")
+        return {"modus": "net_oorvleueling_vir", "sp_kodes": sp_kodes}
+    raise ValueError(f"onbekende argumente: {argv!r}")
+
+
 if __name__ == "__main__":
-    raise SystemExit(hoof())
+    try:
+        _modus = ontleed_argumente(sys.argv[1:])
+    except ValueError as _fout:
+        print(f"{_fout}\nSien die module-dokstring vir die geldige modusse.", file=sys.stderr)
+        raise SystemExit(2)
+
+    if _modus["modus"] == "net_aliasse":
+        raise SystemExit(hoof_net_aliasse())
+    if _modus["modus"] == "net_oorvleueling_vir":
+        raise SystemExit(hoof_net_oorvleueling_vir(_modus["sp_kodes"]))
+    raise SystemExit(hoof(volledig=_modus["volledig"]))

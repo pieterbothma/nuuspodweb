@@ -172,6 +172,140 @@ def test_roep_bou_plek_wyke_reeks_herstel_ná_tydelike_enkel_plek_fout(monkeypat
     assert len(tydsberekenings) == 1
 
 
+# --- aliasse.csv: "Die Strand" verwyder (Fix round 1) ------------------------------
+
+
+def test_aliasse_csv_bevat_nie_meer_die_strand_nie():
+    """Produkeienaar: mense sê "Strand", nie "Die Strand" nie — die ry is verwyder."""
+    rye = lp.lees_aliasse_csv(lp.ALIASSE_CSV_PAD)
+    aliasse = {ry["alias"] for ry in rye}
+    assert "Die Strand" not in aliasse
+    assert len(rye) == 12  # was 13 voor Fix round 1
+
+
+# --- ontleed_argumente: CLI-argumenthantering (suiwer, geen netwerk) ---------------
+
+
+def test_ontleed_argumente_geen_argumente_gee_bondel_verstek():
+    assert lp.ontleed_argumente([]) == {"modus": "vol", "volledig": False}
+
+
+def test_ontleed_argumente_volledig_vlag():
+    assert lp.ontleed_argumente(["--volledig"]) == {"modus": "vol", "volledig": True}
+
+
+def test_ontleed_argumente_net_aliasse():
+    assert lp.ontleed_argumente(["--net-aliasse"]) == {"modus": "net_aliasse"}
+
+
+def test_ontleed_argumente_net_oorvleueling_vir_enkel_sp_kode():
+    assert lp.ontleed_argumente(["--net-oorvleueling-vir", "271002001"]) == {
+        "modus": "net_oorvleueling_vir",
+        "sp_kodes": ["271002001"],
+    }
+
+
+def test_ontleed_argumente_net_oorvleueling_vir_verskeie_sp_kodes():
+    resultaat = lp.ontleed_argumente(
+        ["--net-oorvleueling-vir", "271002001,290003001, 292002001 ,966002001"]
+    )
+    assert resultaat == {
+        "modus": "net_oorvleueling_vir",
+        "sp_kodes": ["271002001", "290003001", "292002001", "966002001"],
+    }
+
+
+def test_ontleed_argumente_net_oorvleueling_vir_sonder_waarde_gooi():
+    with pytest.raises(ValueError):
+        lp.ontleed_argumente(["--net-oorvleueling-vir"])
+
+
+def test_ontleed_argumente_net_oorvleueling_vir_leë_lys_gooi():
+    with pytest.raises(ValueError):
+        lp.ontleed_argumente(["--net-oorvleueling-vir", " , , "])
+
+
+def test_ontleed_argumente_onbekende_vlag_gooi():
+    with pytest.raises(ValueError):
+        lp.ontleed_argumente(["--bondel"])  # ou vlag, nie meer geldig nie ná Fix round 1
+
+
+def test_ontleed_argumente_te_veel_argumente_gooi():
+    with pytest.raises(ValueError):
+        lp.ontleed_argumente(["--volledig", "--net-aliasse"])
+
+
+# --- vervang_verslag_afdeling: suiwer teks-manipulasie ------------------------------
+
+
+def test_vervang_verslag_afdeling_vervang_bestaande_afdeling():
+    teks = "\n".join(
+        [
+            "# Verslag",
+            "",
+            "## Aliasse",
+            "ou inhoud",
+            "",
+            "## Ander afdeling",
+            "bly onaangeraak",
+            "",
+        ]
+    )
+    nuwe = lp.vervang_verslag_afdeling(teks, "## Aliasse", ["nuwe inhoud"])
+    assert "ou inhoud" not in nuwe
+    assert "nuwe inhoud" in nuwe
+    assert "## Ander afdeling" in nuwe
+    assert "bly onaangeraak" in nuwe
+
+
+def test_vervang_verslag_afdeling_voeg_by_as_afwesig():
+    teks = "# Verslag\n\n## Bestaande\ninhoud\n"
+    nuwe = lp.vervang_verslag_afdeling(teks, "## Nuwe Afdeling", ["bygevoegde inhoud"])
+    assert "## Bestaande" in nuwe
+    assert "inhoud" in nuwe
+    assert "## Nuwe Afdeling" in nuwe
+    assert "bygevoegde inhoud" in nuwe
+    # oorspronklike afdeling moet steeds voor die nuwe een kom
+    assert nuwe.index("## Bestaande") < nuwe.index("## Nuwe Afdeling")
+
+
+# --- roep_bou_plek_wyke_enkel_plek: --net-oorvleueling-vir se herhaal-logika --------
+
+
+def test_roep_bou_plek_wyke_enkel_plek_herstel_ná_tydelike_fout(monkeypatch):
+    monkeypatch.setattr(lp, "NET_OORVLEUELING_VERTRAGING_S", 0)
+    pogings = {"n": 0}
+
+    def wisselvallige_rpc(naam, args):
+        pogings["n"] += 1
+        if pogings["n"] < 2:
+            raise lp.supabase.SupabaseFout("57014 statement timeout")
+        return 3
+
+    monkeypatch.setattr(lp.supabase, "rpc", wisselvallige_rpc)
+    ingevoeg, _tyd, fout = lp.roep_bou_plek_wyke_enkel_plek(2813)
+
+    assert ingevoeg == 3
+    assert fout is None
+    assert pogings["n"] == 2
+
+
+def test_roep_bou_plek_wyke_enkel_plek_gee_op_ná_3_pogings(monkeypatch):
+    monkeypatch.setattr(lp, "NET_OORVLEUELING_VERTRAGING_S", 0)
+    pogings = {"n": 0}
+
+    def val_misluk(naam, args):
+        pogings["n"] += 1
+        raise lp.supabase.SupabaseFout("57014 statement timeout")
+
+    monkeypatch.setattr(lp.supabase, "rpc", val_misluk)
+    ingevoeg, _tyd, fout = lp.roep_bou_plek_wyke_enkel_plek(2813)
+
+    assert ingevoeg is None
+    assert fout is not None
+    assert pogings["n"] == lp.NET_OORVLEUELING_HERHALINGS
+
+
 def test_bou_alias_rye_skei_opgelos_van_onopgelos():
     per_naam_mp, per_mp = lp.bou_alias_indeks(_sintetiese_plekke())
     csv_rye = [
