@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 import { Terugvoer } from "./terugvoer";
 
 export function Voet() {
@@ -7,17 +8,17 @@ export function Voet() {
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-10 sm:px-8">
         <Terugvoer />
         <div className="text-grys grid gap-2 font-sans text-sm">
-          <p>Bron van verkiesingsinligting: die OVK (IEC).</p>
-          <p>Nuuspod is nie aan die OVK of enige party verbonde nie.</p>
+          <p>{KOPIE.voet_bron}</p>
+          <p>{KOPIE.voet_onafhanklik}</p>
           <p>
-            Sien jy vals verkiesingsinligting?{" "}
+            {KOPIE.voet_real411_vraag}{" "}
             <a
               href="https://real411.org.za"
               target="_blank"
               rel="noopener"
               className="text-ink underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi"
             >
-              Rapporteer dit by Real411 ↗
+              {KOPIE.voet_real411_skakel} ↗
             </a>
           </p>
         </div>

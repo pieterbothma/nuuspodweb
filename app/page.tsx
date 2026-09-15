@@ -7,6 +7,7 @@ import { Verkiesingsprogram } from "./_components/verkiesing/verkiesingsprogram"
 import { Voet } from "./_components/verkiesing/voet";
 import { WatKom } from "./_components/verkiesing/wat-kom";
 import { STEMDAG } from "@/lib/verkiesing/datums";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 import { haalEpisodes, haalStroom } from "@/lib/verkiesing/lees";
 
 export default async function Tuis() {
@@ -21,7 +22,7 @@ export default async function Tuis() {
           <div className="neon-raam grid gap-8 p-5 sm:p-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-end lg:gap-12 lg:px-12 lg:py-11">
             <div>
               <p className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase sm:text-[0.8rem]">
-                Plaaslike verkiesing · Woensdag 4 November 2026
+                {KOPIE.held_etiket}
               </p>
               <h1 className="mt-3 font-display text-[3.75rem] leading-[0.9] tracking-[-0.02em] text-ink sm:text-8xl lg:text-[7rem]">
                 Verkiesing

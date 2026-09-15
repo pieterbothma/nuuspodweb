@@ -1,5 +1,19 @@
+import { KOPIE } from "./kopie";
+
 /** Voting opens at 07:00 SAST on Wednesday 4 November 2026 (gazetted timetable). */
 export const STEMDAG = new Date("2026-11-04T07:00:00+02:00");
+
+/**
+ * KOPIE's mylpaal_* strings carry a leading "<datum>: " prefix (the site already shows the
+ * date in its own column — see docs/verkiesing/ui-kopie-wysigings.md). Strip everything up to
+ * and including the first ": " and capitalise the remainder's first letter if needed. The
+ * words after that point stay byte-identical to the KOPIE value.
+ */
+function sonderDatumVoorvoegsel(s: string): string {
+  const i = s.indexOf(": ");
+  const rest = i === -1 ? s : s.slice(i + 2);
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
+}
 
 export interface Mylpaal {
   id: string;
@@ -16,31 +30,31 @@ export const MYLPALE: Mylpaal[] = [
   {
     id: "kandidaatlyste",
     wanneer: "Woensdag 16 September",
-    wat: "Die finale kandidaatlyste word gepubliseer.",
+    wat: sonderDatumVoorvoegsel(KOPIE.mylpaal_kandidaatlyste),
     einde: "2026-09-16T23:59:59+02:00",
   },
   {
     id: "spesiale-aansoeke",
     wanneer: "21 September tot 12 Oktober, 17:00",
-    wat: "Doen aansoek om 'n spesiale stem as jy nie op stemdag by jou stemlokaal kan stem nie.",
+    wat: sonderDatumVoorvoegsel(KOPIE.mylpaal_spesiaal_aansoek),
     einde: "2026-10-12T17:00:00+02:00",
   },
   {
     id: "trekking",
     wanneer: "Woensdag 23 September",
-    wat: "Die trekking bepaal die volgorde van partye op die stembriewe.",
+    wat: sonderDatumVoorvoegsel(KOPIE.mylpaal_trekking),
     einde: "2026-09-23T23:59:59+02:00",
   },
   {
     id: "spesiale-stemme",
     wanneer: "Maandag 2 en Dinsdag 3 November",
-    wat: "Spesiale stemme, 08:00 tot 17:00.",
+    wat: sonderDatumVoorvoegsel(KOPIE.mylpaal_spesiale_stemme),
     einde: "2026-11-03T17:00:00+02:00",
   },
   {
     id: "stemdag",
     wanneer: "Woensdag 4 November",
-    wat: "Stemdag. Stemlokale is oop van 07:00 tot 21:00.",
+    wat: sonderDatumVoorvoegsel(KOPIE.mylpaal_stemdag),
     einde: "2026-11-04T21:00:00+02:00",
   },
 ];

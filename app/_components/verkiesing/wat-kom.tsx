@@ -1,4 +1,5 @@
 import { komendeMylpale } from "@/lib/verkiesing/datums";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 
 export function WatKom({ nou }: { nou: Date }) {
   const items = komendeMylpale(nou);
@@ -6,7 +7,7 @@ export function WatKom({ nou }: { nou: Date }) {
   return (
     <section aria-labelledby="wat-kom">
       <h2 id="wat-kom" className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
-        Wat kom
+        {KOPIE.watkom_opskrif}
       </h2>
       <ol className="border-rand divide-rand mt-4 divide-y border-y">
         {items.map((m) => (

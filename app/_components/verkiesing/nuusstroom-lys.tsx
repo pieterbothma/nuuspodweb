@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 
 export interface StroomPos {
   id: number;
@@ -38,7 +39,7 @@ export function NuusstroomLys({ items }: { items: StroomPos[] }) {
   }, [oop]);
 
   if (items.length === 0) {
-    return <p className="text-grys mt-4 font-sans text-sm">Nog geen berigte nie.</p>;
+    return <p className="text-grys mt-4 font-sans text-sm">{KOPIE.stroom_leeg}</p>;
   }
 
   const sigbare = items.slice(0, oop ? items.length : SIGBAAR);
@@ -74,7 +75,7 @@ export function NuusstroomLys({ items }: { items: StroomPos[] }) {
                   {i.titel}
                 </span>
                 <span className="text-grys group-hover:text-rooi mt-2 inline-flex items-center gap-1 font-sans text-xs font-bold tracking-wide">
-                  Lees by {i.bron}
+                  {KOPIE.stroom_lees_by} {i.bron}
                   <span aria-hidden>↗</span>
                   <span className="sr-only"> (maak in &apos;n nuwe oortjie oop)</span>
                 </span>
@@ -92,7 +93,7 @@ export function NuusstroomLys({ items }: { items: StroomPos[] }) {
           aria-controls={listId}
           className="border-rand text-ink mt-3 w-full border py-2.5 font-sans text-xs font-bold tracking-widest uppercase hover:border-ink focus-visible:outline-2 focus-visible:outline-rooi"
         >
-          {oop ? "Wys minder" : `Wys meer (${oorblywend})`}
+          {oop ? KOPIE.stroom_minder : `${KOPIE.stroom_meer} (${oorblywend})`}
         </button>
       )}
     </div>

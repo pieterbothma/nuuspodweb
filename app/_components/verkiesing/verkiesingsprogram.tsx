@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { Episode } from "@/lib/verkiesing/lees";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 
 export function Verkiesingsprogram({ episodes }: { episodes: Episode[] }) {
   const [nuutste, ...vorige] = episodes;
@@ -8,7 +9,7 @@ export function Verkiesingsprogram({ episodes }: { episodes: Episode[] }) {
       <h2 id="program-kop" className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
         Verkiesings-Vrydag
       </h2>
-      <p className="text-ink mt-2 font-display text-3xl">Elke Vrydag regstreeks.</p>
+      <p className="text-ink mt-2 font-display text-3xl">{KOPIE.program_ondertitel}</p>
       <div className="border-rand bg-paneel mt-6 overflow-hidden border">
         <div className="relative aspect-video">
           <iframe

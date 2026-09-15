@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { stuurTerugvoer } from "@/app/aksies";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 
 const KNOPPIE =
   "border-rand text-ink rounded border px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase hover:border-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi disabled:opacity-50";
@@ -15,7 +16,7 @@ export function Terugvoer() {
   if (gestuur) {
     return (
       <p role="status" className="text-grys font-sans text-sm">
-        Dankie, dit help ons om die bladsy beter te maak.
+        {KOPIE.terugvoer_dankie}
       </p>
     );
   }
@@ -34,12 +35,12 @@ export function Terugvoer() {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <p className="text-ink font-sans text-sm">Het jy gekry wat jy soek?</p>
+      <p className="text-ink font-sans text-sm">{KOPIE.terugvoer_vraag}</p>
       <button type="button" disabled={besig} onClick={() => stuur(true)} className={KNOPPIE}>
-        Ja
+        {KOPIE.terugvoer_ja}
       </button>
       <button type="button" disabled={besig} onClick={() => stuur(false)} className={KNOPPIE}>
-        Nee
+        {KOPIE.terugvoer_nee}
       </button>
     </div>
   );

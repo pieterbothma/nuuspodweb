@@ -1,4 +1,5 @@
 import { bronAfkorting, relatieweTyd, type StroomItem } from "@/lib/verkiesing/stroom";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 import { NuusstroomLys, type StroomPos } from "./nuusstroom-lys";
 
 const TIPE: Record<string, string> = {
@@ -24,9 +25,9 @@ export function Nuusstroom({ items, nou }: { items: StroomItem[]; nou: Date }) {
   return (
     <section id="wat-ander-berig" aria-labelledby="stroom-kop" className="scroll-mt-24">
       <h2 id="stroom-kop" className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
-        Wat ander berig
+        {KOPIE.stroom_opskrif}
       </h2>
-      <p className="text-grys mt-1 font-sans text-xs">Opskrifte soos gepubliseer, met skakels na die oorspronklike berigte.</p>
+      <p className="text-grys mt-1 font-sans text-xs">{KOPIE.stroom_onderskrif}</p>
       <NuusstroomLys items={posse} />
     </section>
   );
