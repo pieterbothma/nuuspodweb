@@ -1,4 +1,5 @@
-import { tydEtiket, type StroomItem } from "@/lib/verkiesing/stroom";
+import { bronAfkorting, relatieweTyd, type StroomItem } from "@/lib/verkiesing/stroom";
+import { NuusstroomLys, type StroomPos } from "./nuusstroom-lys";
 
 const TIPE: Record<string, string> = {
   nasionaal: "Nasionaal",
@@ -7,36 +8,26 @@ const TIPE: Record<string, string> = {
   "openbare uitsaaier": "Openbare uitsaaier",
 };
 
-/** Headlines render exactly as stored: never clamp, truncate or restyle their case. */
+/** Server component: computes the relative time server-side so the client never has to guess "nou" and risk a hydration mismatch. */
 export function Nuusstroom({ items, nou }: { items: StroomItem[]; nou: Date }) {
+  const posse: StroomPos[] = items.map((i) => ({
+    id: i.id,
+    titel: i.titel,
+    bron: i.bron,
+    bronTipe: TIPE[i.bron_tipe] ?? i.bron_tipe,
+    afkorting: bronAfkorting(i.bron),
+    tyd: relatieweTyd(i.gepubliseer_om, nou),
+    iso: i.gepubliseer_om,
+    url: i.url,
+  }));
+
   return (
     <section id="wat-ander-berig" aria-labelledby="stroom-kop" className="scroll-mt-24">
       <h2 id="stroom-kop" className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
         Wat ander berig
       </h2>
       <p className="text-grys mt-1 font-sans text-xs">Opskrifte soos gepubliseer, met skakels na die oorspronklike berigte.</p>
-      {items.length === 0 ? (
-        <p className="text-grys mt-4 font-sans text-sm">Nog geen berigte nie.</p>
-      ) : (
-        <ol className="border-rand divide-rand mt-4 divide-y border-y">
-          {items.map((i) => (
-            <li key={i.id}>
-              <a href={i.url} target="_blank" rel="noopener noreferrer" className="group block py-3 focus-visible:outline-2 focus-visible:outline-rooi">
-                <span className="text-grys flex flex-wrap items-baseline gap-x-2 font-sans text-xs tabular-nums">
-                  <span>{tydEtiket(i.gepubliseer_om, nou)}</span>
-                  <span aria-hidden>·</span>
-                  <span className="text-ink font-bold">{i.bron}</span>
-                  <span>{TIPE[i.bron_tipe] ?? i.bron_tipe}</span>
-                </span>
-                <span className="text-ink group-hover:text-rooi mt-1 block font-sans text-[0.95rem] leading-snug break-words">
-                  {i.titel}
-                  <span aria-hidden className="text-grys"> ↗</span>
-                </span>
-              </a>
-            </li>
-          ))}
-        </ol>
-      )}
+      <NuusstroomLys items={posse} />
     </section>
   );
 }

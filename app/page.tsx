@@ -45,7 +45,7 @@ export default async function Tuis() {
             <Verkiesingsprogram episodes={episodes} />
             <GidsKaarte />
           </div>
-          <aside className="lg:sticky lg:top-24 lg:self-start">
+          <aside>
             <Nuusstroom items={stroom} nou={nou} />
           </aside>
         </div>

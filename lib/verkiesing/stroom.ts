@@ -45,3 +45,29 @@ export function tydEtiket(iso: string, nou: Date): string {
   const item = sast(new Date(iso));
   return item.datum === sast(nou).datum ? item.tyd : `${item.dag} ${MAANDE[item.maand - 1]}`;
 }
+
+/** "nou" / "37 min" / "5 u", falling back to the `tydEtiket` date form after a day. */
+export function relatieweTyd(iso: string, nou: Date): string {
+  const minute = Math.floor((nou.getTime() - new Date(iso).getTime()) / 60_000);
+  if (minute < 1) return "nou";
+  if (minute < 60) return `${minute} min`;
+  const uur = Math.floor(minute / 60);
+  if (uur < 24) return `${uur} u`;
+  return tydEtiket(iso, nou);
+}
+
+const BEKENDE_BRONNE: Record<string, string> = {
+  "Daily Maverick": "DM",
+  "SABC News": "SABC",
+  "The Citizen": "TC",
+  Politicsweb: "PW",
+  Lowvelder: "LV",
+  Rekord: "RK",
+  "Mail & Guardian": "M&G",
+  "Maroela Media": "MM",
+};
+
+/** A short monogram for a source name, e.g. for an avatar. */
+export function bronAfkorting(bron: string): string {
+  return BEKENDE_BRONNE[bron] ?? bron.slice(0, 2).toUpperCase();
+}
