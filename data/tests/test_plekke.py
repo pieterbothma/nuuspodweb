@@ -180,7 +180,6 @@ def test_aliasse_csv_bevat_nie_meer_die_strand_nie():
     rye = lp.lees_aliasse_csv(lp.ALIASSE_CSV_PAD)
     aliasse = {ry["alias"] for ry in rye}
     assert "Die Strand" not in aliasse
-    assert len(rye) == 12  # was 13 voor Fix round 1
 
 
 # --- ontleed_argumente: CLI-argumenthantering (suiwer, geen netwerk) ---------------
@@ -316,3 +315,71 @@ def test_bou_alias_rye_skei_opgelos_van_onopgelos():
     assert {a["sp_kode"] for a in aliasse if a["alias"] == "Kaapstad"} == {"1", "2"}
     assert len(onopgelos) == 1
     assert onopgelos[0]["alias"] == "Nooit-Bestaan-Nie"
+
+
+# --- aliasse.csv: final-review fix round (teikens reggemaak, 3 rye verwyder) ----------
+
+
+def test_aliasse_csv_finale_rye_en_teikens():
+    rye = {ry["alias"]: ry for ry in lp.lees_aliasse_csv(lp.ALIASSE_CSV_PAD)}
+    assert len(rye) == 9
+    # Curated targets are an owner decision for Fase 2b — not in the CSV now.
+    for verwyder in ("Pretoria-Oos", "Johannesburg-Suid", "Kaapse Vlakte"):
+        assert verwyder not in rye
+    # Stats SA spells the Port Elizabeth main place "Port Elizaberth".
+    assert rye["Port Elizabeth"]["mp_naam"] == "Port Elizaberth"
+    assert rye["Gqeberha"]["mp_naam"] == "Port Elizaberth"
+    # eThekwini points at the same Durban main place as the Durban row.
+    assert (rye["eThekwini"]["naam"], rye["eThekwini"]["mp_naam"]) == (
+        rye["Durban"]["naam"],
+        rye["Durban"]["mp_naam"],
+    )
+
+
+def test_vind_onopgeloste_aliasse_sintetiese_plekke():
+    csv_rye = [
+        {"alias": "Kaapstad", "naam": "", "mp_naam": "Cape Town"},
+        {"alias": "Nooit-Bestaan-Nie", "naam": "Nêrens", "mp_naam": ""},
+    ]
+    onopgelos = lp.vind_onopgeloste_aliasse(csv_rye, _sintetiese_plekke())
+    assert [ry["alias"] for ry in onopgelos] == ["Nooit-Bestaan-Nie"]
+
+
+def test_elke_alias_in_csv_los_op_teen_die_bron_shapefile(sp_rekords):
+    """Every alias row must resolve to >0 sub places against the real Subplace source
+    (the loader hard-fails otherwise), with the expected fan-out for the fixed rows."""
+    plekke = []
+    for rekord in sp_rekords:
+        naam, _landelik = teks.skoon_plek_naam(rekord["SP_NAME"])
+        plekke.append({"sp_kode": lp.na_sp_kode(rekord["SP_CODE"]), "naam": naam, "mp_naam": rekord["MP_NAME"]})
+    csv_rye = lp.lees_aliasse_csv(lp.ALIASSE_CSV_PAD)
+    assert lp.vind_onopgeloste_aliasse(csv_rye, plekke) == []
+
+    per_naam_mp, per_mp = lp.bou_alias_indeks(plekke)
+    tal = {
+        ry["alias"]: len(lp.los_alias_op(ry, per_naam_mp, per_mp)[0]) for ry in csv_rye
+    }
+    assert tal["Port Elizabeth"] == 127
+    assert tal["Gqeberha"] == 127
+    assert tal["eThekwini"] == tal["Durban"] == 21
+
+
+def test_net_aliasse_faal_hard_en_skryf_niks_as_n_alias_na_0_plekke_oplos(monkeypatch, tmp_path):
+    csv_pad = tmp_path / "aliasse.csv"
+    csv_pad.write_text(
+        "alias,naam,mp_naam,munisipaliteit_naam\n"
+        "Kaapstad,,Cape Town,City of Cape Town\n"
+        "Nooit-Bestaan-Nie,Nêrens,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(lp, "ALIASSE_CSV_PAD", csv_pad)
+    monkeypatch.setattr(lp, "VERSLAG_PAD", tmp_path / "plekke-verslag.md")
+    monkeypatch.setattr(lp.supabase, "kry_alles", lambda *a, **kw: _sintetiese_plekke())
+
+    def _mag_nie_skryf_nie(*a, **kw):
+        raise AssertionError("mag nie na Supabase skryf nie")
+
+    monkeypatch.setattr(lp.supabase, "rpc", _mag_nie_skryf_nie)
+    monkeypatch.setattr(lp.supabase, "plaas_bondels", _mag_nie_skryf_nie)
+
+    assert lp.hoof_net_aliasse() == 1

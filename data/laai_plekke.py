@@ -15,9 +15,11 @@ aangeroep sodat dit die punte ongewysig laat (buiten geldigheid/presisie-opskoni
 
 Idempotent: leeg eers `stg_plekke`, `stg_plek_wyke` en `stg_plek_aliasse` via
 `rpc/stg_leeg`, laai dan vars. Skryf `data/uitvoer/plekke-verslag.md`. Termineer met
-'n nie-nul afsluitkode as die laai self misluk (Supabase-foute); onopgeloste aliasse
-of plekke sonder wyke word in die verslag aangeteken maar veroorsaak nie 'n nie-nul
-afsluitkode nie (dis 'n bronprobleem, nie 'n laaifout nie).
+'n nie-nul afsluitkode as die laai self misluk (Supabase-foute). 'n Alias-CSV-ry wat na 0
+sub-plekke oplos, is 'n **harde fout** (nie-nul afsluitkode, niks geskryf nie) — 'n
+alias wat niks vind nie, is 'n tikfout of 'n verkeerde teiken, nie iets om stilweg oor
+te slaan nie. Plekke sonder wyke word in die verslag aangeteken maar veroorsaak nie 'n
+nie-nul afsluitkode nie (kontroleer.py hou die harde hek daarvoor).
 
 Vier modusse (`ontleed_argumente` ontleed die CLI-argumente hieronder):
 
@@ -377,6 +379,31 @@ def bou_alias_rye(
     return aliasse, onopgelos
 
 
+def vind_onopgeloste_aliasse(aliasse_csv_rye: list[dict], plekke: list[dict]) -> list[dict]:
+    """CSV rows that resolve to 0 sub places against `plekke` (rows with sp_kode, naam,
+    mp_naam — either freshly built from the shapefile or read back from stg_plekke).
+
+    Callers treat a non-empty result as a hard failure and write nothing, so a typo'd
+    or stale alias target can never silently drop out of stg_plek_aliasse.
+    """
+    per_naam_mp, per_mp = bou_alias_indeks(plekke)
+    _aliasse, onopgelos = bou_alias_rye(aliasse_csv_rye, per_naam_mp, per_mp)
+    return onopgelos
+
+
+def druk_onopgeloste_aliasse_fout(onopgelos: list[dict]) -> None:
+    print(
+        f"Fout: {len(onopgelos)} alias-ry(e) in {ALIASSE_CSV_PAD.name} los na 0 sub-plekke op "
+        "— niks is geskryf nie. Maak die teiken reg of verwyder die ry:",
+        file=sys.stderr,
+    )
+    for ry in onopgelos:
+        print(
+            f"  - {ry['alias']} (naam={ry.get('naam') or ''!r}, mp_naam={ry.get('mp_naam') or ''!r})",
+            file=sys.stderr,
+        )
+
+
 def bou_alias_resolusie_tabel(
     aliasse_csv_rye: list[dict],
     plekke_per_naam_mp: dict[tuple[str, str | None], list[str]],
@@ -654,6 +681,13 @@ def hoof(volledig: bool = False) -> int:
 
     plek_rye, oorgeslaan_geom = bou_plek_rye(vorm_rekord_pare)
 
+    # Hard gate before any write: every alias row must resolve against the places we
+    # are about to load (same naam/mp_naam fields stg_plekke will hold).
+    onopgelos_vooraf = vind_onopgeloste_aliasse(lees_aliasse_csv(ALIASSE_CSV_PAD), plek_rye)
+    if onopgelos_vooraf:
+        druk_onopgeloste_aliasse_fout(onopgelos_vooraf)
+        return 1
+
     # --- laai (idempotent: leeg eers) ---
     laai_begin = time.monotonic()
     try:
@@ -755,6 +789,11 @@ def hoof(volledig: bool = False) -> int:
 
     alias_resolusie_tabel = bou_alias_resolusie_tabel(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
 
+    if onopgeloste_aliasse:
+        # Can only happen if stg_plekke read back differs from what was just loaded.
+        druk_onopgeloste_aliasse_fout(onopgeloste_aliasse)
+        return 1
+
     try:
         supabase.plaas_bondels("stg_plek_aliasse", alias_rye, grootte=200)
     except supabase.SupabaseFout as fout:
@@ -821,12 +860,6 @@ def hoof(volledig: bool = False) -> int:
 
     print(f"Verslag: {VERSLAG_PAD}")
 
-    if onopgeloste_aliasse:
-        print(
-            f"Waarskuwing: {len(onopgeloste_aliasse)} alias(se) kon nie opgelos word nie — "
-            "sien die verslag.",
-            file=sys.stderr,
-        )
     if nul_wyke_sp_kodes:
         print(
             f"Waarskuwing: {len(nul_wyke_sp_kodes)} plek(ke) het 0 wyke — sien die verslag.",
@@ -876,6 +909,11 @@ def hoof_net_aliasse() -> int:
     alias_rye, onopgeloste_aliasse = bou_alias_rye(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
     alias_resolusie_tabel = bou_alias_resolusie_tabel(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
 
+    if onopgeloste_aliasse:
+        # Hard failure before stg_leeg, so the aliases already in the DB stay intact.
+        druk_onopgeloste_aliasse_fout(onopgeloste_aliasse)
+        return 1
+
     try:
         supabase.rpc("stg_leeg", {"tabel": "stg_plek_aliasse"})
         supabase.plaas_bondels("stg_plek_aliasse", alias_rye, grootte=200)
@@ -908,12 +946,6 @@ def hoof_net_aliasse() -> int:
         print(
             f"Waarskuwing: {VERSLAG_PAD} bestaan nie — verslag nie opgedateer nie "
             "(net stg_plek_aliasse self is verfris).",
-            file=sys.stderr,
-        )
-
-    if onopgeloste_aliasse:
-        print(
-            f"Waarskuwing: {len(onopgeloste_aliasse)} alias(se) kon nie opgelos word nie.",
             file=sys.stderr,
         )
 

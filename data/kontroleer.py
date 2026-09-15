@@ -27,6 +27,7 @@ Run: cd data && uv run --with pdfplumber,pyshp,shapely,pyproj,httpx,pytest pytho
 
 from __future__ import annotations
 
+import csv
 import sys
 import time
 from collections import Counter, defaultdict
@@ -39,6 +40,7 @@ from lib import omgewing, supabase, teks
 
 BASIS_PAD = Path(__file__).parent
 VERSLAG_PAD = BASIS_PAD / "uitvoer" / "kontroleverslag.md"
+ALIASSE_CSV_PAD = BASIS_PAD / "aliasse.csv"
 
 VERWAG_WYKE = 4488
 VERWAG_VRYSTAAT_WYKE = 311
@@ -67,6 +69,15 @@ LANDELIKE_PLEK_KODES: tuple[str, ...] = (
     "290003001",  # Ngquza Hill
     "292002001",  # Nyandeni
     "966002001",  # Thulamela
+)
+
+# Aliases removed from aliasse.csv in the final-review fix round because no single
+# Stats SA name/main place is the right target — each needs a curated sub-place list,
+# which is an owner decision for Fase 2b. Listed under "Besluite nodig".
+ALIASSE_WAT_KURERING_NODIG: tuple[tuple[str, str], ...] = (
+    ("Johannesburg-Suid", "pas op geen Stats SA-subplek of hoofplek nie"),
+    ("Kaapse Vlakte", "pas op geen Stats SA-subplek of hoofplek nie"),
+    ("Pretoria-Oos", "die enigste beskikbare teiken was die hele hoofplek Pretoria (173 subplekke)"),
 )
 
 # Spec §5.3 (line 112) se vyf name eerste — Brooklyn en Waterkloof is die bekende
@@ -183,6 +194,47 @@ def kontroleer_veelvuldige_munisipaliteite(
         if not any(stuk in m for m in munisipaliteite):
             ontbrekend.append(f"geen '{stuk}' nie")
     return "; ".join(ontbrekend) if ontbrekend else None
+
+
+def lees_alias_name(pad: Path) -> list[str]:
+    """Alias names from `aliasse.csv`, in file order (duplicates collapsed)."""
+    with pad.open(newline="", encoding="utf-8") as f:
+        return list(dict.fromkeys(ry["alias"] for ry in csv.DictReader(f)))
+
+
+def bou_alias_opsomming(
+    csv_aliasse: list[str],
+    alias_rye: list[dict],
+    plek_wyke_rye: list[dict],
+    wyk_muni: dict[str, str],
+    muni_naam: dict[str, str],
+) -> dict[str, dict]:
+    """Per alias: how many sub places it resolves to in stg_plek_aliasse, and the
+    municipalities those sub places fall in (via stg_plek_wyke -> stg_wyke.muni_kode).
+
+    Every alias in `csv_aliasse` gets an entry even when it has no rows (subplekke=0),
+    so a CSV alias that resolved to nothing is visible and can be gated on. Aliases
+    present in the table but not in the CSV are included too (stale load). Sorted by
+    alias. Municipality names fall back to the code when unknown.
+    """
+    sp_per_alias: dict[str, set[str]] = defaultdict(set)
+    for ry in alias_rye:
+        sp_per_alias[ry["alias"]].add(ry["sp_kode"])
+
+    wyke_per_sp: dict[str, set[str]] = defaultdict(set)
+    for ry in plek_wyke_rye:
+        wyke_per_sp[ry["sp_kode"]].add(ry["wyk_id"])
+
+    opsomming: dict[str, dict] = {}
+    for alias in sorted(set(csv_aliasse) | set(sp_per_alias)):
+        sp_kodes = sp_per_alias.get(alias, set())
+        munikodes = {wyk_muni[w] for sp in sp_kodes for w in wyke_per_sp.get(sp, ()) if w in wyk_muni}
+        opsomming[alias] = {
+            "subplekke": len(sp_kodes),
+            "munisipaliteite": sorted({muni_naam.get(k, k) for k in munikodes}),
+            "in_csv": alias in csv_aliasse,
+        }
+    return opsomming
 
 
 def formatteer_landelike_plekke(per_plek: dict[str, dict]) -> str:
@@ -405,18 +457,26 @@ def gather_stemstasies(klient: httpx.Client, muni_provinsie: dict[str, str]) -> 
     }
 
 
-def gather_plekke(klient: httpx.Client) -> dict:
+def gather_plekke(klient: httpx.Client, muni_naam: dict[str, str]) -> dict:
     totaal = telling(klient, "stg_plekke")
     plek_wyke_totaal = telling(klient, "stg_plek_wyke")
     alias_totaal = telling(klient, "stg_plek_aliasse")
 
     alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, klient=klient)
-    met_wyk = {r["sp_kode"] for r in supabase.kry_alles("stg_plek_wyke", {"select": "sp_kode"}, klient=klient)}
+    plek_wyke_rye = supabase.kry_alles("stg_plek_wyke", {"select": "sp_kode,wyk_id"}, klient=klient)
+    met_wyk = {r["sp_kode"] for r in plek_wyke_rye}
     by_kode = {r["sp_kode"]: r for r in alle_plekke}
     sonder_wyk = [by_kode[k] for k in vind_ontbrekende({r["sp_kode"] for r in alle_plekke}, met_wyk)]
 
-    alias_rye = supabase.kry_alles("stg_plek_aliasse", {"select": "alias"}, klient=klient)
+    alias_rye = supabase.kry_alles("stg_plek_aliasse", {"select": "alias,sp_kode"}, klient=klient)
     alias_tellings = dict(sorted(Counter(r["alias"] for r in alias_rye).items()))
+    wyk_muni = {
+        r["wyk_id"]: r["muni_kode"]
+        for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, klient=klient)
+    }
+    alias_opsomming = bou_alias_opsomming(
+        lees_alias_name(ALIASSE_CSV_PAD), alias_rye, plek_wyke_rye, wyk_muni, muni_naam
+    )
 
     return {
         "totaal": totaal,
@@ -424,6 +484,7 @@ def gather_plekke(klient: httpx.Client) -> dict:
         "alias_totaal": alias_totaal,
         "sonder_wyk": sonder_wyk,
         "alias_tellings": alias_tellings,
+        "alias_opsomming": alias_opsomming,
     }
 
 
@@ -617,10 +678,17 @@ def skryf_verslag(**kw) -> None:
             r.append(f"  - `{plek['sp_kode']}` {plek['naam']} ({plek['mp_naam']})")
         r.append("")
         r.append("### Aliasse — uitwaaiering (rye per alias in stg_plek_aliasse)")
-        r.append("| Alias | Subplekke |")
-        r.append("|---|---:|")
-        for alias, n in pl["alias_tellings"].items():
-            r.append(f"| {alias} | {n} |")
+        r.append(
+            "Munisipaliteite = waar die alias se subplekke se 2026-wyke val "
+            "(stg_plek_aliasse -> stg_plek_wyke -> stg_wyke)."
+        )
+        r.append("")
+        r.append("| Alias | Subplekke | Munisipaliteite |")
+        r.append("|---|---:|---|")
+        for alias, inligting in pl["alias_opsomming"].items():
+            munis_lys = ", ".join(inligting["munisipaliteite"]) or "—"
+            etiket = alias if inligting["in_csv"] else f"{alias} (nie meer in aliasse.csv nie)"
+            r.append(f"| {etiket} | {inligting['subplekke']} | {munis_lys} |")
     r.append("")
 
     # --- 2021 raadsetels ---------------------------------------------------------------
@@ -813,6 +881,14 @@ def skryf_verslag(**kw) -> None:
             )
             volgende += 1
 
+    kurering = "; ".join(f"\"{alias}\" ({rede})" for alias, rede in ALIASSE_WAT_KURERING_NODIG)
+    r.append(
+        f"{volgende}. **Aliasse wat 'n gekureerde teiken nodig het** — uit `aliasse.csv` "
+        f"verwyder, nie gelaai nie: {kurering}. Voorstel: Piet kies in 2b 'n lys subplekke "
+        "per alias."
+    )
+    volgende += 1
+
     r.append(
         f"{volgende}. **\"Mahikeng\" (huidige amptelike spelling) kom nie in die bron voor "
         "nie** — net die ouer \"Mafikeng\" (7 subplekke, NW383). Voorstel: 'n soek-alias "
@@ -872,7 +948,7 @@ def hoof() -> int:
             )
 
         stasies_res = v("stemlokale", lambda: gather_stemstasies(klient, muni_provinsie))
-        plekke_res = v("plekke", lambda: gather_plekke(klient))
+        plekke_res = v("plekke", lambda: gather_plekke(klient, muni_naam))
         raad_res = v("raadsetels_2021", lambda: gather_raadsetels(klient))
         nie_gelaai_res = v("nog_nie_gelaai", lambda: gather_nie_gelaai(klient))
         publiek_res = v("gepubliseerde_weergawe", lambda: gather_publieke_diff(klient))

@@ -241,3 +241,38 @@ def test_formatteer_landelike_plekke():
 def test_formatteer_landelike_plekke_met_nul_wyke():
     per_plek = {"271002001": {"sp_kode": "271002001", "naam_in_bron": "Mnquna", "wyktal": 0}}
     assert kontroleer.formatteer_landelike_plekke(per_plek) == "Mnquna (0) = 0 rye"
+
+
+def test_bou_alias_opsomming_munisipaliteite_en_nul_aliasse():
+    csv_aliasse = ["Kaapstad", "Leeg-Alias"]
+    alias_rye = [
+        {"alias": "Kaapstad", "sp_kode": "1"},
+        {"alias": "Kaapstad", "sp_kode": "2"},
+        {"alias": "Oud", "sp_kode": "3"},
+    ]
+    plek_wyke_rye = [
+        {"sp_kode": "1", "wyk_id": "19100001"},
+        {"sp_kode": "2", "wyk_id": "19100002"},
+        {"sp_kode": "2", "wyk_id": "10203001"},
+        {"sp_kode": "3", "wyk_id": "79800001"},
+    ]
+    wyk_muni = {"19100001": "CPT", "19100002": "CPT", "10203001": "WC024", "79800001": "TSH"}
+    muni_naam = {"CPT": "City of Cape Town", "TSH": "City of Tshwane"}
+
+    opsomming = kontroleer.bou_alias_opsomming(csv_aliasse, alias_rye, plek_wyke_rye, wyk_muni, muni_naam)
+
+    assert list(opsomming) == ["Kaapstad", "Leeg-Alias", "Oud"]
+    assert opsomming["Kaapstad"] == {
+        "subplekke": 2,
+        "munisipaliteite": ["City of Cape Town", "WC024"],
+        "in_csv": True,
+    }
+    assert opsomming["Leeg-Alias"] == {"subplekke": 0, "munisipaliteite": [], "in_csv": True}
+    assert opsomming["Oud"]["in_csv"] is False
+    assert opsomming["Oud"]["munisipaliteite"] == ["City of Tshwane"]
+
+
+def test_lees_alias_name_uit_regte_csv():
+    name = kontroleer.lees_alias_name(kontroleer.ALIASSE_CSV_PAD)
+    assert "Kaapstad" in name
+    assert "Pretoria-Oos" not in name

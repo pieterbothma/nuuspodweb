@@ -1,13 +1,10 @@
 alias,naam,mp_naam,munisipaliteit_naam
 Kaapstad,,Cape Town,City of Cape Town
-Pretoria-Oos,,Pretoria,City of Tshwane
 Pretoria-Noord,Pretoria North,Pretoria,City of Tshwane
 Pretoria-Wes,Pretoria West,Pretoria,City of Tshwane
-Johannesburg-Suid,Johannesburg South,,City of Johannesburg
 Oos-Londen,,East London,Buffalo City
-Port Elizabeth,,Nelson Mandela Bay NU,Nelson Mandela Bay
-Gqeberha,,Nelson Mandela Bay NU,Nelson Mandela Bay
+Port Elizabeth,,Port Elizaberth,Nelson Mandela Bay
+Gqeberha,,Port Elizaberth,Nelson Mandela Bay
 Bloemfontein,Bloemfontein,Bloemfontein,Mangaung
 Durban,,Durban,eThekwini
-eThekwini,,Ethekwini NU,eThekwini
-Kaapse Vlakte,Cape Flats,,
+eThekwini,,Durban,eThekwini
