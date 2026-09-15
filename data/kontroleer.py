@@ -42,10 +42,18 @@ BASIS_PAD = Path(__file__).parent
 VERSLAG_PAD = BASIS_PAD / "uitvoer" / "kontroleverslag.md"
 ALIASSE_CSV_PAD = BASIS_PAD / "aliasse.csv"
 
-VERWAG_WYKE = 4488
+VERWAG_WYKE = 4488  # official IEC total (reported, not gated — the MDB file lacks 3 FS wards)
 VERWAG_VRYSTAAT_WYKE = 311
-VERWAG_MUNISIPALITEITE = 213
+
+# --- Hard gates (exit 1 when any fails; the report is still written) ---------------
+VERWAG_WYKE_GELAAI = 4485  # every ward in MDBWards2026, NC451 recovered
+VERWAG_MUNISIPALITEITE = 213  # 8 metros + 205 locals
 VERWAG_DISTRIKTE = 44
+VERWAG_RADE_2021 = 213  # rows in stg_raad_grootte_2021
+MAKS_STASIES_MET_ONBEKENDE_WYK = 0
+MAKS_PLEKKE_SONDER_WYK = 3
+# The only places allowed to have no ward: harbour slivers entirely in the sea.
+BEKENDE_HAWE_SP_KODES = frozenset({"199056003", "199057014", "199063016"})
 
 # Publieke teëhangers van elke gelaaide stg_-tabel, vir die §5.3-diff teen die tans
 # gepubliseerde weergawe (geen publiseer-stap in hierdie taak nie — sien spec §5.3).
@@ -237,6 +245,84 @@ def bou_alias_opsomming(
     return opsomming
 
 
+def vind_duplikate(waardes: list) -> list:
+    """Values occurring more than once, sorted (by their string form)."""
+    return sorted((w for w, n in Counter(waardes).items() if n > 1), key=str)
+
+
+def evalueer_harde_hekke(
+    muni_res: dict | None,
+    wyke_res: dict | None,
+    stasies_res: dict | None,
+    plekke_res: dict | None,
+    raad_res: dict | None,
+) -> list[str]:
+    """Every hard-gate failure as a short Afrikaans message (empty list = all pass).
+
+    A section that is None failed to gather — `veilig()` has already recorded that in
+    hard_gefaal, so it is skipped here rather than double-reported.
+    """
+    foute: list[str] = []
+
+    if muni_res is not None:
+        munis = muni_res["metro"] + muni_res["plaaslik"]
+        if munis != VERWAG_MUNISIPALITEITE:
+            foute.append(f"munisipaliteite: {munis}, verwag {VERWAG_MUNISIPALITEITE}")
+        if muni_res["distrik"] != VERWAG_DISTRIKTE:
+            foute.append(f"distrikte: {muni_res['distrik']}, verwag {VERWAG_DISTRIKTE}")
+        duplikate = vind_duplikate(muni_res["kodes"])
+        if duplikate:
+            foute.append(f"stg_munisipaliteite: duplikaat kode(s) {duplikate[:20]}")
+
+    if wyke_res is not None:
+        if wyke_res["totaal"] != VERWAG_WYKE_GELAAI:
+            foute.append(f"wyke: {wyke_res['totaal']}, verwag {VERWAG_WYKE_GELAAI}")
+        duplikate = vind_duplikate(wyke_res["wyk_ids"])
+        if duplikate:
+            foute.append(f"stg_wyke: duplikaat wyk_id(s) {duplikate[:20]}")
+
+    if stasies_res is not None:
+        if stasies_res["totaal"] == 0:
+            foute.append("stg_stemstasies is leeg")
+        onbekend = stasies_res["onbekende_wyk"]
+        if len(onbekend) > MAKS_STASIES_MET_ONBEKENDE_WYK:
+            foute.append(f"stemlokale met onbekende wyk: {len(onbekend)} wyk_id(s) {onbekend[:20]}")
+        duplikate = vind_duplikate(stasies_res["vd_nommers"])
+        if duplikate:
+            foute.append(f"stg_stemstasies: duplikaat vd_nommer(s) {duplikate[:20]}")
+
+    if plekke_res is not None:
+        if plekke_res["totaal"] == 0:
+            foute.append("stg_plekke is leeg")
+        if plekke_res["plek_wyke_totaal"] == 0:
+            foute.append("stg_plek_wyke is leeg")
+        if plekke_res["alias_totaal"] == 0:
+            foute.append("stg_plek_aliasse is leeg")
+        sonder_wyk = {p["sp_kode"] for p in plekke_res["sonder_wyk"]}
+        if len(sonder_wyk) > MAKS_PLEKKE_SONDER_WYK or sonder_wyk != BEKENDE_HAWE_SP_KODES:
+            foute.append(
+                f"plekke sonder wyk: {sorted(sonder_wyk)[:20]} ({len(sonder_wyk)}), verwag presies "
+                f"die {len(BEKENDE_HAWE_SP_KODES)} hawe-snippers {sorted(BEKENDE_HAWE_SP_KODES)}"
+            )
+        duplikate = vind_duplikate(plekke_res["sp_kodes"])
+        if duplikate:
+            foute.append(f"stg_plekke: duplikaat sp_kode(s) {duplikate[:20]}")
+        duplikate = vind_duplikate(plekke_res["plek_wyk_pare"])
+        if duplikate:
+            foute.append(f"stg_plek_wyke: duplikaat (sp_kode, wyk_id)-pare {duplikate[:20]}")
+        leeg = [a for a, inl in plekke_res["alias_opsomming"].items() if inl["in_csv"] and inl["subplekke"] == 0]
+        if leeg:
+            foute.append(f"aliasse wat na 0 subplekke oplos: {leeg}")
+
+    if raad_res is not None:
+        if raad_res["uitslae_totaal"] == 0:
+            foute.append("stg_raad_uitslae_2021 is leeg")
+        if raad_res["grootte_totaal"] != VERWAG_RADE_2021:
+            foute.append(f"rade (stg_raad_grootte_2021): {raad_res['grootte_totaal']}, verwag {VERWAG_RADE_2021}")
+
+    return foute
+
+
 def formatteer_landelike_plekke(per_plek: dict[str, dict]) -> str:
     """"Naam (n), Naam (n), ... = totaal rye" for Besluite-item #3 — measured live
     from stg_plek_wyke, not a static "34+32+32+58=156"."""
@@ -400,6 +486,7 @@ def gather_munisipaliteite(klient: httpx.Client) -> dict:
         "distrik": distrik,
         "muni_provinsie": {m["kode"]: m["provinsie"] for m in munis},
         "muni_naam": {m["kode"]: m["naam"] for m in munis},
+        "kodes": [m["kode"] for m in munis],
     }
 
 
@@ -421,6 +508,7 @@ def gather_wyke(klient: httpx.Client, muni_provinsie: dict[str, str]) -> dict:
         "sonder_geom_totaal": sonder_geom_totaal,
         "sonder_geom_lys": sonder_geom_lys,
         "per_provinsie": per_provinsie,
+        "wyk_ids": [w["wyk_id"] for w in wyk_munis],
     }
 
 
@@ -431,15 +519,11 @@ def gather_wyk_selftoets(klient: httpx.Client) -> dict:
 
 def gather_stemstasies(klient: httpx.Client, muni_provinsie: dict[str, str]) -> dict:
     totaal = telling(klient, "stg_stemstasies")
-    stasie_munis = [
-        r["muni_kode"] for r in supabase.kry_alles("stg_stemstasies", {"select": "muni_kode"}, klient=klient)
-    ]
-    per_provinsie = tel_per_sleutel(stasie_munis, muni_provinsie)
+    stasies = supabase.kry_alles("stg_stemstasies", {"select": "vd_nommer,muni_kode,wyk_id"}, klient=klient)
+    per_provinsie = tel_per_sleutel([r["muni_kode"] for r in stasies], muni_provinsie)
 
     wyk_ids = {r["wyk_id"] for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id"}, klient=klient)}
-    stasie_wyk_ids = {
-        r["wyk_id"] for r in supabase.kry_alles("stg_stemstasies", {"select": "wyk_id"}, klient=klient)
-    }
+    stasie_wyk_ids = {r["wyk_id"] for r in stasies}
     onbekende_wyk = vind_ontbrekende(stasie_wyk_ids, wyk_ids)
 
     leë_adres_resp = klient.get(
@@ -454,6 +538,7 @@ def gather_stemstasies(klient: httpx.Client, muni_provinsie: dict[str, str]) -> 
         "per_provinsie": per_provinsie,
         "onbekende_wyk": onbekende_wyk,
         "leë_adres": leë_adres_resp.json(),
+        "vd_nommers": [r["vd_nommer"] for r in stasies],
     }
 
 
@@ -485,6 +570,8 @@ def gather_plekke(klient: httpx.Client, muni_naam: dict[str, str]) -> dict:
         "sonder_wyk": sonder_wyk,
         "alias_tellings": alias_tellings,
         "alias_opsomming": alias_opsomming,
+        "sp_kodes": [r["sp_kode"] for r in alle_plekke],
+        "plek_wyk_pare": [(r["sp_kode"], r["wyk_id"]) for r in plek_wyke_rye],
     }
 
 
@@ -569,6 +656,26 @@ def skryf_verslag(**kw) -> None:
     )
     r.append("")
 
+    # --- Harde hekke ------------------------------------------------------------------
+    r.append("## Harde hekke")
+    hard_gefaal: list[str] = kw["hard_gefaal"]
+    r.append(
+        f"Gekontroleer: wyke = {VERWAG_WYKE_GELAAI}, munisipaliteite = {VERWAG_MUNISIPALITEITE}, "
+        f"distrikte = {VERWAG_DISTRIKTE}, rade 2021 = {VERWAG_RADE_2021}, stemlokale met "
+        f"onbekende wyk <= {MAKS_STASIES_MET_ONBEKENDE_WYK}, plekke sonder wyk <= "
+        f"{MAKS_PLEKKE_SONDER_WYK} en presies die bekende hawe-snippers, geen duplikaat "
+        "natuurlike sleutels nie, geen alias met 0 subplekke nie, wyk-selftoets, 4 "
+        "plattelandse plekke, Brooklyn/Waterkloof."
+    )
+    r.append("")
+    if hard_gefaal:
+        r.append(f"**GEFAAL ({len(hard_gefaal)}):**")
+        for reël in hard_gefaal:
+            r.append(f"- {reël}")
+    else:
+        r.append("**Alle harde hekke geslaag.**")
+    r.append("")
+
     # --- Munisipaliteite ------------------------------------------------------------
     r.append("## Munisipaliteite en distrikte")
     fout = formatteer_afdeling_fout("munisipaliteite", sectie_foute)
@@ -594,7 +701,8 @@ def skryf_verslag(**kw) -> None:
         r.append(f"- {fout}")
     else:
         wyke = kw["wyke_res"]
-        r.append(formatteer_telling_reël("stg_wyke", wyke["totaal"], VERWAG_WYKE))
+        r.append(formatteer_telling_reël("stg_wyke", wyke["totaal"], VERWAG_WYKE_GELAAI))
+        r.append(f"  - amptelike IEC-totaal: {VERWAG_WYKE} (verskil {wyke['totaal'] - VERWAG_WYKE})")
         r.append(f"- sonder geometrie: **{wyke['sonder_geom_totaal']}**")
         for wid in wyke["sonder_geom_lys"]:
             r.append(f"  - `{wid}`")
@@ -961,27 +1069,14 @@ def hoof() -> int:
                         f"{inligting['naam_in_bron']} ({inligting['sp_kode']}) het 0 wyke in stg_plek_wyke"
                     )
 
-        # --- Hard-check: elke gelaaide stg_-tabel moet nie leeg wees nie (net vir
-        # afdelings wat wél gekontroleer kon word — 'n mislukte afdeling is reeds
-        # in hard_gefaal via veilig()). ---
+        # --- Harde hekke: tellings, onbekende wyke, plekke sonder wyk, duplikaat
+        # natuurlike sleutels, leë aliasse (net vir afdelings wat wél gekontroleer kon
+        # word — 'n mislukte afdeling is reeds in hard_gefaal via veilig()). ---
         if muni_res and (muni_res["metro"] + muni_res["plaaslik"] + muni_res["distrik"]) == 0:
             hard_gefaal.append("stg_munisipaliteite is leeg")
         if wyke_res and wyke_res["totaal"] == 0:
             hard_gefaal.append("stg_wyke is leeg")
-        if stasies_res and stasies_res["totaal"] == 0:
-            hard_gefaal.append("stg_stemstasies is leeg")
-        if plekke_res:
-            if plekke_res["totaal"] == 0:
-                hard_gefaal.append("stg_plekke is leeg")
-            if plekke_res["plek_wyke_totaal"] == 0:
-                hard_gefaal.append("stg_plek_wyke is leeg")
-            if plekke_res["alias_totaal"] == 0:
-                hard_gefaal.append("stg_plek_aliasse is leeg")
-        if raad_res:
-            if raad_res["uitslae_totaal"] == 0:
-                hard_gefaal.append("stg_raad_uitslae_2021 is leeg")
-            if raad_res["grootte_totaal"] == 0:
-                hard_gefaal.append("stg_raad_grootte_2021 is leeg")
+        hard_gefaal.extend(evalueer_harde_hekke(muni_res, wyke_res, stasies_res, plekke_res, raad_res))
 
         # --- Smoke tests (spec §5.3: Brooklyn, Waterkloof, Stellenbosch, Kaapstad,
         # Moreleta Park, plus this task's extra names) ---
@@ -1007,6 +1102,7 @@ def hoof() -> int:
     skryf_verslag(
         tydstempel=tydstempel,
         sectie_foute=sectie_foute,
+        hard_gefaal=hard_gefaal,
         muni_res=muni_res,
         wyke_res=wyke_res,
         selftoets=selftoets,

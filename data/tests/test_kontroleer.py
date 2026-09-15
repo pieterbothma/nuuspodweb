@@ -276,3 +276,99 @@ def test_lees_alias_name_uit_regte_csv():
     name = kontroleer.lees_alias_name(kontroleer.ALIASSE_CSV_PAD)
     assert "Kaapstad" in name
     assert "Pretoria-Oos" not in name
+
+
+# --- harde hekke (final-review fix round) ------------------------------------------
+
+
+def _goeie_resultate():
+    muni_res = {"metro": 8, "plaaslik": 205, "distrik": 44, "kodes": [f"M{i}" for i in range(257)]}
+    wyke_res = {"totaal": 4485, "wyk_ids": [f"{i:08d}" for i in range(4485)]}
+    stasies_res = {"totaal": 3, "onbekende_wyk": [], "vd_nommers": ["1", "2", "3"]}
+    plekke_res = {
+        "totaal": 10,
+        "plek_wyke_totaal": 20,
+        "alias_totaal": 5,
+        "sonder_wyk": [{"sp_kode": k} for k in sorted(kontroleer.BEKENDE_HAWE_SP_KODES)],
+        "sp_kodes": ["a", "b"],
+        "plek_wyk_pare": [("a", "1"), ("a", "2"), ("b", "1")],
+        "alias_opsomming": {"Kaapstad": {"subplekke": 126, "munisipaliteite": ["x"], "in_csv": True}},
+    }
+    raad_res = {"uitslae_totaal": 2789, "grootte_totaal": 213}
+    return muni_res, wyke_res, stasies_res, plekke_res, raad_res
+
+
+def test_harde_hekke_konstantes():
+    assert kontroleer.VERWAG_WYKE_GELAAI == 4485
+    assert kontroleer.VERWAG_MUNISIPALITEITE == 213
+    assert kontroleer.VERWAG_DISTRIKTE == 44
+    assert kontroleer.VERWAG_RADE_2021 == 213
+    assert kontroleer.MAKS_PLEKKE_SONDER_WYK == 3
+    assert kontroleer.BEKENDE_HAWE_SP_KODES == {"199056003", "199057014", "199063016"}
+
+
+def test_harde_hekke_alles_goed():
+    assert kontroleer.evalueer_harde_hekke(*_goeie_resultate()) == []
+
+
+def test_harde_hekke_mislukte_afdelings_word_oorgeslaan():
+    assert kontroleer.evalueer_harde_hekke(None, None, None, None, None) == []
+
+
+def test_harde_hekke_verkeerde_tellings():
+    muni_res, wyke_res, stasies_res, plekke_res, raad_res = _goeie_resultate()
+    muni_res["plaaslik"] = 204
+    muni_res["distrik"] = 43
+    wyke_res["totaal"] = 4470
+    raad_res["grootte_totaal"] = 212
+    foute = kontroleer.evalueer_harde_hekke(muni_res, wyke_res, stasies_res, plekke_res, raad_res)
+    assert len(foute) == 4
+    assert any(f.startswith("munisipaliteite: 212") for f in foute)
+    assert any(f.startswith("distrikte: 43") for f in foute)
+    assert any(f.startswith("wyke: 4470") for f in foute)
+    assert any("stg_raad_grootte_2021" in f and "212" in f for f in foute)
+
+
+def test_harde_hekke_stasies_met_onbekende_wyk():
+    muni_res, wyke_res, stasies_res, plekke_res, raad_res = _goeie_resultate()
+    stasies_res["onbekende_wyk"] = ["34501001"]
+    foute = kontroleer.evalueer_harde_hekke(muni_res, wyke_res, stasies_res, plekke_res, raad_res)
+    assert len(foute) == 1 and "onbekende wyk" in foute[0]
+
+
+def test_harde_hekke_plekke_sonder_wyk_meer_as_3():
+    muni_res, wyke_res, stasies_res, plekke_res, raad_res = _goeie_resultate()
+    plekke_res["sonder_wyk"].append({"sp_kode": "271002001"})
+    foute = kontroleer.evalueer_harde_hekke(muni_res, wyke_res, stasies_res, plekke_res, raad_res)
+    assert len(foute) == 1 and "plekke sonder wyk" in foute[0]
+
+
+def test_harde_hekke_plekke_sonder_wyk_verkeerde_3():
+    muni_res, wyke_res, stasies_res, plekke_res, raad_res = _goeie_resultate()
+    plekke_res["sonder_wyk"] = [{"sp_kode": "199056003"}, {"sp_kode": "199057014"}, {"sp_kode": "292002001"}]
+    foute = kontroleer.evalueer_harde_hekke(muni_res, wyke_res, stasies_res, plekke_res, raad_res)
+    assert len(foute) == 1 and "plekke sonder wyk" in foute[0]
+
+
+def test_harde_hekke_duplikaat_natuurlike_sleutels():
+    muni_res, wyke_res, stasies_res, plekke_res, raad_res = _goeie_resultate()
+    muni_res["kodes"].append("M0")
+    wyke_res["wyk_ids"].append("00000000")
+    stasies_res["vd_nommers"].append("1")
+    plekke_res["sp_kodes"].append("a")
+    plekke_res["plek_wyk_pare"].append(("a", "1"))
+    foute = kontroleer.evalueer_harde_hekke(muni_res, wyke_res, stasies_res, plekke_res, raad_res)
+    assert len(foute) == 5
+    assert all("duplikaat" in f for f in foute)
+
+
+def test_harde_hekke_alias_met_0_subplekke():
+    muni_res, wyke_res, stasies_res, plekke_res, raad_res = _goeie_resultate()
+    plekke_res["alias_opsomming"]["Johannesburg-Suid"] = {"subplekke": 0, "munisipaliteite": [], "in_csv": True}
+    foute = kontroleer.evalueer_harde_hekke(muni_res, wyke_res, stasies_res, plekke_res, raad_res)
+    assert foute == ["aliasse wat na 0 subplekke oplos: ['Johannesburg-Suid']"]
+
+
+def test_vind_duplikate():
+    assert kontroleer.vind_duplikate(["b", "a", "b", "c", "a"]) == ["a", "b"]
+    assert kontroleer.vind_duplikate([]) == []

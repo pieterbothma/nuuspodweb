@@ -339,3 +339,27 @@ def test_ontleed_pdf_meerbladsy_vastrigger_lim354():
 
     assert resultaat.raadsgrootte == 90
     assert sum(r["setels_totaal"] for r in resultaat.party_rye) == 90
+
+
+# --- volledige dekking: nie-nul afsluitkode tensy al 213 rade laai ---------------------
+
+
+def test_kontroleer_volledige_dekking_alles_teenwoordig():
+    kodes = {"A", "B"}
+    rg = [{"muni_kode": "A"}, {"muni_kode": "B"}]
+    assert lu.kontroleer_volledige_dekking(kodes, ["A", "B"], rg, verwag=2) == []
+
+
+def test_kontroleer_volledige_dekking_ontbrekende_raad():
+    kodes = {"A", "B"}
+    probleme = lu.kontroleer_volledige_dekking(kodes, ["A"], [{"muni_kode": "A"}], verwag=2)
+    assert len(probleme) == 2
+    assert "['B']" in probleme[0]
+    assert "raadsgrootte" in probleme[1]
+
+
+def test_kontroleer_volledige_dekking_verkeerde_raadtal():
+    kodes = {"A"}
+    probleme = lu.kontroleer_volledige_dekking(kodes, ["A"], [{"muni_kode": "A"}])
+    assert probleme == [f"stg_munisipaliteite gee 1 rade, verwag {lu.VERWAG_RADE}"]
+    assert lu.VERWAG_RADE == 213

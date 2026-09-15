@@ -43,10 +43,11 @@ Idempotent: leeg eers `stg_raad_uitslae_2021` én `stg_raad_grootte_2021` via
 `rpc/stg_leeg`, laai dan vars. PDF's word na `data/bron/setelberekening-2021/`
 afgelaai (gitignored) en behou tussen lopies — 'n reeds-afgelaaide lêer word nie weer
 gehaal nie. Skryf `data/uitvoer/uitslae-2021-verslag.md`. Termineer met 'n nie-nul
-afsluitkode as die Supabase-laai self misluk, of as die raadsgrootte-verifikasie
-hierbo faal; individuele PDF-aflaai-/ontledingsmislukkings (bronprobleme) word in die
-verslag aangeteken maar veroorsaak nie 'n nie-nul afsluitkode nie, tensy GEEN enkele
-raad suksesvol gelaai kon word nie.
+afsluitkode as die Supabase-laai self misluk, as die raadsgrootte-verifikasie
+hierbo faal, of as nie al VERWAG_RADE (213) rade afgelaai, ontleed en van 'n
+raadsgrootte-ry voorsien is nie — in daardie gevalle word NIKS geskryf nie (die
+bestaande stg_-tabelle bly ongeskonde), sodat 'n gedeeltelike laai nooit 'n volledige
+een vervang nie.
 
 Gebruik: cd data && uv run --with pdfplumber,shapely,pyproj,pyshp,httpx python laai_uitslae_2021.py
 """
@@ -102,6 +103,7 @@ RY_STOP_ETIKETTE = {"Total Party Seats", "Independents", "Total Seats"}
 OORMAAT_VOETNOOT_PATROON = re.compile(r"\s*\*\s*$")
 
 AFLAAI_VERTRAGING_S = 0.2
+VERWAG_RADE = 213  # 8 metros + 205 local councils; anything less is a partial load
 AFLAAI_TIMEOUT_S = 30
 
 
@@ -422,6 +424,31 @@ def verifieer_raadsgrootte(alle_party_rye: list[dict], raad_grootte_rye: list[di
     return probleme
 
 
+def kontroleer_volledige_dekking(
+    alle_kodes: set[str],
+    rade_gedek: list[str],
+    raad_grootte_rye: list[dict],
+    verwag: int = VERWAG_RADE,
+) -> list[str]:
+    """Problems that make this a partial load (empty list = all councils present).
+
+    Checks the municipality list itself numbers `verwag`, that every one of them was
+    downloaded and parsed, and that every one produced a council-size row. `hoof()`
+    refuses to write anything unless this returns [] — a partial 2021 table must never
+    replace a complete one.
+    """
+    probleme: list[str] = []
+    if len(alle_kodes) != verwag:
+        probleme.append(f"stg_munisipaliteite gee {len(alle_kodes)} rade, verwag {verwag}")
+    nie_gedek = sorted(alle_kodes - set(rade_gedek))
+    if nie_gedek:
+        probleme.append(f"{len(nie_gedek)} raad/rade nie afgelaai/ontleed nie: {nie_gedek}")
+    sonder_grootte = sorted(alle_kodes - {rg["muni_kode"] for rg in raad_grootte_rye})
+    if sonder_grootte:
+        probleme.append(f"{len(sonder_grootte)} raad/rade sonder raadsgrootte-ry: {sonder_grootte}")
+    return probleme
+
+
 # --- geen-meerderheid-statistiek (verslag-statistiek; die werf bereken sy eie) -------
 
 
@@ -691,6 +718,18 @@ def hoof() -> int:
             f"{len(ontbrekende_raadsgrootte)} raad/rade sonder raadsgrootte-ry: "
             f"{ontbrekende_raadsgrootte}"
         )
+    dekking_probleme = kontroleer_volledige_dekking(alle_kodes, rade_gedek, raad_grootte_rye)
+    if dekking_probleme:
+        print(
+            f"Fout: nie al {VERWAG_RADE} rade kon gelaai word nie — niks is gelaai nie:",
+            file=sys.stderr,
+        )
+        for p in dekking_probleme:
+            print(f"  - {p}", file=sys.stderr)
+        for m in aflaai_mislukkings:
+            print(f"  - {m['muni_kode']}: {m['fout']}", file=sys.stderr)
+        return 1
+
     if raadsgrootte_probleme:
         print("Fout: raadsgrootte-verifikasie het misluk — niks is gelaai nie:", file=sys.stderr)
         for p in raadsgrootte_probleme:
@@ -756,17 +795,6 @@ def hoof() -> int:
     print(f"Rade sonder meerderheid (teen volle raadsgrootte): {len(geen_meerderheid)}")
     print(f"Aflaai-tyd: {aflaai_tyd:.1f}s, ontleding-tyd: {ontleding_tyd:.1f}s, laai-tyd: {laai_tyd:.1f}s")
     print(f"Verslag: {VERSLAG_PAD}")
-
-    if not rade_gedek:
-        print("Fout: geen enkele raad kon gelaai word nie.", file=sys.stderr)
-        return 1
-
-    if aflaai_mislukkings:
-        print(
-            f"Waarskuwing: {len(aflaai_mislukkings)} raad/rade kon nie afgelaai/ontleed "
-            "word nie — sien die verslag.",
-            file=sys.stderr,
-        )
 
     return 0
 
