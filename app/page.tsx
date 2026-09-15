@@ -17,20 +17,25 @@ export default async function Tuis() {
     <>
       <Kopstuk />
       <main>
-        <section className="border-rand border-b">
-          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:px-8 sm:py-16 md:grid-cols-[1.4fr_1fr] md:items-end">
+        <section className="mx-auto max-w-6xl px-5 pt-8 sm:px-8 sm:pt-11">
+          <div className="neon-raam grid gap-8 p-5 sm:p-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-end lg:gap-12 lg:px-12 lg:py-11">
             <div>
-              <p className="font-sans text-xs font-bold tracking-[0.22em] text-siaan uppercase">
+              <p className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase sm:text-[0.8rem]">
                 Plaaslike verkiesing · Woensdag 4 November 2026
               </p>
-              <h1 className="text-papier mt-4 font-display text-4xl leading-[1.05] text-balance sm:text-6xl">
-                Jou raad. Jou wyk. Jou stem.
+              <h1 className="mt-3 font-display text-[3.75rem] leading-[0.9] tracking-[-0.02em] text-ink sm:text-8xl lg:text-[7rem]">
+                Verkiesing
+                <br />
+                <span className="text-rooi">2026</span>
               </h1>
-              <div className="mt-8">
-                <Aftelling teikenIso={STEMDAG.toISOString()} nouMs={nou.getTime()} />
-              </div>
+              <p className="mt-3 font-display text-[1.625rem] text-ink sm:text-4xl lg:text-5xl">
+                met Izak du Plessis
+              </p>
             </div>
-            <KontroleerRegistrasie />
+            <div className="grid gap-7">
+              <Aftelling teikenIso={STEMDAG.toISOString()} nouMs={nou.getTime()} />
+              <KontroleerRegistrasie />
+            </div>
           </div>
         </section>
 
