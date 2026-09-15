@@ -44,7 +44,7 @@ def test_kry_kolom_indekse_verdraagsaam_vir_variante():
 
 def test_kry_kolom_indekse_nie_kop_ry_gee_none():
     # 'n Gewone data-ry moet nie per ongeluk as kop-ry herken word nie.
-    data_ry = ["CPT - City of Cape Town", "ABANTU BATHO CONGRESS", "1", "######****08*", "VUYANI", "MGWALI"]
+    data_ry = ["CPT - City of Cape Town", "TOETSPARTY", "1", "######****00*", "TOETS", "PERSOON"]
     assert ko.kry_kolom_indekse(data_ry) is None
 
 
@@ -58,7 +58,7 @@ def test_kry_kolom_indekse_ontbrekende_kolom_gooi_fout():
 def test_is_leeg_of_titel_ry():
     assert ko.is_leeg_of_titel_ry(["Updated LGE2021 Candidate Lists - 8 Oct 2021", None, None, None, None, None])
     assert not ko.is_leeg_of_titel_ry(
-        ["CPT - City of Cape Town", "ABANTU BATHO CONGRESS", "1", "######****08*", "VUYANI", "MGWALI"]
+        ["CPT - City of Cape Town", "TOETSPARTY", "1", "######****00*", "TOETS", "PERSOON"]
     )
 
 
@@ -88,7 +88,7 @@ _KOLOM_INDEKSE = {"muni": 0, "party": 1, "wyklys": 2, "id": 3, "volle_naam": 4, 
 
 
 def test_bou_kandidaat_wyk_ry():
-    ry = ["CPT - City of Cape Town", "ABANTU BATHO CONGRESS", "12345678", "8001015009087", "VUYANI PUNCTUAL", "MGWALI"]
+    ry = ["CPT - City of Cape Town", "TOETSPARTY", "12345678", "8001015009087", "TOETS VOORBEELD", "PERSOON"]
     k = ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=1, bron_lêer="toets.pdf")
     assert k.stembrief == "wyk"
     assert k.wyk_id == "12345678"
@@ -96,8 +96,8 @@ def test_bou_kandidaat_wyk_ry():
     assert k.muni_naam == "City of Cape Town"
     assert k.muni_kode == "CPT"
     assert k.onafhanklik is False
-    assert k.volle_naam == "VUYANI PUNCTUAL"
-    assert k.van == "MGWALI"
+    assert k.volle_naam == "TOETS VOORBEELD"
+    assert k.van == "PERSOON"
 
 
 def test_bou_kandidaat_pv_plaaslik_ry():
@@ -196,7 +196,7 @@ def test_bron_ry_kode_te_veel_rye_gooi_fout():
 
 
 def test_skoon_vou_nuwe_lyn_en_dubbel_spasie_ineen():
-    assert ko.skoon("VUYANI\nPUNCTUAL") == "VUYANI PUNCTUAL"
+    assert ko.skoon("TOETS\nVOORBEELD") == "TOETS VOORBEELD"
     assert ko.skoon("A  B") == "A B"
 
 
@@ -378,3 +378,62 @@ def test_hoof_cli_skryf_verslag(tmp_path):
     for reël in inhoud.splitlines():
         for treffer in DIGIT_LOOP_PATROON.findall(reël):
             assert len(treffer) == 8, reël
+
+
+# --- looptyd-ID-skans (final-review fix round) -------------------------------------
+
+# Synthetic, ID-shaped number (1980-01-01, not a real person).
+_SINTETIESE_ID = "8001015009087"
+
+
+@pytest.mark.parametrize(
+    "ry, veld",
+    [
+        # ID shifted into the full-name column (one cell dropped before it).
+        (["CPT - City of Cape Town", "TOETSPARTY", "12345678", "######****00*", _SINTETIESE_ID, "PERSOON"], "volle_naam"),
+        # ID shifted into the surname column.
+        (["CPT - City of Cape Town", "TOETSPARTY", "12345678", "######****00*", "TOETS", _SINTETIESE_ID], "van"),
+        # ID shifted into the party column.
+        (["CPT - City of Cape Town", _SINTETIESE_ID, "12345678", "######****00*", "TOETS", "PERSOON"], "party_naam"),
+        # ID shifted into the municipality column.
+        ([f"CPT - {_SINTETIESE_ID}", "TOETSPARTY", "12345678", "######****00*", "TOETS", "PERSOON"], "muni_naam"),
+    ],
+)
+def test_id_skans_gooi_op_verskuifde_ry_sonder_om_die_waarde_te_wys(ry, veld):
+    with pytest.raises(ko.KandidaatOntledingFout) as fout:
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=3, ry_nr=7, bron_lêer="toets.pdf")
+    boodskap = str(fout.value)
+    assert f"'{veld}'" in boodskap
+    assert "bladsy 3" in boodskap and "ry 7" in boodskap
+    assert not DIGIT_LOOP_PATROON.search(boodskap)
+
+
+def test_id_skans_gooi_op_id_in_ward_list_kolom_sonder_om_die_waarde_te_wys():
+    ry = ["CPT - City of Cape Town", "TOETSPARTY", _SINTETIESE_ID, "######****00*", "TOETS", "PERSOON"]
+    with pytest.raises(ko.KandidaatOntledingFout) as fout:
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=2, ry_nr=4, bron_lêer="toets.pdf")
+    assert "ID-skans" in str(fout.value)
+    assert not DIGIT_LOOP_PATROON.search(str(fout.value))
+
+
+def test_onverwagte_ward_list_waarde_word_nie_in_die_fout_gewys_nie():
+    ry = ["CPT - City of Cape Town", "TOETSPARTY", "######****00*", "x", "TOETS", "PERSOON"]
+    with pytest.raises(ko.KandidaatOntledingFout) as fout:
+        ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=1, bron_lêer="toets.pdf")
+    assert "####" not in str(fout.value)
+
+
+def test_ontbrekende_kolom_fout_wys_nie_die_rou_kop_ry_nie():
+    kop = ["Municipality", "Party", "Ward \\ List Order", "IDNumber", _SINTETIESE_ID]  # geen Surname/Fullname
+    with pytest.raises(ko.KandidaatOntledingFout) as fout:
+        ko.kry_kolom_indekse(kop)
+    boodskap = str(fout.value)
+    assert "van" in boodskap
+    assert not DIGIT_LOOP_PATROON.search(boodskap)
+    assert "IDNumber" not in boodskap
+
+
+def test_gewone_ry_slaag_steeds_die_id_skans():
+    ry = ["CPT - City of Cape Town", "TOETSPARTY", "12", "######****00*", "TOETS", "PERSOON"]
+    k = ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=1, bron_lêer="toets.pdf")
+    assert k.lys_posisie == 12

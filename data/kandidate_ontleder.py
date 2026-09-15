@@ -17,11 +17,16 @@ PERSONAL DATA RULE (verpligtend, sien die taakbrief se globale beperkings): die
 gemaskeerde ID-nommer-kolom se indeks word wel in `kry_kolom_indekse` se resultaat
 opgeneem (om te bevestig die kolom bestáán in die kop-ry), maar sy WAARDE word nooit uit
 'n rou ry gelees of aan enige veranderlike toegeken nie — dit verskyn dus nêrens in
-`Kandidaat`, in logs, of in die verslag nie. `bou_kandidaat` lees slegs die ses ander
-kolomme se waardes. (`bron_ry` en `lys_posisie` is heelgetal-velde wat uitsluitlik uit
-die bladsy/ry-teller en die Ward\\List-kolom afgelei word — nooit uit die ID-kolom nie —
-en word dus doelbewus uitgesluit van die "geen 6+-syfer-string"-skans; dié skans geld die
-tekstuele velde wat regstreeks uit PDF-selle oorgeneem word.)
+`Kandidaat`, in logs, of in die verslag nie. `bou_kandidaat` lees slegs die vyf ander
+kolomme se waardes.
+
+LOOPTYD-ID-SKANS: 'n verskuifde ry (bv. 'n ekstra/ontbrekende sel wat die ID-kolom se
+waarde in die naam-kolom laat beland) sou andersins 'n ID-nommer stilweg in `Kandidaat`
+laat inglip. `bou_kandidaat` gooi dus `KandidaatOntledingFout` as 'n reeks van 6+ syfers
+(`ID_SKANS_PATROON`) in `volle_naam`, `van`, `party_naam` of `muni_naam` voorkom, of as
+die Ward\\List-kolom 'n 6+-syfer-getal dra wat nie 'n 8-syfer wyk-ID is nie (geen
+lysposisie is so groot nie). Geen foutboodskap in hierdie module bevat ooit 'n selwaarde
+nie — net die lêer, bladsy, ry, veld- of kolomposisie.
 
 Reël vir die "Ward \\ List Order"-kolom: 'n presies-8-syfer waarde beteken 'n wyk-kandidaat
 (`stembrief="wyk"`, `wyk_id` gestel); enige ander suiwer-syfer waarde is 'n PV-lyspossie
@@ -58,6 +63,8 @@ BASIS_PAD = Path(__file__).parent
 VERSLAG_PAD_DEFAULT = BASIS_PAD / "uitvoer" / "kandidate-2021-fixture-verslag.md"
 
 WYK_ID_PATROON = re.compile(r"^\d{8}$")
+ID_SKANS_PATROON = re.compile(r"\d{6,}")  # any 6+ digit run looks like (part of) an ID number
+ID_SKANS_VELDE = ("volle_naam", "van", "party_naam", "muni_naam")
 
 
 class KandidaatOntledingFout(Exception):
@@ -118,8 +125,11 @@ def kry_kolom_indekse(rou_ry: list) -> dict[str, int] | None:
 
     ontbrekend = sorted(set(_KOP_TOETSE) - set(indekse))
     if ontbrekend:
+        # Never echo the row itself — name positions only.
+        herken = {sleutel: indekse[sleutel] for sleutel in sorted(indekse)}
         raise KandidaatOntledingFout(
-            f"kop-ry herken maar kolomme ontbreek: {ontbrekend} (kop-ry: {rou_ry!r})"
+            f"kop-ry herken maar kolomme ontbreek: {ontbrekend} (kop-ry het {len(rou_ry)} "
+            f"kolomme; herkende posisies: {herken})"
         )
     return indekse
 
@@ -218,11 +228,19 @@ def bou_kandidaat(
         stembrief = "pv_distrik" if is_distrik(muni_rou) else "pv_plaaslik"
     else:
         raise KandidaatOntledingFout(
-            f"onverwagte waarde in die Ward\\List-kolom op {bron_lêer} bladsy {bladsy_nr} "
-            f"ry {ry_nr}: {wyklys_waarde!r}"
+            f"onverwagte waarde in die Ward\\List-kolom (kolom {kolom_indekse['wyklys']}) op "
+            f"{bron_lêer} bladsy {bladsy_nr} ry {ry_nr} — nie 'n 8-syfer wyk-ID of 'n "
+            "heelgetal-lysposisie nie"
         )
 
-    return Kandidaat(
+    if lys_posisie is not None and ID_SKANS_PATROON.search(wyklys_waarde):
+        raise KandidaatOntledingFout(
+            f"ID-skans: 6+-syfer-getal in die Ward\\List-kolom (kolom {kolom_indekse['wyklys']}) "
+            f"op {bron_lêer} bladsy {bladsy_nr} ry {ry_nr} — moontlik 'n verskuifde ry; "
+            "waarde nie gewys nie"
+        )
+
+    kandidaat = Kandidaat(
         muni_naam=muni_naam,
         muni_kode=muni_kode,
         party_naam=party_naam,
@@ -235,6 +253,21 @@ def bou_kandidaat(
         bron_lêer=bron_lêer,
         bron_ry=bron_ry_kode(bladsy_nr, ry_nr),
     )
+    kontroleer_id_skans(kandidaat, bladsy_nr, ry_nr)
+    return kandidaat
+
+
+def kontroleer_id_skans(kandidaat: Kandidaat, bladsy_nr: int, ry_nr: int) -> None:
+    """Raise if any text field carries a 6+ digit run (an ID number from a shifted row).
+
+    The message names file, page, row and field — never the value.
+    """
+    for veld in ID_SKANS_VELDE:
+        if ID_SKANS_PATROON.search(getattr(kandidaat, veld)):
+            raise KandidaatOntledingFout(
+                f"ID-skans: 6+-syfer-reeks in veld '{veld}' op {kandidaat.bron_lêer} bladsy "
+                f"{bladsy_nr} ry {ry_nr} — moontlik 'n verskuifde ry; waarde nie gewys nie"
+            )
 
 
 def ontleed(pdf_pad: Path | str) -> Iterator[Kandidaat]:
