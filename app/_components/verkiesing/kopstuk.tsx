@@ -28,6 +28,12 @@ export function Kopstuk() {
             </a>
           ))}
         </nav>
+        <Link
+          href="/adverteer"
+          className="bg-rooi text-white hover:bg-[#c62f2c] px-4 py-2 font-sans text-xs font-bold uppercase tracking-widest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
+        >
+          Adverteer
+        </Link>
       </div>
     </header>
   );
