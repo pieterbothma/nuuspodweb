@@ -32,14 +32,13 @@ const sourceSans = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nuuspod.co.za"),
-  title: "Adverteer by Nuuspod — Afrikaanse nuus, elke weeksdag regstreeks",
+  metadataBase: new URL("https://www.nuuspod.co.za"),
+  title: "Verkiesing 2026 — Nuuspod",
   description:
-    "Nuuspod met Izak du Plessis bereik gemiddeld 14 miljoen mense per maand op Facebook en YouTube. Sien die advertensiepakkette en tariewe.",
+    "Die plaaslike verkiesing van 4 November 2026 in Afrikaans: belangrike datums, hoe om te stem, en Verkiesings-Vrydag met Izak du Plessis.",
   openGraph: {
-    title: "Adverteer by Nuuspod",
-    description:
-      "Afrikaanse nuusbulletin, elke weeksdag regstreeks. Gemiddeld 14 miljoen kyke per maand.",
+    title: "Verkiesing 2026 — Nuuspod",
+    description: "Alles wat jy nodig het om op 4 November te stem, in Afrikaans.",
     url: "https://nuuspod.co.za",
     siteName: "Nuuspod",
     locale: "af_ZA",
