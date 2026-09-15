@@ -65,7 +65,7 @@ Extensions: `postgis`, `pg_trgm`.
 | `plek_aliasse` | `alias`, `sp_kode` |
 | `data_weergawes` | `datastel`, `bron_url`, `bron_datum`, `rye`, `gelaai_om`, `gepubliseer_om` |
 
-**Access:** anon gets read-only `SELECT` on the `public` tables via RLS. `staging` is not exposed.
+**Access:** anon gets read-only `SELECT` on the `public` tables via RLS. `stg_` tables are not exposed to anon.
 
 **Indexes:** GIN trigram on `plekke.naam_soek`, `plek_aliasse.alias`, `stemstasies.naam` and `stemstasies.adres`;
 GiST on `wyke.geom` and `plekke.geom`.
@@ -91,11 +91,11 @@ GiST on `wyke.geom` and `plekke.geom`.
 - **Large source files** go in `data/bron/`, which is gitignored.
 
 ### 5.2 Scripts (each idempotent; each writes `data/uitvoer/<datastel>-verslag.md`)
-1. `laai_wyke.py`: MDB shapefile → `staging.wyke` + `staging.munisipaliteite`.
-2. `laai_stemstasies.py`: IEC station PDFs → `staging.stemstasies`.
-3. `laai_plekke.py`: SP/MP shapefiles → `staging.plekke`, then SQL builds `staging.plek_wyke`; seeds `plek_aliasse` from `data/aliasse.csv`.
+1. `laai_wyke.py`: MDB shapefile → `stg_wyke` + `stg_munisipaliteite`.
+2. `laai_stemstasies.py`: IEC station PDFs → `stg_stemstasies`.
+3. `laai_plekke.py`: SP/MP shapefiles → `stg_plekke`, then SQL builds `stg_plek_wyke`; seeds `plek_aliasse` from `data/aliasse.csv`.
 4. `laai_uitslae_2021.py`: IEC 2021 seat data → `staging.raad_uitslae_2021`, mapped to 2026 municipality codes (outer boundaries unchanged; verify every code matches).
-5. `laai_kandidate.py`: IEC final list → `staging.kandidate` + `staging.partye`.
+5. `laai_kandidate.py`: IEC final list → `stg_kandidate` + `stg_partye`.
    - Developed against the 2021 WC PDF fixture on 15 Sep, run on the real list on 16 Sep.
    - Rows with a list-order number go to `pv_plaaslik`, or to `pv_distrik` when the municipality is a district.
    - Rows with an 8-digit ward id go to `wyk`, and `Party = INDEPENDENT` sets `onafhanklik`.
@@ -231,7 +231,7 @@ Same process as 15 Sep: verified facts plus slot briefs go to `gemini-3.5-flash`
 
 ## 10. Build order (internal)
 
-1. **15–16 Sep:** extensions + schema + RLS; wards, stations, places, aliases, 2021 results loaded to staging; candidate parser built on the 2021 fixture.
+1. **15–16 Sep:** extensions + schema + RLS; wards, stations, places, aliases, 2021 results loaded to `stg_` tables; candidate parser built on the 2021 fixture.
 2. **16–18 Sep:** real candidate list parsed and reconciled; first check report → Piet → publish.
 3. **18–23 Sep:** RPCs, `/api/soek`, `/api/wyk-by-punt`, hero search, ward and municipality pages, OG cards, sitemap, Gemini copy.
 4. **23–24 Sep:** ballot order (if usable), IEC corrections, final report → publish.
