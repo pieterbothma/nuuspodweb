@@ -2,16 +2,25 @@
 
 Reads every stg_ table loaded by Tasks 1-7 (plus the currently-published public
 tables, for the §5.3 diff) via PostgREST, runs the ward self-test
-(`rpc/kontroleer_wyke`) and a handful of place-search smoke tests, and writes one
+(`rpc/kontroleer_wyke`) and the §5.3/§8 place-search smoke tests, and writes one
 combined `data/uitvoer/kontroleverslag.md` so Piet can say "publiseer".
 
 Read-only: this script never writes to Supabase. There is no search RPC yet (that's
 Fase 2b), so the smoke tests are implemented as plain REST lookups: resolve a name
 through `stg_plek_aliasse` first (exact match), else `stg_plekke.naam_soek` (prefix
 match), then `stg_plek_wyke` for the resulting ward count. The `authenticator` role's
-8s `statement_timeout` means any of those three calls can time out; a timeout is
-recorded as a failed smoke test, not raised — one slow name must never crash the
-whole report.
+8s `statement_timeout` means any of those calls can time out; a timeout is recorded
+as a failed smoke test, not raised — one slow name must never crash the whole report.
+
+Every *gathering* section (wards, municipalities, stations, places, 2021 seats, the
+"not yet loaded" tables, the published-version diff, the 4 rural places) is wrapped
+in `veilig()`: a `SupabaseFout`/`httpx.HTTPError` there is recorded in `hard_gefaal`
+and rendered inline as "kon nie gekontroleer word nie: <kort fout>" for that section
+only — it never stops the rest of the report from being gathered, and the report is
+always written, even when `hoof()` ultimately returns 1. The error text is always
+`SupabaseFout`'s own message (the response body, truncated, never headers) or
+`str(httpx.HTTPError)` (which httpx never populates with request headers), so it
+never carries the secret key.
 
 Run: cd data && uv run --with pdfplumber,pyshp,shapely,pyproj,httpx,pytest python kontroleer.py
 """
@@ -20,8 +29,9 @@ from __future__ import annotations
 
 import sys
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Callable
 
 import httpx
 
@@ -31,24 +41,11 @@ BASIS_PAD = Path(__file__).parent
 VERSLAG_PAD = BASIS_PAD / "uitvoer" / "kontroleverslag.md"
 
 VERWAG_WYKE = 4488
+VERWAG_VRYSTAAT_WYKE = 311
 VERWAG_MUNISIPALITEITE = 213
 VERWAG_DISTRIKTE = 44
 
-# stg_ tables that Tasks 1-6 load; an empty one here is a hard failure (unlike
-# stg_kandidate / stg_stembrief_volgorde, which are legitimately still empty — see
-# "Nog nie gelaai nie" below).
-GELAAIDE_TABELLE = (
-    "stg_munisipaliteite",
-    "stg_wyke",
-    "stg_stemstasies",
-    "stg_plekke",
-    "stg_plek_wyke",
-    "stg_plek_aliasse",
-    "stg_raad_uitslae_2021",
-    "stg_raad_grootte_2021",
-)
-
-# Publieke teëhangers van elke stg_-tabel hierbo, vir die §5.3-diff teen die tans
+# Publieke teëhangers van elke gelaaide stg_-tabel, vir die §5.3-diff teen die tans
 # gepubliseerde weergawe (geen publiseer-stap in hierdie taak nie — sien spec §5.3).
 PUBLIEKE_TABELLE = (
     "munisipaliteite",
@@ -61,13 +58,30 @@ PUBLIEKE_TABELLE = (
     "raad_grootte_2021",
 )
 
-# Task 8-brief §Place-search smoke tests: 'n handjievol name — groot metro's,
-# 'n hoofstad, 'n dorpie, en (doelbewus) die huidige amptelike spelling "Mahikeng"
-# om te kyk of die bron dit ken (dit ken nie — sien §Smoke-toetse in die verslag).
+# Besluite-item #3: die 4 groot plattelandse plekke wat selfs een-op-'n-slag oor
+# PostgREST se 8s statement_timeout val (Task 5) — sp_kode's direk gegee (soos die
+# fix-round-1-opdrag toelaat), nie deur naam opgesoek nie. Kommentaar dra die brief
+# se spelling ter vergelyking met die bronshapefile s'n.
+LANDELIKE_PLEK_KODES: tuple[str, ...] = (
+    "271002001",  # brief: "Mnquma" — die bronshapefile self spel dit "Mnquna"
+    "290003001",  # Ngquza Hill
+    "292002001",  # Nyandeni
+    "966002001",  # Thulamela
+)
+
+# Spec §5.3 (line 112) se vyf name eerste — Brooklyn en Waterkloof is die bekende
+# veelvuldige-munisipaliteit-botsings (spec §8: Brooklyn moet >=2 munisipaliteite
+# insluitend Tshwane en Kaapstad gee, Waterkloof moet Tshwane insluit) — dan die
+# ekstra name hierdie taak self bygevoeg het (groot metro's, 'n hoofstad, 'n dorpie,
+# en doelbewus die huidige amptelike spelling "Mahikeng" om te kyk of die bron dit
+# ken — dit ken nie, sien §Smoke-toetse in die verslag).
 SMOKE_NAME = (
-    "Strand",
+    "Brooklyn",
+    "Waterkloof",
     "Stellenbosch",
     "Kaapstad",
+    "Moreleta Park",
+    "Strand",
     "Soweto",
     "Bloemfontein",
     "Mahikeng",
@@ -145,6 +159,40 @@ def formatteer_telling_reël(etiket: str, gekry: int, verwag: int | None = None)
     return f"- {etiket}: **{gekry}** (verwag {verwag}, verskil {gekry - verwag})"
 
 
+def formatteer_afdeling_fout(sectie: str, sectie_foute: dict[str, str]) -> str | None:
+    """The one line to render instead of `sectie`'s normal content when it failed to
+    gather: "kon nie gekontroleer word nie: <kort fout>". Returns None when `sectie`
+    isn't in `sectie_foute` (i.e. it succeeded), so callers render normally."""
+    if sectie not in sectie_foute:
+        return None
+    return f"kon nie gekontroleer word nie: {sectie_foute[sectie]}"
+
+
+def kontroleer_veelvuldige_munisipaliteite(
+    munisipaliteite: list[str], moet_bevat: tuple[str, ...], min_aantal: int = 1
+) -> str | None:
+    """Spec §8's Brooklyn/Waterkloof expectation, generalised: `munisipaliteite`
+    (already-resolved names) must number at least `min_aantal` and include a name
+    containing each substring in `moet_bevat`. Returns None when satisfied, else a
+    short Afrikaans description of what's missing (never raises — a failed
+    expectation is data for the report, not an exception)."""
+    ontbrekend = []
+    if len(munisipaliteite) < min_aantal:
+        ontbrekend.append(f"minder as {min_aantal} munisipaliteit(e) ({len(munisipaliteite)})")
+    for stuk in moet_bevat:
+        if not any(stuk in m for m in munisipaliteite):
+            ontbrekend.append(f"geen '{stuk}' nie")
+    return "; ".join(ontbrekend) if ontbrekend else None
+
+
+def formatteer_landelike_plekke(per_plek: dict[str, dict]) -> str:
+    """"Naam (n), Naam (n), ... = totaal rye" for Besluite-item #3 — measured live
+    from stg_plek_wyke, not a static "34+32+32+58=156"."""
+    dele = [f"{p['naam_in_bron']} ({p['wyktal']})" for p in per_plek.values()]
+    totaal = sum(p["wyktal"] for p in per_plek.values())
+    return ", ".join(dele) + f" = {totaal} rye"
+
+
 # ---------------------------------------------------------------------------------
 # Network helpers
 # ---------------------------------------------------------------------------------
@@ -164,6 +212,26 @@ def _bou_klient() -> httpx.Client:
     return httpx.Client(base_url=basis_url, headers=koptekste, timeout=30.0)
 
 
+def veilig(hard_gefaal: list[str], sectie_foute: dict[str, str], sectie: str, funksie: Callable[[], dict]):
+    """Run a zero-arg gathering `funksie` for `sectie`; on `SupabaseFout` or
+    `httpx.HTTPError`, record a short message (never headers or the key —
+    `SupabaseFout`'s message is already the truncated response body, and httpx never
+    puts headers in its exception text) in both `hard_gefaal` and `sectie_foute`, and
+    return None instead of letting the exception propagate.
+
+    This is what makes one failing PostgREST call affect only its own section of the
+    report rather than aborting `skryf_verslag()` for everything — the CRITICAL fix
+    from Task 8 review round 1.
+    """
+    try:
+        return funksie()
+    except (supabase.SupabaseFout, httpx.HTTPError) as fout:
+        boodskap = str(fout)[:500]
+        hard_gefaal.append(f"{sectie}: {boodskap}")
+        sectie_foute[sectie] = boodskap
+        return None
+
+
 def telling(klient: httpx.Client, tabel: str, parameters: dict[str, str] | None = None) -> int:
     """GET tabel (optioneel gefiltreer) met `Prefer: count=exact`, `Range: 0-0` —
     gee net die totaal terug (nooit die rye self nie, vinnig selfs vir groot tabelle).
@@ -178,13 +246,18 @@ def telling(klient: httpx.Client, tabel: str, parameters: dict[str, str] | None 
     return ontleed_inhoud_reeks(resp.headers.get("content-range", "*/0"))
 
 
-def smoke_toets_plek(klient: httpx.Client, naam: str, tydsuit_s: float = 7.5) -> dict:
-    """Resolve `naam` -> ward count, per §Read first item 4's instructions.
+def smoke_toets_plek(
+    klient: httpx.Client, naam: str, muni_naam: dict[str, str], tydsuit_s: float = 7.5
+) -> dict:
+    """Resolve `naam` -> ward count and resolved municipalities.
 
     Volgorde: (1) `stg_plek_aliasse` presiese (case-insensitive) treffer, anders
-    (2) `stg_plekke.naam_soek` voorvoegsel-treffer, dan altyd `stg_plek_wyke` vir die
-    wyktal. 'n Tydverstreke of PostgREST-fout op enige stap word as 'n gefaalde
-    steekproef aangeteken, nie 'n uitsondering nie.
+    (2) `stg_plekke.naam_soek` voorvoegsel-treffer; dan altyd `stg_plek_wyke` vir die
+    wyktal, en (as daar wyke is) `stg_wyke` vir die munisipaliteite waaraan daardie
+    wyke behoort — spec §8 verwag Brooklyn/Waterkloof oor >1 munisipaliteit uit te
+    wys, dus moet die verslag dit kan wys. 'n Tydverstreke of PostgREST-fout op enige
+    stap word as 'n gefaalde steekproef aangeteken, nie 'n uitsondering nie — een
+    stadige naam mag nooit die hele verslag laat val nie.
     """
     naam_soek = teks.normaliseer(naam)
     try:
@@ -210,7 +283,14 @@ def smoke_toets_plek(klient: httpx.Client, naam: str, tydsuit_s: float = 7.5) ->
             bron = "naam" if sp_kodes else None
 
         if not sp_kodes:
-            return {"naam": naam, "gevind": False, "plekke": 0, "wyke": 0, "bron": None}
+            return {
+                "naam": naam,
+                "gevind": False,
+                "plekke": 0,
+                "wyke": 0,
+                "munisipaliteite": [],
+                "bron": None,
+            }
 
         lys = ",".join(sp_kodes)
         wyk_resp = klient.get(
@@ -227,48 +307,181 @@ def smoke_toets_plek(klient: httpx.Client, naam: str, tydsuit_s: float = 7.5) ->
                 "fout": wyk_resp.text[:200],
             }
         wyke = {r["wyk_id"] for r in wyk_resp.json()}
+
+        munisipaliteite: list[str] = []
+        if wyke:
+            lys_w = ",".join(wyke)
+            muni_resp = klient.get(
+                "stg_wyke",
+                params={"select": "muni_kode", "wyk_id": f"in.({lys_w})"},
+                timeout=tydsuit_s,
+            )
+            if muni_resp.status_code < 400:
+                munikodes = {r["muni_kode"] for r in muni_resp.json()}
+                munisipaliteite = sorted({muni_naam.get(k, k) for k in munikodes})
+
         return {
             "naam": naam,
             "gevind": True,
             "plekke": len(sp_kodes),
             "wyke": len(wyke),
+            "munisipaliteite": munisipaliteite,
             "bron": bron,
         }
-    except httpx.TimeoutException:
-        return {"naam": naam, "gevind": False, "fout": f"PostgREST-tydverstreke (> {tydsuit_s}s)"}
+    except httpx.HTTPError:
+        return {"naam": naam, "gevind": False, "fout": f"PostgREST-tydverstreke/fout (> {tydsuit_s}s)"}
 
 
-def vind_plekke_sonder_wyk(klient: httpx.Client) -> list[dict]:
-    """`stg_plekke` rye met geen `stg_plek_wyke`-ry nie (sp_kode-versameling-verskil,
-    nie 'n spatiale navraag nie — vinnig, twee kolomme, alles via kry_alles)."""
-    alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, klient=klient)
-    met_wyk = {r["sp_kode"] for r in supabase.kry_alles("stg_plek_wyke", {"select": "sp_kode"}, klient=klient)}
-    by_kode = {r["sp_kode"]: r for r in alle_plekke}
-    sonder = vind_ontbrekende({r["sp_kode"] for r in alle_plekke}, met_wyk)
-    return [by_kode[k] for k in sonder]
+# ---------------------------------------------------------------------------------
+# Gathering (each of these runs entirely inside one `veilig()` call in hoof())
+# ---------------------------------------------------------------------------------
 
 
-def vind_stasies_onbekende_wyk(klient: httpx.Client) -> list[str]:
+def gather_munisipaliteite(klient: httpx.Client) -> dict:
+    metro = telling(klient, "stg_munisipaliteite", {"tipe": "eq.metro"})
+    plaaslik = telling(klient, "stg_munisipaliteite", {"tipe": "eq.plaaslik"})
+    distrik = telling(klient, "stg_munisipaliteite", {"tipe": "eq.distrik"})
+    munis = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam,provinsie"}, klient=klient)
+    return {
+        "metro": metro,
+        "plaaslik": plaaslik,
+        "distrik": distrik,
+        "muni_provinsie": {m["kode"]: m["provinsie"] for m in munis},
+        "muni_naam": {m["kode"]: m["naam"] for m in munis},
+    }
+
+
+def gather_wyke(klient: httpx.Client, muni_provinsie: dict[str, str]) -> dict:
+    totaal = telling(klient, "stg_wyke")
+    sonder_geom_totaal = telling(klient, "stg_wyke", {"geom": "is.null"})
+    sonder_geom_lys: list[str] = []
+    if sonder_geom_totaal:
+        resp = klient.get("stg_wyke", params={"select": "wyk_id", "geom": "is.null"})
+        if resp.status_code >= 400:
+            raise supabase.SupabaseFout(resp.text[:500])
+        sonder_geom_lys = [r["wyk_id"] for r in resp.json()]
+
+    wyk_munis = supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, klient=klient)
+    per_provinsie = tel_per_sleutel([w["muni_kode"] for w in wyk_munis], muni_provinsie)
+
+    return {
+        "totaal": totaal,
+        "sonder_geom_totaal": sonder_geom_totaal,
+        "sonder_geom_lys": sonder_geom_lys,
+        "per_provinsie": per_provinsie,
+    }
+
+
+def gather_wyk_selftoets(klient: httpx.Client) -> dict:
+    rye = supabase.rpc("kontroleer_wyke", {}, klient=klient)
+    return rye[0] if isinstance(rye, list) else rye
+
+
+def gather_stemstasies(klient: httpx.Client, muni_provinsie: dict[str, str]) -> dict:
+    totaal = telling(klient, "stg_stemstasies")
+    stasie_munis = [
+        r["muni_kode"] for r in supabase.kry_alles("stg_stemstasies", {"select": "muni_kode"}, klient=klient)
+    ]
+    per_provinsie = tel_per_sleutel(stasie_munis, muni_provinsie)
+
     wyk_ids = {r["wyk_id"] for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id"}, klient=klient)}
     stasie_wyk_ids = {
         r["wyk_id"] for r in supabase.kry_alles("stg_stemstasies", {"select": "wyk_id"}, klient=klient)
     }
-    return vind_ontbrekende(stasie_wyk_ids, wyk_ids)
+    onbekende_wyk = vind_ontbrekende(stasie_wyk_ids, wyk_ids)
 
-
-def vind_stasies_leë_adres(klient: httpx.Client) -> list[dict]:
-    resp = klient.get(
+    leë_adres_resp = klient.get(
         "stg_stemstasies",
         params={"select": "vd_nommer,naam,adres,muni_kode,wyk_id", "adres": "eq."},
     )
-    if resp.status_code >= 400:
-        raise supabase.SupabaseFout(resp.text[:500])
-    return resp.json()
+    if leë_adres_resp.status_code >= 400:
+        raise supabase.SupabaseFout(leë_adres_resp.text[:500])
+
+    return {
+        "totaal": totaal,
+        "per_provinsie": per_provinsie,
+        "onbekende_wyk": onbekende_wyk,
+        "leë_adres": leë_adres_resp.json(),
+    }
 
 
-def tel_aliasse(klient: httpx.Client) -> dict[str, int]:
-    rye = supabase.kry_alles("stg_plek_aliasse", {"select": "alias"}, klient=klient)
-    return dict(sorted(Counter(r["alias"] for r in rye).items()))
+def gather_plekke(klient: httpx.Client) -> dict:
+    totaal = telling(klient, "stg_plekke")
+    plek_wyke_totaal = telling(klient, "stg_plek_wyke")
+    alias_totaal = telling(klient, "stg_plek_aliasse")
+
+    alle_plekke = supabase.kry_alles("stg_plekke", {"select": "sp_kode,naam,mp_naam"}, klient=klient)
+    met_wyk = {r["sp_kode"] for r in supabase.kry_alles("stg_plek_wyke", {"select": "sp_kode"}, klient=klient)}
+    by_kode = {r["sp_kode"]: r for r in alle_plekke}
+    sonder_wyk = [by_kode[k] for k in vind_ontbrekende({r["sp_kode"] for r in alle_plekke}, met_wyk)]
+
+    alias_rye = supabase.kry_alles("stg_plek_aliasse", {"select": "alias"}, klient=klient)
+    alias_tellings = dict(sorted(Counter(r["alias"] for r in alias_rye).items()))
+
+    return {
+        "totaal": totaal,
+        "plek_wyke_totaal": plek_wyke_totaal,
+        "alias_totaal": alias_totaal,
+        "sonder_wyk": sonder_wyk,
+        "alias_tellings": alias_tellings,
+    }
+
+
+def gather_raadsetels(klient: httpx.Client) -> dict:
+    uitslae_totaal = telling(klient, "stg_raad_uitslae_2021")
+    grootte_totaal = telling(klient, "stg_raad_grootte_2021")
+    uitslae_rye = supabase.kry_alles(
+        "stg_raad_uitslae_2021", {"select": "muni_kode,party_naam,setels_totaal"}, klient=klient
+    )
+    grootte_rye = supabase.kry_alles(
+        "stg_raad_grootte_2021", {"select": "muni_kode,raadsgrootte_totaal,onafhanklike_setels"}, klient=klient
+    )
+    grootte_by_kode = {r["muni_kode"]: r for r in grootte_rye}
+    return {
+        "uitslae_totaal": uitslae_totaal,
+        "grootte_totaal": grootte_totaal,
+        "geen_meerderheid": bereken_geen_meerderheid(uitslae_rye, grootte_by_kode),
+    }
+
+
+def gather_nie_gelaai(klient: httpx.Client) -> dict:
+    return {
+        "kandidate_totaal": telling(klient, "stg_kandidate"),
+        "stembrief_volgorde_totaal": telling(klient, "stg_stembrief_volgorde"),
+    }
+
+
+def gather_publieke_diff(klient: httpx.Client) -> dict:
+    return {"tellings": {tabel: telling(klient, tabel) for tabel in PUBLIEKE_TABELLE}}
+
+
+def gather_landelike_plekke(klient: httpx.Client) -> dict:
+    """Live per-place ward-overlap counts for the 4 rural places (Besluite-item #3) —
+    measured fresh every run from `stg_plek_wyke`, since a bare full `laai_plekke.py`
+    reload wipes the direct-SQL fix (Task 5) and would otherwise leave this report
+    quoting a stale static total."""
+    lys = ",".join(LANDELIKE_PLEK_KODES)
+    plek_resp = klient.get("stg_plekke", params={"select": "sp_kode,naam", "sp_kode": f"in.({lys})"})
+    if plek_resp.status_code >= 400:
+        raise supabase.SupabaseFout(plek_resp.text[:500])
+    naam_by_kode = {r["sp_kode"]: r["naam"] for r in plek_resp.json()}
+
+    wyk_resp = klient.get("stg_plek_wyke", params={"select": "sp_kode,wyk_id", "sp_kode": f"in.({lys})"})
+    if wyk_resp.status_code >= 400:
+        raise supabase.SupabaseFout(wyk_resp.text[:500])
+    wyke_by_kode: dict[str, set[str]] = defaultdict(set)
+    for r in wyk_resp.json():
+        wyke_by_kode[r["sp_kode"]].add(r["wyk_id"])
+
+    per_plek = {
+        kode: {
+            "sp_kode": kode,
+            "naam_in_bron": naam_by_kode.get(kode, "?"),
+            "wyktal": len(wyke_by_kode.get(kode, set())),
+        }
+        for kode in LANDELIKE_PLEK_KODES
+    }
+    return {"per_plek": per_plek, "totaal": sum(p["wyktal"] for p in per_plek.values())}
 
 
 # ---------------------------------------------------------------------------------
@@ -279,6 +492,7 @@ def tel_aliasse(klient: httpx.Client) -> dict[str, int]:
 def skryf_verslag(**kw) -> None:
     VERSLAG_PAD.parent.mkdir(parents=True, exist_ok=True)
     r: list[str] = []
+    sectie_foute: dict[str, str] = kw["sectie_foute"]
 
     r.append("# Kontroleverslag — Verkiesing Fase 2a (Task 8)")
     r.append("")
@@ -288,101 +502,63 @@ def skryf_verslag(**kw) -> None:
         "Lees-alleen: hierdie verslag skryf geen rye nie. Dit dek alles wat §5.3 op "
         "hierdie stadium vereis (kandidate en stembriefvolgorde is nog nie gelaai nie — "
         "sien daardie afdeling hieronder). Piet lees dit en sê \"publiseer\" — "
-        "`data/publiseer.py` (later taak) doen die werklike swap."
-    )
-    r.append("")
-
-    # --- Wyke ---------------------------------------------------------------------
-    r.append("## Wyke")
-    r.append(formatteer_telling_reël("stg_wyke", kw["wyke_totaal"], VERWAG_WYKE))
-    r.append(f"- sonder geometrie: **{kw['wyke_sonder_geom_totaal']}**")
-    if kw["wyke_sonder_geom_lys"]:
-        for wid in kw["wyke_sonder_geom_lys"]:
-            r.append(f"  - `{wid}`")
-    r.append("")
-    r.append("### Wyke per provinsie")
-    r.append("| Provinsie | stg_wyke |")
-    r.append("|---|---:|")
-    for prov, n in kw["wyke_per_provinsie"].items():
-        r.append(f"| {prov} | {n} |")
-    r.append("")
-    r.append(
-        f"Vrystaat: {kw['wyke_per_provinsie'].get('Free State', 0)} teenoor die amptelike "
-        "311 (verskil 3) — sien **Besluite nodig #1** hieronder."
+        "`data/publiseer.py` (later taak) doen die werklike swap. 'n Afdeling wat nie "
+        "gekontroleer kon word nie (PostgREST-fout) wys dit eksplisiet — die res van "
+        "die verslag word steeds volledig geskryf."
     )
     r.append("")
 
     # --- Munisipaliteite ------------------------------------------------------------
     r.append("## Munisipaliteite en distrikte")
-    r.append(
-        formatteer_telling_reël(
-            "stg_munisipaliteite (metro + plaaslik)",
-            kw["metro_telling"] + kw["plaaslik_telling"],
-            VERWAG_MUNISIPALITEITE,
+    fout = formatteer_afdeling_fout("munisipaliteite", sectie_foute)
+    if fout:
+        r.append(f"- {fout}")
+    else:
+        muni = kw["muni_res"]
+        r.append(
+            formatteer_telling_reël(
+                "stg_munisipaliteite (metro + plaaslik)",
+                muni["metro"] + muni["plaaslik"],
+                VERWAG_MUNISIPALITEITE,
+            )
         )
-    )
-    r.append(f"  - metro's: **{kw['metro_telling']}**, plaaslik: **{kw['plaaslik_telling']}**")
-    r.append(formatteer_telling_reël("distrikte", kw["distrik_telling"], VERWAG_DISTRIKTE))
+        r.append(f"  - metro's: **{muni['metro']}**, plaaslik: **{muni['plaaslik']}**")
+        r.append(formatteer_telling_reël("distrikte", muni["distrik"], VERWAG_DISTRIKTE))
     r.append("")
 
-    # --- Stemstasies -----------------------------------------------------------------
-    r.append("## Stemlokale")
-    r.append(f"- stg_stemstasies: **{kw['stasies_totaal']}**")
-    r.append(f"- wyk_id nie in stg_wyke nie: **{len(kw['stasies_onbekende_wyk'])}**")
-    if kw["stasies_onbekende_wyk"]:
-        for wid in kw["stasies_onbekende_wyk"]:
+    # --- Wyke ---------------------------------------------------------------------
+    r.append("## Wyke")
+    fout = formatteer_afdeling_fout("wyke", sectie_foute)
+    if fout:
+        r.append(f"- {fout}")
+    else:
+        wyke = kw["wyke_res"]
+        r.append(formatteer_telling_reël("stg_wyke", wyke["totaal"], VERWAG_WYKE))
+        r.append(f"- sonder geometrie: **{wyke['sonder_geom_totaal']}**")
+        for wid in wyke["sonder_geom_lys"]:
             r.append(f"  - `{wid}`")
-    r.append(f"- leë adresveld: **{len(kw['stasies_leë_adres'])}**")
-    for stasie in kw["stasies_leë_adres"]:
+        r.append("")
+        r.append("### Wyke per provinsie")
+        r.append("| Provinsie | stg_wyke |")
+        r.append("|---|---:|")
+        for prov, n in wyke["per_provinsie"].items():
+            r.append(f"| {prov} | {n} |")
+        r.append("")
         r.append(
-            f"  - `{stasie['vd_nommer']}` {stasie['naam']} — {stasie['muni_kode']}, "
-            f"wyk `{stasie['wyk_id']}`"
-        )
-    r.append("")
-    r.append("### Stemlokale per provinsie")
-    r.append("| Provinsie | stg_stemstasies |")
-    r.append("|---|---:|")
-    for prov, n in kw["stasies_per_provinsie"].items():
-        r.append(f"| {prov} | {n} |")
-    r.append("")
-
-    # --- Plekke ----------------------------------------------------------------------
-    r.append("## Plekke, oorvleuelings, aliasse")
-    r.append(f"- stg_plekke: **{kw['plekke_totaal']}**")
-    r.append(f"- stg_plek_wyke: **{kw['plek_wyke_totaal']}**")
-    r.append(f"- stg_plek_aliasse: **{kw['alias_totaal']}**")
-    r.append(f"- plekke sonder enige wyk (0 oorvleuelings): **{len(kw['plekke_sonder_wyk'])}**")
-    for plek in kw["plekke_sonder_wyk"]:
-        r.append(f"  - `{plek['sp_kode']}` {plek['naam']} ({plek['mp_naam']})")
-    r.append("")
-    r.append("### Aliasse — uitwaaiering (rye per alias in stg_plek_aliasse)")
-    r.append("| Alias | Subplekke |")
-    r.append("|---|---:|")
-    for alias, n in kw["alias_tellings"].items():
-        r.append(f"| {alias} | {n} |")
-    r.append("")
-
-    # --- 2021 raadsetels ---------------------------------------------------------------
-    r.append("## Raadsetels 2021")
-    r.append(f"- stg_raad_uitslae_2021 (party-rye): **{kw['raad_uitslae_totaal']}**")
-    r.append(f"- stg_raad_grootte_2021 (een per raad): **{kw['raad_grootte_totaal']}**")
-    r.append(
-        f"- rade sonder meerderheid (teen die volle raadsgrootte, party + onafhanklikes): "
-        f"**{len(kw['geen_meerderheid'])}**"
-    )
-    r.append("")
-    r.append("| Munisipaliteit | Raadsgrootte | Grootste party | Setels |")
-    r.append("|---|---:|---|---:|")
-    for ry in kw["geen_meerderheid"]:
-        r.append(
-            f"| {ry['muni_kode']} | {ry['raadsgrootte_totaal']} | {ry['grootste_party']} | {ry['setels']} |"
+            f"Vrystaat: {wyke['per_provinsie'].get('Free State', 0)} teenoor die amptelike "
+            f"{VERWAG_VRYSTAAT_WYKE} (verskil "
+            f"{wyke['per_provinsie'].get('Free State', 0) - VERWAG_VRYSTAAT_WYKE}) — sien "
+            "**Besluite nodig #1** hieronder."
         )
     r.append("")
 
-    # --- Selftoets ---------------------------------------------------------------------
+    # --- Wyk-selftoets ---------------------------------------------------------------
     r.append("## Wyk-selftoets (`rpc/kontroleer_wyke`)")
+    fout = formatteer_afdeling_fout("wyk_selftoets", sectie_foute)
     st = kw["selftoets"]
-    if st is None:
+    if fout:
+        r.append(f"- {fout}")
+    elif st is None:
         r.append("- **rpc/kontroleer_wyke het misluk** — sien Kommentaar/foute hieronder.")
     else:
         r.append(f"- wyke_totaal: {st['wyke_totaal']}")
@@ -401,20 +577,106 @@ def skryf_verslag(**kw) -> None:
             )
     r.append("")
 
+    # --- Stemstasies -----------------------------------------------------------------
+    r.append("## Stemlokale")
+    fout = formatteer_afdeling_fout("stemlokale", sectie_foute)
+    if fout:
+        r.append(f"- {fout}")
+    else:
+        st_res = kw["stasies_res"]
+        r.append(f"- stg_stemstasies: **{st_res['totaal']}**")
+        r.append(f"- wyk_id nie in stg_wyke nie: **{len(st_res['onbekende_wyk'])}**")
+        for wid in st_res["onbekende_wyk"]:
+            r.append(f"  - `{wid}`")
+        r.append(f"- leë adresveld: **{len(st_res['leë_adres'])}**")
+        for stasie in st_res["leë_adres"]:
+            r.append(
+                f"  - `{stasie['vd_nommer']}` {stasie['naam']} — {stasie['muni_kode']}, "
+                f"wyk `{stasie['wyk_id']}`"
+            )
+        r.append("")
+        r.append("### Stemlokale per provinsie")
+        r.append("| Provinsie | stg_stemstasies |")
+        r.append("|---|---:|")
+        for prov, n in st_res["per_provinsie"].items():
+            r.append(f"| {prov} | {n} |")
+    r.append("")
+
+    # --- Plekke ----------------------------------------------------------------------
+    r.append("## Plekke, oorvleuelings, aliasse")
+    fout = formatteer_afdeling_fout("plekke", sectie_foute)
+    if fout:
+        r.append(f"- {fout}")
+    else:
+        pl = kw["plekke_res"]
+        r.append(f"- stg_plekke: **{pl['totaal']}**")
+        r.append(f"- stg_plek_wyke: **{pl['plek_wyke_totaal']}**")
+        r.append(f"- stg_plek_aliasse: **{pl['alias_totaal']}**")
+        r.append(f"- plekke sonder enige wyk (0 oorvleuelings): **{len(pl['sonder_wyk'])}**")
+        for plek in pl["sonder_wyk"]:
+            r.append(f"  - `{plek['sp_kode']}` {plek['naam']} ({plek['mp_naam']})")
+        r.append("")
+        r.append("### Aliasse — uitwaaiering (rye per alias in stg_plek_aliasse)")
+        r.append("| Alias | Subplekke |")
+        r.append("|---|---:|")
+        for alias, n in pl["alias_tellings"].items():
+            r.append(f"| {alias} | {n} |")
+    r.append("")
+
+    # --- 2021 raadsetels ---------------------------------------------------------------
+    r.append("## Raadsetels 2021")
+    fout = formatteer_afdeling_fout("raadsetels_2021", sectie_foute)
+    if fout:
+        r.append(f"- {fout}")
+    else:
+        raad = kw["raad_res"]
+        r.append(f"- stg_raad_uitslae_2021 (party-rye): **{raad['uitslae_totaal']}**")
+        r.append(f"- stg_raad_grootte_2021 (een per raad): **{raad['grootte_totaal']}**")
+        r.append(
+            "- rade sonder meerderheid (teen die volle raadsgrootte, party + onafhanklikes): "
+            f"**{len(raad['geen_meerderheid'])}**"
+        )
+        r.append("")
+        r.append("| Munisipaliteit | Raadsgrootte | Grootste party | Setels |")
+        r.append("|---|---:|---|---:|")
+        for ry in raad["geen_meerderheid"]:
+            r.append(
+                f"| {ry['muni_kode']} | {ry['raadsgrootte_totaal']} | {ry['grootste_party']} | {ry['setels']} |"
+            )
+    r.append("")
+
     # --- Smoke tests ---------------------------------------------------------------------
     r.append("## Plek-soek steekproewe (smoke tests)")
     r.append(
         "Daar is nog geen soek-RPC nie (dis Fase 2b) — hierdie is eenvoudige REST-opsoeke: "
-        "alias eers, anders `naam_soek`-voorvoegsel, dan `stg_plek_wyke` vir die wyktal."
+        "alias eers, anders `naam_soek`-voorvoegsel, dan `stg_plek_wyke` vir die wyktal en "
+        "`stg_wyke` vir die munisipaliteite. Eerste vyf name is spec §5.3 se lys; die res "
+        "is ekstra steekproewe hierdie taak bygevoeg het."
     )
     r.append("")
-    r.append("| Naam | Gevind? | Bron | Plekke | Unieke wyke | Fout |")
-    r.append("|---|---|---|---:|---:|---|")
+    r.append("| Naam | Gevind? | Bron | Plekke | Unieke wyke | Munisipaliteite | Fout |")
+    r.append("|---|---|---|---:|---:|---|---|")
     for res in kw["smoke_resultate"]:
+        munis_lys = ", ".join(res.get("munisipaliteite") or []) or "—"
         r.append(
             f"| {res['naam']} | {'ja' if res.get('gevind') else 'nee'} | {res.get('bron') or '—'} | "
-            f"{res.get('plekke', '—')} | {res.get('wyke', '—')} | {res.get('fout', '')} |"
+            f"{res.get('plekke', '—')} | {res.get('wyke', '—')} | {munis_lys} | {res.get('fout', '')} |"
         )
+    r.append("")
+    if kw.get("brooklyn_probleem"):
+        r.append(
+            f"**Let op — Brooklyn voldoen nie aan spec §8 se verwagting nie:** {kw['brooklyn_probleem']}."
+        )
+    else:
+        r.append(
+            "Brooklyn voldoen aan spec §8: >=2 munisipaliteite, insluitend Tshwane en Kaapstad."
+        )
+    if kw.get("waterkloof_probleem"):
+        r.append(
+            f"**Let op — Waterkloof voldoen nie aan spec §8 se verwagting nie:** {kw['waterkloof_probleem']}."
+        )
+    else:
+        r.append("Waterkloof voldoen aan spec §8: sluit Tshwane in.")
     r.append("")
     r.append(
         "Let wel: \"Mahikeng\" (die huidige amptelike spelling) kom glad nie in `stg_plekke` "
@@ -427,80 +689,130 @@ def skryf_verslag(**kw) -> None:
     # --- Nog nie gelaai nie ---------------------------------------------------------------
     r.append("## Nog nie gelaai nie")
     r.append("Kandidate (16 Sep), stembriefvolgorde (23 Sep).")
-    r.append(
-        f"- stg_kandidate: {kw['kandidate_totaal']} rye "
-        f"({'soos verwag — leeg' if kw['kandidate_totaal'] == 0 else 'ONVERWAGS NIE LEEG NIE'})"
-    )
-    r.append(
-        f"- stg_stembrief_volgorde: {kw['stembrief_volgorde_totaal']} rye "
-        f"({'soos verwag — leeg' if kw['stembrief_volgorde_totaal'] == 0 else 'ONVERWAGS NIE LEEG NIE'})"
-    )
+    fout = formatteer_afdeling_fout("nog_nie_gelaai", sectie_foute)
+    if fout:
+        r.append(f"- {fout}")
+    else:
+        ng = kw["nie_gelaai_res"]
+        r.append(
+            f"- stg_kandidate: {ng['kandidate_totaal']} rye "
+            f"({'soos verwag — leeg' if ng['kandidate_totaal'] == 0 else 'ONVERWAGS NIE LEEG NIE'})"
+        )
+        r.append(
+            f"- stg_stembrief_volgorde: {ng['stembrief_volgorde_totaal']} rye "
+            f"({'soos verwag — leeg' if ng['stembrief_volgorde_totaal'] == 0 else 'ONVERWAGS NIE LEEG NIE'})"
+        )
     r.append("")
 
     # --- Diff teen gepubliseerde weergawe ---------------------------------------------------
     r.append("## Diff teen tans gepubliseerde weergawe")
-    if all(n == 0 for n in kw["publieke_tellings"].values()):
-        r.append(
-            "Geen publieke tabel dra enige ry nie — daar was nog nooit 'n publiseer-stap "
-            "vir hierdie fase nie. Die eerste publiseer sal dus elke stg_-ry as "
-            "\"toegevoeg\" oordra; daar is niks om te verwyder of te verander nie."
-        )
+    fout = formatteer_afdeling_fout("gepubliseerde_weergawe", sectie_foute)
+    if fout:
+        r.append(f"- {fout}")
     else:
-        for tabel, n in kw["publieke_tellings"].items():
-            r.append(f"- `{tabel}`: {n} rye tans gepubliseer")
-    r.append("")
-    r.append("| Publieke tabel | Rye |")
-    r.append("|---|---:|")
-    for tabel, n in kw["publieke_tellings"].items():
-        r.append(f"| {tabel} | {n} |")
+        tellings = kw["publiek_res"]["tellings"]
+        if all(n == 0 for n in tellings.values()):
+            r.append(
+                "Geen publieke tabel dra enige ry nie — daar was nog nooit 'n publiseer-stap "
+                "vir hierdie fase nie. Die eerste publiseer sal dus elke stg_-ry as "
+                "\"toegevoeg\" oordra; daar is niks om te verwyder of te verander nie."
+            )
+        else:
+            for tabel, n in tellings.items():
+                r.append(f"- `{tabel}`: {n} rye tans gepubliseer")
+        r.append("")
+        r.append("| Publieke tabel | Rye |")
+        r.append("|---|---:|")
+        for tabel, n in tellings.items():
+            r.append(f"| {tabel} | {n} |")
     r.append("")
 
     # --- Besluite nodig -------------------------------------------------------------------
     r.append("## Besluite nodig")
-    r.append(
-        f"1. **3 Vrystaat-wyke ontbreek in die MDB-lêer** ({kw['wyke_totaal']} vs amptelike "
-        f"{VERWAG_WYKE}) en het ook geen stemstasies in die OVK-lys nie (bevestig: geen "
-        "IEC-stemlokaal verwys na een van daardie 3 wyke nie) — is 4 488 dalk verouderd? "
-        "Voorstel: publiseer met "
-        f"{kw['wyke_totaal']} en vra die OVK/MDB."
-    )
-    kaapstad_n = kw["alias_tellings"].get("Kaapstad", 0)
-    r.append(
-        f"2. **Alias-uitwaaiering**: \"Kaapstad\" wys na {kaapstad_n} subplekke (oor "
-        f"{kw['smoke_kaapstad_wyke']} unieke 2026-wyke) — soektog in 2b moet saamvoeg per "
-        "hoofplek/munisipaliteit, nie 126 los resultate wys nie."
-    )
-    r.append(
-        "3. **4 groot plattelandse plekke** (Mnquna/Mnquma, Ngquza Hill, Nyandeni, "
-        "Thulamela — let wel: die bronshapefile self spel die eerste \"Mnquna\", nie "
-        "\"Mnquma\" nie) se wyk-oorvleuelings (34 + 32 + 32 + 58 = 156 rye) is met direkte "
-        "SQL bereken omdat elke PostgREST-oproep na 8s uitval, selfs vir een plek op 'n "
-        "slag. 'n Volle herlaai van `laai_plekke.py` (sonder `--net-oorvleueling-vir`) vee "
-        "dit uit — die publiseer-draaiboek moet dit weer met direkte SQL doen (sien "
-        "Task-5-verslag)."
-    )
-    r.append(
-        f"4. **2021: {len(kw['geen_meerderheid'])} rade sonder 'n meerderheidsparty** "
-        "(vergeleke met die volle raadsgrootte uit stg_raad_grootte_2021, insluitend "
-        f"onafhanklikes; was verkeerd 67 voor die raadsgrootte-fix). Bevestig dat dit die "
-        "regte maatstaf is (volle raad, nie net die som van party-setels nie)."
-    )
-    hawe_lys = ", ".join(f"{p['naam']}" for p in kw["plekke_sonder_wyk"])
-    r.append(
-        f"5. **{len(kw['plekke_sonder_wyk'])} hawe-snippers** ({hawe_lys}) het geen wyk nie "
-        "— voorstel: sluit uit van soektog (of wys 'n \"geen wyk gevind nie\"-boodskap eerder "
-        "as 'n leë resultaat)."
-    )
-    volgende = 6
-    if kw["stasies_leë_adres"]:
-        vd_lys = ", ".join(s["vd_nommer"] for s in kw["stasies_leë_adres"])
+
+    fout = formatteer_afdeling_fout("wyke", sectie_foute)
+    if fout:
+        r.append(f"1. **3 Vrystaat-wyke** — {fout}.")
+    else:
+        wyke_totaal = kw["wyke_res"]["totaal"]
         r.append(
-            f"{volgende}. **{len(kw['stasies_leë_adres'])} stemlokale het 'n leë adresveld** "
-            f"(VD {vd_lys}, albei in {kw['stasies_leë_adres'][0]['muni_kode']}) — die OVK-PDF "
-            "self dra geen adres vir hierdie rye nie (bronprobleem, nie 'n ontledingsfout "
-            "nie). Voorstel: wys net die stasienaam op `/wyk/[wykId]` wanneer die adres leeg is."
+            f"1. **3 Vrystaat-wyke ontbreek in die MDB-lêer** ({wyke_totaal} vs amptelike "
+            f"{VERWAG_WYKE}) en het ook geen stemstasies in die OVK-lys nie (bevestig: geen "
+            "IEC-stemlokaal verwys na een van daardie 3 wyke nie) — is "
+            f"{VERWAG_WYKE} dalk verouderd? Voorstel: publiseer met "
+            f"{wyke_totaal} en vra die OVK/MDB."
         )
+
+    fout = formatteer_afdeling_fout("plekke", sectie_foute)
+    if fout:
+        r.append(f"2. **Alias-uitwaaiering** — {fout}.")
+    else:
+        kaapstad_n = kw["plekke_res"]["alias_tellings"].get("Kaapstad", 0)
+        kaapstad_res = next((s for s in kw["smoke_resultate"] if s["naam"] == "Kaapstad"), {})
+        kaapstad_wyke = kaapstad_res.get("wyke", "?")
+        r.append(
+            f"2. **Alias-uitwaaiering**: \"Kaapstad\" wys na {kaapstad_n} subplekke (oor "
+            f"{kaapstad_wyke} unieke 2026-wyke) — soektog in 2b moet saamvoeg per "
+            f"hoofplek/munisipaliteit, nie {kaapstad_n} los resultate wys nie."
+        )
+
+    fout = formatteer_afdeling_fout("landelike_plekke", sectie_foute)
+    if fout:
+        r.append(f"3. **4 groot plattelandse plekke** — {fout}.")
+    else:
+        landelik = kw["landelik_res"]
+        beskrywing = formatteer_landelike_plekke(landelik["per_plek"])
+        r.append(
+            "3. **4 groot plattelandse plekke** (Mnquma/Mnquna, Ngquza Hill, Nyandeni, "
+            "Thulamela — let wel: die bronshapefile self spel die eerste \"Mnquna\", nie "
+            f"\"Mnquma\" nie) se wyk-oorvleuelings ({beskrywing}, lewendig hierbo gemeet uit "
+            "stg_plek_wyke) is met direkte SQL bereken omdat elke PostgREST-oproep na 8s "
+            "uitval, selfs vir een plek op 'n slag. 'n Volle herlaai van `laai_plekke.py` "
+            "(sonder `--net-oorvleueling-vir`) vee dit uit — die publiseer-draaiboek moet dit "
+            "weer met direkte SQL doen (sien Task-5-verslag)."
+        )
+
+    fout = formatteer_afdeling_fout("raadsetels_2021", sectie_foute)
+    if fout:
+        r.append(f"4. **2021 se geen-meerderheid-telling** — {fout}.")
+    else:
+        n = len(kw["raad_res"]["geen_meerderheid"])
+        r.append(
+            f"4. **2021: {n} rade sonder 'n meerderheidsparty** "
+            "(vergeleke met die volle raadsgrootte uit stg_raad_grootte_2021, insluitend "
+            "onafhanklikes; was verkeerd 67 voor die raadsgrootte-fix). Bevestig dat dit die "
+            "regte maatstaf is (volle raad, nie net die som van party-setels nie)."
+        )
+
+    fout = formatteer_afdeling_fout("plekke", sectie_foute)
+    if fout:
+        r.append(f"5. **Hawe-snippers** — {fout}.")
+    else:
+        sonder_wyk = kw["plekke_res"]["sonder_wyk"]
+        hawe_lys = ", ".join(f"{p['naam']}" for p in sonder_wyk)
+        r.append(
+            f"5. **{len(sonder_wyk)} hawe-snippers** ({hawe_lys}) het geen wyk nie "
+            "— voorstel: sluit uit van soektog (of wys 'n \"geen wyk gevind nie\"-boodskap eerder "
+            "as 'n leë resultaat)."
+        )
+
+    volgende = 6
+    fout = formatteer_afdeling_fout("stemlokale", sectie_foute)
+    if fout:
+        r.append(f"{volgende}. **Stemlokale met leë adres** — {fout}.")
         volgende += 1
+    else:
+        leë_adres = kw["stasies_res"]["leë_adres"]
+        if leë_adres:
+            vd_lys = ", ".join(s["vd_nommer"] for s in leë_adres)
+            r.append(
+                f"{volgende}. **{len(leë_adres)} stemlokale het 'n leë adresveld** "
+                f"(VD {vd_lys}, albei in {leë_adres[0]['muni_kode']}) — die OVK-PDF self dra "
+                "geen adres vir hierdie rye nie (bronprobleem, nie 'n ontledingsfout nie). "
+                "Voorstel: wys net die stasienaam op `/wyk/[wykId]` wanneer die adres leeg is."
+            )
+            volgende += 1
+
     r.append(
         f"{volgende}. **\"Mahikeng\" (huidige amptelike spelling) kom nie in die bron voor "
         "nie** — net die ouer \"Mafikeng\" (7 subplekke, NW383). Voorstel: 'n soek-alias "
@@ -532,101 +844,85 @@ def hoof() -> int:
     begin = time.monotonic()
     kommentaar: list[str] = []
     hard_gefaal: list[str] = []
+    sectie_foute: dict[str, str] = {}
 
     try:
         klient = _bou_klient()
     except omgewing.OmgewingFout as fout:
+        # Kan nog geen kliënt bou nie — daar is letterlik niks om te kontroleer of te
+        # rapporteer nie, dus skryf ons hier geen verslag nie (anders as elke
+        # gelaaide afdeling hieronder, wat wel elkeen onafhanklik faal-veilig is).
         print(f"Omgewingsfout: {fout}", file=sys.stderr)
         return 1
 
+    def v(sectie: str, funksie: Callable[[], dict]):
+        return veilig(hard_gefaal, sectie_foute, sectie, funksie)
+
     try:
-        # --- Wyke ---
-        wyke_totaal = telling(klient, "stg_wyke")
-        wyke_sonder_geom_totaal = telling(klient, "stg_wyke", {"geom": "is.null"})
-        wyke_sonder_geom_lys = []
-        if wyke_sonder_geom_totaal:
-            resp = klient.get("stg_wyke", params={"select": "wyk_id", "geom": "is.null"})
-            wyke_sonder_geom_lys = [r["wyk_id"] for r in resp.json()]
+        muni_res = v("munisipaliteite", lambda: gather_munisipaliteite(klient))
+        muni_provinsie = muni_res["muni_provinsie"] if muni_res else {}
+        muni_naam = muni_res["muni_naam"] if muni_res else {}
 
-        wyk_munis = supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, klient=klient)
-        munis_vir_prov = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,provinsie"}, klient=klient)
-        muni_provinsie = {m["kode"]: m["provinsie"] for m in munis_vir_prov}
-        wyke_per_provinsie = tel_per_sleutel([w["muni_kode"] for w in wyk_munis], muni_provinsie)
+        wyke_res = v("wyke", lambda: gather_wyke(klient, muni_provinsie))
 
-        try:
-            selftoets_rye = supabase.rpc("kontroleer_wyke", {}, klient=klient)
-            selftoets = selftoets_rye[0] if isinstance(selftoets_rye, list) else selftoets_rye
-        except supabase.SupabaseFout as fout:
-            hard_gefaal.append(f"rpc/kontroleer_wyke het misluk: {fout}")
-            selftoets = None
-
+        selftoets = v("wyk_selftoets", lambda: gather_wyk_selftoets(klient))
         if selftoets is not None and selftoets["selftoets_gefaal"] > 0:
             hard_gefaal.append(
-                f"wyk-selftoets: {selftoets['selftoets_gefaal']} wyk(e) gefaal van {selftoets['wyke_totaal']}"
+                f"wyk_selftoets: {selftoets['selftoets_gefaal']} wyk(e) gefaal van {selftoets['wyke_totaal']}"
             )
 
-        # --- Munisipaliteite ---
-        metro_telling = telling(klient, "stg_munisipaliteite", {"tipe": "eq.metro"})
-        plaaslik_telling = telling(klient, "stg_munisipaliteite", {"tipe": "eq.plaaslik"})
-        distrik_telling = telling(klient, "stg_munisipaliteite", {"tipe": "eq.distrik"})
+        stasies_res = v("stemlokale", lambda: gather_stemstasies(klient, muni_provinsie))
+        plekke_res = v("plekke", lambda: gather_plekke(klient))
+        raad_res = v("raadsetels_2021", lambda: gather_raadsetels(klient))
+        nie_gelaai_res = v("nog_nie_gelaai", lambda: gather_nie_gelaai(klient))
+        publiek_res = v("gepubliseerde_weergawe", lambda: gather_publieke_diff(klient))
 
-        # --- Stemstasies ---
-        stasies_totaal = telling(klient, "stg_stemstasies")
-        stasie_munis = [r["muni_kode"] for r in supabase.kry_alles("stg_stemstasies", {"select": "muni_kode"}, klient=klient)]
-        stasies_per_provinsie = tel_per_sleutel(stasie_munis, muni_provinsie)
-        stasies_onbekende_wyk = vind_stasies_onbekende_wyk(klient)
-        stasies_leë_adres = vind_stasies_leë_adres(klient)
+        landelik_res = v("landelike_plekke", lambda: gather_landelike_plekke(klient))
+        if landelik_res:
+            for inligting in landelik_res["per_plek"].values():
+                if inligting["wyktal"] == 0:
+                    hard_gefaal.append(
+                        f"{inligting['naam_in_bron']} ({inligting['sp_kode']}) het 0 wyke in stg_plek_wyke"
+                    )
 
-        # --- Plekke ---
-        plekke_totaal = telling(klient, "stg_plekke")
-        plek_wyke_totaal = telling(klient, "stg_plek_wyke")
-        alias_totaal = telling(klient, "stg_plek_aliasse")
-        plekke_sonder_wyk = vind_plekke_sonder_wyk(klient)
-        alias_tellings = tel_aliasse(klient)
+        # --- Hard-check: elke gelaaide stg_-tabel moet nie leeg wees nie (net vir
+        # afdelings wat wél gekontroleer kon word — 'n mislukte afdeling is reeds
+        # in hard_gefaal via veilig()). ---
+        if muni_res and (muni_res["metro"] + muni_res["plaaslik"] + muni_res["distrik"]) == 0:
+            hard_gefaal.append("stg_munisipaliteite is leeg")
+        if wyke_res and wyke_res["totaal"] == 0:
+            hard_gefaal.append("stg_wyke is leeg")
+        if stasies_res and stasies_res["totaal"] == 0:
+            hard_gefaal.append("stg_stemstasies is leeg")
+        if plekke_res:
+            if plekke_res["totaal"] == 0:
+                hard_gefaal.append("stg_plekke is leeg")
+            if plekke_res["plek_wyke_totaal"] == 0:
+                hard_gefaal.append("stg_plek_wyke is leeg")
+            if plekke_res["alias_totaal"] == 0:
+                hard_gefaal.append("stg_plek_aliasse is leeg")
+        if raad_res:
+            if raad_res["uitslae_totaal"] == 0:
+                hard_gefaal.append("stg_raad_uitslae_2021 is leeg")
+            if raad_res["grootte_totaal"] == 0:
+                hard_gefaal.append("stg_raad_grootte_2021 is leeg")
 
-        # --- 2021 raadsetels ---
-        raad_uitslae_totaal = telling(klient, "stg_raad_uitslae_2021")
-        raad_grootte_totaal = telling(klient, "stg_raad_grootte_2021")
-        uitslae_rye = supabase.kry_alles(
-            "stg_raad_uitslae_2021", {"select": "muni_kode,party_naam,setels_totaal"}, klient=klient
+        # --- Smoke tests (spec §5.3: Brooklyn, Waterkloof, Stellenbosch, Kaapstad,
+        # Moreleta Park, plus this task's extra names) ---
+        smoke_resultate = [smoke_toets_plek(klient, naam, muni_naam) for naam in SMOKE_NAME]
+        brooklyn = next((s for s in smoke_resultate if s["naam"] == "Brooklyn"), {})
+        waterkloof = next((s for s in smoke_resultate if s["naam"] == "Waterkloof"), {})
+        brooklyn_probleem = kontroleer_veelvuldige_munisipaliteite(
+            brooklyn.get("munisipaliteite", []), ("Tshwane", "Cape Town"), min_aantal=2
         )
-        grootte_rye = supabase.kry_alles(
-            "stg_raad_grootte_2021", {"select": "muni_kode,raadsgrootte_totaal,onafhanklike_setels"}, klient=klient
+        waterkloof_probleem = kontroleer_veelvuldige_munisipaliteite(
+            waterkloof.get("munisipaliteite", []), ("Tshwane",), min_aantal=1
         )
-        grootte_by_kode = {r["muni_kode"]: r for r in grootte_rye}
-        geen_meerderheid = bereken_geen_meerderheid(uitslae_rye, grootte_by_kode)
+        if brooklyn_probleem:
+            hard_gefaal.append(f"Brooklyn-steekproef voldoen nie aan spec §8 nie: {brooklyn_probleem}")
+        if waterkloof_probleem:
+            hard_gefaal.append(f"Waterkloof-steekproef voldoen nie aan spec §8 nie: {waterkloof_probleem}")
 
-        # --- Nog nie gelaai nie ---
-        kandidate_totaal = telling(klient, "stg_kandidate")
-        stembrief_volgorde_totaal = telling(klient, "stg_stembrief_volgorde")
-
-        # --- Diff teen gepubliseerde weergawe ---
-        publieke_tellings = {tabel: telling(klient, tabel) for tabel in PUBLIEKE_TABELLE}
-
-        # --- Hard-check: elke gelaaide stg_-tabel moet nie leeg wees nie ---
-        gelaaide_tellings = {
-            "stg_wyke": wyke_totaal,
-            "stg_munisipaliteite": metro_telling + plaaslik_telling + distrik_telling,
-            "stg_stemstasies": stasies_totaal,
-            "stg_plekke": plekke_totaal,
-            "stg_plek_wyke": plek_wyke_totaal,
-            "stg_plek_aliasse": alias_totaal,
-            "stg_raad_uitslae_2021": raad_uitslae_totaal,
-            "stg_raad_grootte_2021": raad_grootte_totaal,
-        }
-        assert set(gelaaide_tellings) == set(GELAAIDE_TABELLE)
-        for tabel, n in gelaaide_tellings.items():
-            if n == 0:
-                hard_gefaal.append(f"{tabel} is leeg")
-
-        # --- Smoke tests ---
-        smoke_resultate = [smoke_toets_plek(klient, naam) for naam in SMOKE_NAME]
-        kaapstad_res = next((r for r in smoke_resultate if r["naam"] == "Kaapstad"), {})
-        smoke_kaapstad_wyke = kaapstad_res.get("wyke", "?")
-
-    except supabase.SupabaseFout as fout:
-        print(f"Kontrole het misluk (Supabase-fout): {fout}", file=sys.stderr)
-        return 1
     finally:
         klient.close()
 
@@ -634,40 +930,36 @@ def hoof() -> int:
 
     skryf_verslag(
         tydstempel=tydstempel,
-        wyke_totaal=wyke_totaal,
-        wyke_sonder_geom_totaal=wyke_sonder_geom_totaal,
-        wyke_sonder_geom_lys=wyke_sonder_geom_lys,
-        wyke_per_provinsie=wyke_per_provinsie,
-        metro_telling=metro_telling,
-        plaaslik_telling=plaaslik_telling,
-        distrik_telling=distrik_telling,
-        stasies_totaal=stasies_totaal,
-        stasies_per_provinsie=stasies_per_provinsie,
-        stasies_onbekende_wyk=stasies_onbekende_wyk,
-        stasies_leë_adres=stasies_leë_adres,
-        plekke_totaal=plekke_totaal,
-        plek_wyke_totaal=plek_wyke_totaal,
-        alias_totaal=alias_totaal,
-        plekke_sonder_wyk=plekke_sonder_wyk,
-        alias_tellings=alias_tellings,
-        raad_uitslae_totaal=raad_uitslae_totaal,
-        raad_grootte_totaal=raad_grootte_totaal,
-        geen_meerderheid=geen_meerderheid,
+        sectie_foute=sectie_foute,
+        muni_res=muni_res,
+        wyke_res=wyke_res,
         selftoets=selftoets,
+        stasies_res=stasies_res,
+        plekke_res=plekke_res,
+        raad_res=raad_res,
+        nie_gelaai_res=nie_gelaai_res,
+        publiek_res=publiek_res,
+        landelik_res=landelik_res,
         smoke_resultate=smoke_resultate,
-        smoke_kaapstad_wyke=smoke_kaapstad_wyke,
-        kandidate_totaal=kandidate_totaal,
-        stembrief_volgorde_totaal=stembrief_volgorde_totaal,
-        publieke_tellings=publieke_tellings,
+        brooklyn_probleem=brooklyn_probleem,
+        waterkloof_probleem=waterkloof_probleem,
         kommentaar=kommentaar,
         kontrole_tyd=kontrole_tyd,
     )
 
-    print(f"Wyke: {wyke_totaal} (verwag {VERWAG_WYKE})")
-    print(f"Munisipaliteite: {metro_telling + plaaslik_telling} (+ {distrik_telling} distrikte)")
-    print(f"Stemstasies: {stasies_totaal}")
-    print(f"Plekke: {plekke_totaal}, plek_wyke: {plek_wyke_totaal}, aliasse: {alias_totaal}")
-    print(f"Raadsetel-rye: {raad_uitslae_totaal}, rade sonder meerderheid: {len(geen_meerderheid)}")
+    if wyke_res:
+        print(f"Wyke: {wyke_res['totaal']} (verwag {VERWAG_WYKE})")
+    if muni_res:
+        print(f"Munisipaliteite: {muni_res['metro'] + muni_res['plaaslik']} (+ {muni_res['distrik']} distrikte)")
+    if stasies_res:
+        print(f"Stemstasies: {stasies_res['totaal']}")
+    if plekke_res:
+        print(
+            f"Plekke: {plekke_res['totaal']}, plek_wyke: {plekke_res['plek_wyke_totaal']}, "
+            f"aliasse: {plekke_res['alias_totaal']}"
+        )
+    if raad_res:
+        print(f"Raadsetel-rye: {raad_res['uitslae_totaal']}, rade sonder meerderheid: {len(raad_res['geen_meerderheid'])}")
     if selftoets is not None:
         print(f"Wyk-selftoets: {selftoets['selftoets_geslaag']} geslaag / {selftoets['selftoets_gefaal']} gefaal")
     print(f"Kontrole-tyd: {kontrole_tyd:.1f}s")
