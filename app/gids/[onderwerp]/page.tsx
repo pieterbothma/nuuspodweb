@@ -55,7 +55,7 @@ export default async function GidsBladsy({ params }: Props) {
           <ul className="text-grys mt-3 grid gap-2 font-sans text-sm">
             {gids.bronne.map((u) => (
               <li key={u} className="break-all">
-                <a href={u} className="underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi">
+                <a href={u} target="_blank" rel="noopener" className="underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi">
                   {bronEtiket(u)}
                 </a>
               </li>

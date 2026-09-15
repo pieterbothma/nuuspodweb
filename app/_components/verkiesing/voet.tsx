@@ -13,6 +13,8 @@ export function Voet() {
             Sien jy vals verkiesingsinligting?{" "}
             <a
               href="https://real411.org.za"
+              target="_blank"
+              rel="noopener"
               className="text-ink underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi"
             >
               Rapporteer dit by Real411 ↗
@@ -20,9 +22,9 @@ export function Voet() {
           </p>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2 font-sans text-xs font-bold tracking-widest uppercase">
-          <a href="https://www.youtube.com/@Nuuspod" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">YouTube</a>
-          <a href="https://www.facebook.com/izak.duplessis.752" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">Facebook</a>
-          <a href="https://x.com/zakjourno" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">X</a>
+          <a href="https://www.youtube.com/@Nuuspod" target="_blank" rel="noopener" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">YouTube</a>
+          <a href="https://www.facebook.com/izak.duplessis.752" target="_blank" rel="noopener" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">Facebook</a>
+          <a href="https://x.com/zakjourno" target="_blank" rel="noopener" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">X</a>
           <Link href="/adverteer" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">Adverteer by Nuuspod</Link>
         </div>
       </div>

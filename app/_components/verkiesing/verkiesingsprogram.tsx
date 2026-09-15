@@ -25,7 +25,7 @@ export function Verkiesingsprogram({ episodes }: { episodes: Episode[] }) {
         <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
           {vorige.map((e) => (
             <li key={e.video_id}>
-              <a href={`https://www.youtube.com/watch?v=${e.video_id}`} target="_blank" rel="noopener noreferrer" className="group block focus-visible:outline-2 focus-visible:outline-rooi">
+              <a href={`https://www.youtube.com/watch?v=${e.video_id}`} target="_blank" rel="noopener" className="group block focus-visible:outline-2 focus-visible:outline-rooi">
                 <Image
                   src={`https://i.ytimg.com/vi/${e.video_id}/mqdefault.jpg`}
                   alt=""

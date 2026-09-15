@@ -143,6 +143,8 @@ export default async function Adverteer() {
           </div>
           <a
             href={WHATSAPP}
+            target="_blank"
+            rel="noopener"
             className="bg-rooi text-white rounded px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
           >
             WhatsApp
@@ -181,6 +183,8 @@ export default async function Adverteer() {
             <HeroStap step={4} className="mt-9 flex flex-wrap gap-3">
               <a
                 href={WHATSAPP}
+                target="_blank"
+                rel="noopener"
                 className="bg-rooi text-white rounded px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
               >
                 WhatsApp Izak
@@ -273,7 +277,9 @@ export default async function Adverteer() {
               <span className="text-ink font-sans text-sm">{video.title}</span>
               <a
                 href={YOUTUBE}
-                className="font-bold text-ink hover:text-rooi font-sans text-xs tracking-widest uppercase"
+                target="_blank"
+                rel="noopener"
+                className="font-bold text-ink hover:text-rooi font-sans text-xs tracking-widest uppercase focus-visible:outline-2 focus-visible:outline-rooi"
               >
                 Sien die kanaal ↗
               </a>
@@ -368,6 +374,8 @@ export default async function Adverteer() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href={WHATSAPP}
+                  target="_blank"
+                  rel="noopener"
                   className="bg-rooi text-white rounded px-6 py-3 font-sans text-sm font-bold tracking-widest uppercase transition-colors hover:bg-[#c62f2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
                 >
                   WhatsApp 082 838 5204
@@ -401,16 +409,16 @@ export default async function Adverteer() {
             © {new Date().getFullYear()} Nuuspod · Afrikaanse nuus en aktualiteit
           </div>
           <nav className="flex flex-wrap gap-5 font-sans text-xs font-bold tracking-widest uppercase">
-            <a href={YOUTUBE} className="font-bold text-ink hover:text-rooi">
+            <a href={YOUTUBE} target="_blank" rel="noopener" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">
               YouTube
             </a>
-            <a href={FACEBOOK} className="font-bold text-ink hover:text-rooi">
+            <a href={FACEBOOK} target="_blank" rel="noopener" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">
               Facebook
             </a>
-            <a href={X} className="font-bold text-ink hover:text-rooi">
+            <a href={X} target="_blank" rel="noopener" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">
               X
             </a>
-            <a href={`mailto:${EPOS}`} className="font-bold text-ink hover:text-rooi">
+            <a href={`mailto:${EPOS}`} className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">
               E-pos
             </a>
           </nav>
