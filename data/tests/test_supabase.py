@@ -122,3 +122,54 @@ def test_rpc_raises_on_error(monkeypatch):
     klient = _klient(handler)
     with pytest.raises(supabase.SupabaseFout):
         supabase.rpc("stg_leeg", {"tabel": "wyke"}, klient=klient)
+
+
+def test_kry_alles_pages_until_short_page(monkeypatch):
+    alle_rye = [{"wyk_id": f"{i:08d}"} for i in range(5)]
+    oproepe = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        oproepe.append(request.headers.get("range"))
+        rng = request.headers["range"]
+        begin_s, _, einde_s = rng.partition("-")
+        begin, einde = int(begin_s), int(einde_s)
+        return httpx.Response(200, json=alle_rye[begin : einde + 1])
+
+    klient = _klient(handler)
+    resultaat = supabase.kry_alles("stg_wyke", klient=klient, bladsy_grootte=2)
+
+    assert resultaat == alle_rye
+    assert oproepe == ["0-1", "2-3", "4-5"]
+
+
+def test_kry_alles_returns_empty_list_for_empty_table(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=[])
+
+    klient = _klient(handler)
+    resultaat = supabase.kry_alles("stg_stemstasies", klient=klient)
+    assert resultaat == []
+
+
+def test_kry_alles_passes_query_parameters(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["select"] == "wyk_id,muni_kode"
+        assert request.url.params["muni_kode"] == "eq.NC451"
+        return httpx.Response(200, json=[{"wyk_id": "34501001", "muni_kode": "NC451"}])
+
+    klient = _klient(handler)
+    resultaat = supabase.kry_alles(
+        "stg_wyke",
+        {"select": "wyk_id,muni_kode", "muni_kode": "eq.NC451"},
+        klient=klient,
+    )
+    assert resultaat == [{"wyk_id": "34501001", "muni_kode": "NC451"}]
+
+
+def test_kry_alles_raises_on_error(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="interne fout")
+
+    klient = _klient(handler)
+    with pytest.raises(supabase.SupabaseFout):
+        supabase.kry_alles("stg_wyke", klient=klient)

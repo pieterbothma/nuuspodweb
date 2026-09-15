@@ -105,6 +105,41 @@ def plaas_bondels(
     return rye
 
 
+def kry_alles(
+    pad: str,
+    parameters: dict[str, str] | None = None,
+    klient: httpx.Client | None = None,
+    bladsy_grootte: int = 1000,
+) -> list[dict]:
+    """GET pad (e.g. "stg_wyke") with optional query `parameters`, paginated via the
+    PostgREST `Range` header, returning every row.
+
+    Keeps requesting `[begin, begin+bladsy_grootte)` windows until a page comes back
+    shorter than `bladsy_grootte` (the last page). No retry logic — reads are used only
+    for verslag diagnostics, so a transient failure should surface immediately as a
+    SupabaseFout rather than being silently retried.
+    """
+    eie_klient = klient is None
+    aktiewe_klient = klient if klient is not None else _bou_klient()
+    alle_rye: list[dict] = []
+    try:
+        begin = 0
+        while True:
+            koptekste = {"Range-Unit": "items", "Range": f"{begin}-{begin + bladsy_grootte - 1}"}
+            resp = aktiewe_klient.get(pad, params=parameters, headers=koptekste)
+            if resp.status_code >= 400:
+                raise SupabaseFout(_kort_boodskap(resp))
+            bladsy = resp.json()
+            alle_rye.extend(bladsy)
+            if len(bladsy) < bladsy_grootte:
+                break
+            begin += bladsy_grootte
+    finally:
+        if eie_klient:
+            aktiewe_klient.close()
+    return alle_rye
+
+
 def rpc(naam: str, args: dict, klient: httpx.Client | None = None) -> Any:
     """POST rpc/<naam> with args, return the parsed JSON (or None on 204)."""
     eie_klient = klient is None
