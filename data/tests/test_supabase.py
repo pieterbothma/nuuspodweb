@@ -72,7 +72,7 @@ def test_plaas_bondels_raises_after_exhausting_retries(monkeypatch):
         supabase.plaas_bondels("stg_wyke", rye, klient=klient)
 
     boodskap = str(fout_inligting.value)
-    assert len(boodskap) <= 600
+    assert len(boodskap) <= 500
     assert "apikey" not in boodskap
     assert "authorization" not in boodskap.lower()
     assert "toets-sleutel" not in boodskap

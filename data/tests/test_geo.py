@@ -80,3 +80,50 @@ def test_na_ewkt_4326_rejects_non_polygonal_geometry():
     lyn = LineString([(18.0, -34.0), (18.1, -33.9)])
     with pytest.raises(ValueError):
         geo.na_ewkt_4326(lyn, 4326)
+
+
+def test_na_ewkt_4326_raises_on_sliver_that_vanishes_when_snapped():
+    # A valid square with ~1e-14 area at (18, -34): far smaller than the
+    # 6-decimal (~1e-6 degree) output grid, so it must collapse to nothing
+    # rather than silently serialise as a degenerate zero-area MultiPolygon.
+    sny = 1e-7
+    fyn_vierkantjie = Polygon(
+        [
+            (18.0, -34.0),
+            (18.0 + sny, -34.0),
+            (18.0 + sny, -34.0 + sny),
+            (18.0, -34.0 + sny),
+        ]
+    )
+    with pytest.raises(geo.LeeGeometrieFout):
+        geo.na_ewkt_4326(fyn_vierkantjie, 4326)
+
+
+def test_na_ewkt_4326_kaapstad_reprojection_still_reparses_valid():
+    from shapely import from_wkt
+
+    ewkt = geo.na_ewkt_4326(_kaapstad_3857_vierkant(), 3857)
+    wkt = ewkt.removeprefix("SRID=4326;")
+    geom = from_wkt(wkt)
+    assert geom.is_valid
+    assert not geom.is_empty
+
+
+def test_na_ewkt_4326_result_always_reparses_valid_and_nonempty():
+    from shapely import from_wkt
+
+    gevalle = [
+        (Polygon([(18.3, -34.0), (18.5, -34.0), (18.5, -33.8), (18.3, -33.8)]), 4326),
+        (
+            Polygon(
+                [(18.0, -34.0), (18.1, -33.9), (18.0, -33.9), (18.1, -34.0), (18.0, -34.0)]
+            ),
+            4326,
+        ),  # bowtie
+    ]
+    for vorm, bron_epsg in gevalle:
+        ewkt = geo.na_ewkt_4326(vorm, bron_epsg)
+        wkt = ewkt.removeprefix("SRID=4326;")
+        geom = from_wkt(wkt)
+        assert geom.is_valid
+        assert not geom.is_empty
