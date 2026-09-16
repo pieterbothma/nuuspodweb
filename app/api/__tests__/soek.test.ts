@@ -51,7 +51,8 @@ describe("GET /api/soek", () => {
 
   it("stuur die navraag na die soek-RPC en gee die rye terug", async () => {
     const haal = vi.fn(async (url: string, init: RequestInit) => {
-      expect(String(url)).toContain("/rest/v1/rpc/soek");
+      // Any URL parameter on an RPC is a PostgREST filter (400 PGRST100), so none may be sent.
+      expect(String(url)).toMatch(/\/rest\/v1\/rpc\/soek$/);
       expect(init.method).toBe("POST");
       expect(JSON.parse(String(init.body))).toEqual({ q: "stellenbosch" });
       return { ok: true, status: 200, json: async () => [RY] };

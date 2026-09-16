@@ -32,9 +32,10 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   try {
-    // `q` also rides along in the query string, purely so each distinct search term gets
-    // its own entry in Next's fetch cache — the RPC itself only reads the JSON body.
-    const res = await fetch(`${k.url}/rest/v1/rpc/soek?q=${encodeURIComponent(q)}`, {
+    // No query string: PostgREST reads every URL parameter on an RPC as a filter on the
+    // result, so `?q=…` fails with 400 PGRST100. Next's fetch cache already keys a POST on
+    // its body, so each search term still gets its own cache entry.
+    const res = await fetch(`${k.url}/rest/v1/rpc/soek`, {
       method: "POST",
       headers: { apikey: k.sleutel, "Content-Type": "application/json" },
       body: JSON.stringify({ q }),
