@@ -69,7 +69,7 @@ export function OvkAksies({ spesialeStem }: { spesialeStem: SpesialeStemStatus }
 
   return (
     <section id="registrasie" className="scroll-mt-24 mx-auto max-w-6xl px-5 sm:px-8 pt-14">
-      <p className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">{KOPIE.ovk_etiket}</p>
+      <p className="font-sans text-xs font-bold tracking-[0.22em] text-rooi-teks uppercase">{KOPIE.ovk_etiket}</p>
       <h2 className="mt-3 font-display text-3xl text-balance text-ink sm:text-5xl">{KOPIE.ovk_opskrif}</h2>
       <p className="text-grys mt-3 max-w-[60ch] font-sans">{KOPIE.ovk_inleiding}</p>
 

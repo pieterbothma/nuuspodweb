@@ -24,7 +24,7 @@ export function Nuusstroom({ items, nou }: { items: StroomItem[]; nou: Date }) {
 
   return (
     <section id="wat-ander-berig" aria-labelledby="stroom-kop" className="scroll-mt-24">
-      <h2 id="stroom-kop" className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
+      <h2 id="stroom-kop" className="font-sans text-xs font-bold tracking-[0.22em] text-rooi-teks uppercase">
         {KOPIE.stroom_opskrif}
       </h2>
       <p className="text-grys mt-1 font-sans text-xs">{KOPIE.stroom_onderskrif}</p>

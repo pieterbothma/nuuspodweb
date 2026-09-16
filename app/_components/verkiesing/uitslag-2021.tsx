@@ -66,7 +66,7 @@ export function Uitslag2021({
   if (uitslag === "verander") {
     return (
       <section aria-labelledby="uitslag-2021" data-uitslag-2021="verander">
-        <h2 id="uitslag-2021" className="text-ink font-sans text-xs font-bold tracking-[0.22em] uppercase">
+        <h2 id="uitslag-2021" className="text-rooi-teks font-sans text-xs font-bold tracking-[0.22em] uppercase">
           {KOPIE.uitslag2021_opskrif}
         </h2>
         <p className="text-grys mt-2.5 font-sans text-[0.9375rem]">
@@ -92,7 +92,7 @@ export function Uitslag2021({
 
   return (
     <section aria-labelledby="uitslag-2021" data-uitslag-2021="uitslag">
-      <h2 id="uitslag-2021" className="text-ink font-sans text-xs font-bold tracking-[0.22em] uppercase">
+      <h2 id="uitslag-2021" className="text-rooi-teks font-sans text-xs font-bold tracking-[0.22em] uppercase">
         {KOPIE.uitslag2021_opskrif}
       </h2>
       <p className="text-grys mt-1.5 font-sans text-sm">

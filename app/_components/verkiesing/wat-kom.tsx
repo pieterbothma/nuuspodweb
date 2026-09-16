@@ -6,7 +6,7 @@ export function WatKom({ nou }: { nou: Date }) {
   if (items.length === 0) return null;
   return (
     <section aria-labelledby="wat-kom">
-      <h2 id="wat-kom" className="font-sans text-xs font-bold tracking-[0.22em] text-ink uppercase">
+      <h2 id="wat-kom" className="font-sans text-xs font-bold tracking-[0.22em] text-rooi-teks uppercase">
         {KOPIE.watkom_opskrif}
       </h2>
       <ol className="border-rand divide-rand mt-4 divide-y border-y">

@@ -133,13 +133,13 @@ export default async function WykBladsy({ params }: Props) {
 
           <div className="lg:col-start-1 lg:row-start-1">
             <Stembriewe wyk={wyk} stembriewe={stembriewe} />
-            <div className="mt-10">
+            <div className="border-rand mt-12 border-t pt-8">
               <Uitslag2021 uitslag={uitslag2021} wykNr={wyk.wyk_nr} muniKode={wyk.muni_kode} />
             </div>
           </div>
         </div>
 
-        <div className="mt-12 lg:mt-14">
+        <div className="border-rand mt-12 border-t pt-8 lg:mt-14">
           <WykNuus groepe={nuus} muniNaam={muniNaam(wyk.muni_kode, wyk.muni_naam)} nou={new Date()} />
         </div>
 

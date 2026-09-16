@@ -100,7 +100,7 @@ function KontesterendePartye({ partye, volgorde }: { partye: string[]; volgorde:
       <div className="flex items-center gap-3">
         <h2
           id="partye-opskrif"
-          className="text-ink flex-1 font-sans text-xs font-bold tracking-[0.22em] uppercase"
+          className="text-rooi-teks flex-1 font-sans text-xs font-bold tracking-[0.22em] uppercase"
         >
           {KOPIE.muni_partye_opskrif}
         </h2>
@@ -181,12 +181,16 @@ export default async function MuniBladsy({ params }: Props) {
             <WykRooster wyke={muni.wyke} />
             {/* No 2021 row for this council (a district, or a newly demarcated one): the
                 section is absent rather than empty. */}
-            {muni.raad2021 && <Raad2021Tabel raad={muni.raad2021} />}
+            {muni.raad2021 && (
+              <div className="border-rand border-t pt-8">
+                <Raad2021Tabel raad={muni.raad2021} />
+              </div>
+            )}
           </div>
           <KontesterendePartye partye={muni.partye} volgorde={muni.volgorde} />
         </div>
 
-        <div className="mt-12 lg:mt-14">
+        <div className="border-rand mt-12 border-t pt-8 lg:mt-14">
           <MuniNuus stories={nuus} muniNaam={naam} nou={new Date()} />
         </div>
 

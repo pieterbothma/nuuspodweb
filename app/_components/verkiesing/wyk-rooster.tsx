@@ -18,7 +18,7 @@ export function WykRooster({ wyke }: { wyke: { wyk_id: string; wyk_nr: number }[
     <section aria-labelledby="wyke-opskrif">
       <h2
         id="wyke-opskrif"
-        className="text-ink font-sans text-xs font-bold tracking-[0.22em] uppercase"
+        className="text-rooi-teks font-sans text-xs font-bold tracking-[0.22em] uppercase"
       >
         {KOPIE.muni_wyke_opskrif}
       </h2>
