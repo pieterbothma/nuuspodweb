@@ -84,6 +84,53 @@ export const KOPIE = {
   terugvoer_ja: "Ja",
   terugvoer_nee: "Nee",
   terugvoer_dankie: "Dankie, dit help ons om die blad te verbeter.",
+  // --- Wykblad (draft values, Task 6) ------------------------------------
+  // Placeholders are substituted by the components and MUST survive a rewrite:
+  //   {w} = the ward number        {n} = a count        {m} = a total
+  //   {q} = a name (municipality, district, or an already-formatted date)
+  // Per slot:
+  //   wyk_bladtitel / wyk_beskrywing   {w} = ward number, {q} = municipality name
+  //   wyk_stemlokale_opskrif           {n} = how many stations, {w} = ward number
+  //   wyk_stemlokale_opskrif_een       {w} = ward number (the singular of the above)
+  //   stembrief_teller                 {n} = which ballot, {m} = how many ballots
+  //   stembrief_wyk_uitleg             {w} = ward number
+  //   stembrief_pv / stembrief_distrik {q} = the council's name
+  //   laas_bygewerk                    {q} = the source date, already in Afrikaans
+  //   og_wyk_sjabloon                  {n} = how many ward candidates
+  // wyk_raadslid_teks stays a [konsep] placeholder until Task 9 has fact-checked it
+  // against the Municipal Structures Act.
+  wyk_kruimel_tuis: "Verkiesing 2026",
+  wyk_bladtitel: "Wyk {w} · {q} — Verkiesing 2026",
+  wyk_beskrywing:
+    "Jou stembriewe, kandidate en stemlokale vir wyk {w} in {q}, vir die plaaslike verkiesing van 4 November 2026.",
+  wyk_raadslid_opskrif: "Wat doen 'n wyksraadslid?",
+  wyk_raadslid_teks:
+    "[konsep — Gemini skryf hierdie teks en gaan dit na teen die Wet op Munisipale Strukture: twee of drie sinne oor wat 'n wyksraadslid doen.]",
+  wyk_stemlokale_opskrif: "{n} stemlokale in wyk {w}",
+  wyk_stemlokale_opskrif_een: "1 stemlokaal in wyk {w}",
+  wyk_stemlokale_nota: "Jy stem net by die stemlokaal waar jy geregistreer is.",
+  wyk_stemlokale_geen: "Daar is nog geen stemlokale vir hierdie wyk om te wys nie.",
+  wyk_stembriewe_opskrif: "Jou stembriewe",
+  stembrief_teller: "Stembrief {n} van {m}",
+  stembrief_wyk: "Wykstembrief",
+  stembrief_wyk_uitleg: "Jy kies een kandidaat as wyksraadslid vir wyk {w}.",
+  stembrief_pv: "Stembrief vir die {q}-raad",
+  stembrief_pv_uitleg: "Jy stem vir 'n party. Setels word volgens die partye se lyste gevul.",
+  stembrief_distrik: "Stembrief vir die {q}-distriksraad",
+  stembrief_distrik_uitleg: "Jy stem vir 'n party in die distriksraad.",
+  volgorde_alfabeties: "Alfabeties",
+  volgorde_stembrief: "Volgorde soos op die stembrief",
+  onafhanklik: "Onafhanklik",
+  wys_lys: "Wys lys",
+  versteek_lys: "Versteek lys",
+  kandidate_nog_nie_gelaai:
+    "Daar is nog geen kandidate vir hierdie stembrief om te wys nie. Die OVK se finale kandidaatlyste word op 16 September 2026 gepubliseer.",
+  laas_bygewerk: "Laas bygewerk: {q}",
+  bron_ovk:
+    "Bron: OVK (IEC) · Munisipale Afbakeningsraad · Statistiek Suid-Afrika, Sensus 2011 (eie verwerking)",
+  bron_ovk_skakel: "Sien die OVK se lys",
+  og_wyk_sjabloon: "{n} kandidate · Stem op 4 November",
+  og_wyk_geen: "Stem op 4 November",
   voet_bron: "Bron van verkiesingsinligting: OVK (IEC)",
   voet_onafhanklik: "Nuuspod is nie aan die OVK of enige party verbonde nie.",
   voet_real411_vraag: "Sien jy vals verkiesingsinligting?",
