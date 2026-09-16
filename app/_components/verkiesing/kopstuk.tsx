@@ -1,9 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { gepubliseerdeGidse } from "@/lib/verkiesing/gidse";
+import { KOPIE } from "@/lib/verkiesing/kopie";
 
 export function Kopstuk() {
   const skakels = [
+    { href: "/#vind-jou-wyk", teks: KOPIE.nav_vind_wyk },
     ...(gepubliseerdeGidse().length > 0 ? [{ href: "/#gidse", teks: "Hoe om te stem" }] : []),
     { href: "/#program", teks: "Verkiesings-Vrydag" },
     { href: "/#wat-ander-berig", teks: "Wat ander berig" },

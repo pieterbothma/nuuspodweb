@@ -37,6 +37,28 @@ export const KOPIE = {
   held_boks_etiket: "BEVESTIG JOU STATUS",
   held_boks_titel: "Kyk of jy geregistreer is en waar jy stem",
   held_boks_skakel: "Sien meer",
+  // --- Wyk-soeker (draft values, Task 5) ---------------------------------
+  // Placeholders are substituted by the component and MUST survive a rewrite:
+  //   {n} = a number, {q} = the reader's own search term.
+  // The two message slots below carry two lines separated by "\n": the first line is the
+  // statement, the second the advice. Keep the newline when rewriting.
+  nav_vind_wyk: "Vind jou wyk",
+  soek_etiket: "VIND JOU WYK",
+  soek_titel: "Vind jou wyk, stemlokaal en kandidate",
+  soek_plekhouer: "Voorstad, dorp of stemlokaal",
+  soek_ligging_knoppie: "Gebruik my ligging",
+  soek_ligging_besig: "Soek jou ligging…",
+  soek_groep_plekke: "Plekke",
+  soek_groep_stemlokale: "Stemlokale",
+  soek_resultate_telling: "{n} resultate vir “{q}”",
+  soek_wyk_nommer: "Wyk {n}",
+  soek_wyk_aantal: "{n} wyke",
+  soek_wyke_kies: "{q} val oor {n} wyke. Kies joune:",
+  soek_geen: "Niks gevind vir “{q}” nie.\nProbeer die naam van jou stemlokaal, of gebruik jou ligging.",
+  soek_ligging_geweier: "Ons kon nie jou ligging kry nie.\nTik eerder jou voorstad, dorp of stemlokaal.",
+  soek_ligging_buite:
+    "Jou ligging val nie binne 'n wyk nie.\nDit gebeur naby die see of op die rand van 'n wyk. Soek eerder op jou stemlokaal.",
+  soek_registrasie_skakel: "Is jy geregistreer?",
   watkom_opskrif: "BELANGRIKE DATUMS",
   mylpaal_kandidaatlyste: "16 September: Die finale kandidaatlyste word gepubliseer.",
   mylpaal_spesiaal_aansoek: "21 September tot 12 Oktober (17:00): Doen aansoek vir 'n spesiale stem.",

@@ -1,12 +1,12 @@
 import { Aftelling } from "./_components/verkiesing/aftelling";
 import { GidsKaarte } from "./_components/verkiesing/gids-kaarte";
 import { Kopstuk } from "./_components/verkiesing/kopstuk";
-import { KontroleerRegistrasie } from "./_components/verkiesing/kontroleer-registrasie";
 import { Nuusstroom } from "./_components/verkiesing/nuusstroom";
 import { OvkAksies } from "./_components/verkiesing/ovk-aksies";
 import { Verkiesingsprogram } from "./_components/verkiesing/verkiesingsprogram";
 import { Voet } from "./_components/verkiesing/voet";
 import { WatKom } from "./_components/verkiesing/wat-kom";
+import { WykSoeker } from "./_components/verkiesing/wyk-soeker";
 import { spesialeStemStatus, STEMDAG } from "@/lib/verkiesing/datums";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { haalEpisodes, haalStroom } from "@/lib/verkiesing/lees";
@@ -37,7 +37,7 @@ export default async function Tuis() {
             </div>
             <div className="grid gap-7">
               <Aftelling teikenIso={STEMDAG.toISOString()} nouMs={nou.getTime()} />
-              <KontroleerRegistrasie />
+              <WykSoeker />
             </div>
           </div>
         </section>
