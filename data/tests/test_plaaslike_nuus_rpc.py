@@ -35,7 +35,7 @@ def test_langste_naam_wen_bo_die_stad():
 
 
 def test_munisipaliteit_self_genoem():
-    rye = koppel("Treasury signs another loan to fix City of Joburg and others", ["EKU"])
+    rye = koppel("Treasury signs another loan to fix City of Joburg and others", ["JHB"])
     assert rye == [{"muni_kode": "JHB", "wyk_id": None, "plek": "Joburg", "vlak": "munisipaliteit"}]
 
 
@@ -54,6 +54,9 @@ def test_onbevestigde_munisipaliteit_word_verwerp():
     assert koppel("Work starts on Pretoria North stormwater system repair project", ["CPT"]) == []
 
 
-def test_teks_wat_die_munisipaliteit_noem_bevestig_die_plek():
-    rye = koppel("Tshwane: work starts on Pretoria North stormwater repairs", ["CPT"])
-    assert any(r["vlak"] == "wyk" and r["muni_kode"] == "TSH" for r in rye)
+def test_net_die_blad_se_eie_munisipaliteite_bevestig():
+    # A municipality named in the text no longer confirms itself: tour and national stories in
+    # community papers ("Sean Paul ... Cape Town, Durban, Pretoria") stay on the home council.
+    assert koppel("Tshwane: work starts on Pretoria North stormwater repairs", ["CPT"]) == []
+    rye = koppel("Sean Paul brings dancehall hits to Cape Town, Durban and Pretoria", ["CPT"])
+    assert {r["muni_kode"] for r in rye} == {"CPT"}
