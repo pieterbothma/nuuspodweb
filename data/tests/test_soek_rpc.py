@@ -49,9 +49,50 @@ def test_brooklyn_gee_meer_as_een_munisipaliteit():
 
 
 def test_kaapstad_alias_gee_stad_kaapstad_gegroepeer():
-    rye = [r for r in roep_soek("Kaapstad") if r["soort"] == "plek"]
-    assert rye and all(r["muni_naam"] == "City of Cape Town" for r in rye)
-    assert len(rye) <= 20
+    """Een ry per (alias, munisipaliteit) — nie 20 los Kaapse sub-pleknaam nie.
+
+    Piet se besluit in die globale beperkings ("search groups places per main place/
+    municipality rather than listing sub places") wen oor die taakbrief se etiket-reël.
+    """
+    rye = roep_soek("Kaapstad")
+    kaapstad = [r for r in rye if r["etiket"] == "Kaapstad"]
+    assert len(kaapstad) == 1
+    ry = kaapstad[0]
+    assert ry["soort"] == "plek"
+    assert ry["muni_kode"] == "CPT"
+    assert ry["muni_naam"] == "City of Cape Town"
+    assert ry["rang"] == 1
+    # Die 126 sub-plekke onder hoofplek "Cape Town" dek 26 wyke.
+    assert len(ry["wyk_ids"]) == 26
+    assert len(ry["wyk_nrs"]) == 26
+    assert ry["teiken"] is None  # meer as een wyk
+
+
+def test_mahikeng_alias_gee_een_ry_vir_nw383():
+    rye = [
+        r for r in roep_soek("Mahikeng")
+        if r["etiket"] == "Mahikeng" and r["muni_kode"] == "NW383"
+    ]
+    assert len(rye) == 1
+    assert rye[0]["soort"] == "plek"
+    assert rye[0]["muni_naam"] == "Mafikeng"
+    assert len(rye[0]["wyk_ids"]) == 12
+
+
+def test_alias_en_pleknaam_met_dieselfde_etiket_smelt_saam():
+    # "Durban" is 'n alias EN 'n sub-pleknaam EN 'n hoofplek — dit moet een ry gee.
+    rye = [r for r in roep_soek("Durban") if r["etiket"] == "Durban"]
+    assert len(rye) == 1
+    assert rye[0]["muni_naam"] == "eThekwini"
+    assert len(rye[0]["wyk_ids"]) > 1
+
+
+def test_geen_plek_etiket_kom_twee_keer_vir_dieselfde_munisipaliteit_voor():
+    for navraag in ("Kaapstad", "Durban", "Bloemfontein", "Mahikeng", "Gqeberha", "Brooklyn"):
+        sleutels = [
+            (r["etiket"], r["muni_kode"]) for r in roep_soek(navraag) if r["soort"] == "plek"
+        ]
+        assert len(sleutels) == len(set(sleutels)), navraag
 
 
 def test_soweto_kom_deur_die_hoofplek():
