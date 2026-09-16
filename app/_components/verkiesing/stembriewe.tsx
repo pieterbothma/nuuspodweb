@@ -14,9 +14,11 @@ import type {
  * Neutrality is the whole point of this file, so four rules hold throughout:
  *  1. **Equal space per candidate.** Every candidate row is the same height and carries the
  *     same two lines; no row is emphasised, ranked or annotated.
- *  2. **Colour tokens are limited to `ink` / `grys` / `rand`.** No party colour, no logo, no
- *     photo, no red — not even a focus ring — inside a candidate or party row.
- *     `docs/verkiesing/partykleure.json` is never imported.
+ *  2. **Colour tokens are limited to `ink` / `grys` / `rand` / `paneel`.** No party colour,
+ *     no photo, no red — not even a focus ring — inside a candidate or party row.
+ *     `docs/verkiesing/partykleure.json` is never imported. Logos (Piet, 2026-09-16) sit in
+ *     one fixed-size slot per row, identical for every party; until the IEC's official logos
+ *     are loaded every slot shows the same empty frame, independents included.
  *  3. **The order comes from the data layer.** `haalStembriewe` returns everything already
  *     sorted and says which ordering that is; this component shows the label and never
  *     re-sorts.
@@ -48,8 +50,40 @@ const KENTEKEN =
 /** The mockup's `.knop`, at 44 px (LEESMY correction) and without the red focus ring. */
 const KNOPPIE =
   "border-rand text-ink inline-flex min-h-11 shrink-0 items-center gap-2 rounded border px-3 py-2 font-sans text-xs font-bold tracking-widest uppercase group-hover:border-ink";
-/** One ballot row. `min-h-11` plus identical padding is what makes the rows equal-height. */
-const RY = "border-rand flex min-h-11 items-center gap-4 border-t px-5 py-3.5 sm:px-6";
+/**
+ * One ballot-paper row: the text cell, then a logo cell and a mark cell divided by hairlines,
+ * like the IEC's paper ballot. Every row has the same three cells at the same widths, so no
+ * party or candidate takes more room than another.
+ */
+const RY = "border-rand grid min-h-16 grid-cols-[minmax(0,1fr)_4rem_3.5rem] border-t sm:grid-cols-[minmax(0,1fr)_4.5rem_4rem]";
+const SEL_TEKS = "flex min-w-0 flex-col justify-center px-5 py-3.5 sm:px-6";
+const SEL_VAK = "border-rand flex items-center justify-center border-l";
+
+/**
+ * The party logo slot. `logoUrl` stays unset until official IEC logos are loaded; until then
+ * every row, independents included, shows the same empty frame so no party stands out.
+ */
+function LogoVak({ partyNaam, logoUrl }: { partyNaam: string | null; logoUrl?: string | null }) {
+  return (
+    <div className={SEL_VAK} data-logo-vak={logoUrl ? "logo" : "leeg"}>
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- small fixed-size logos, no layout shift
+        <img src={logoUrl} alt={partyNaam ?? ""} width={40} height={40} className="size-10 object-contain" />
+      ) : (
+        <span aria-hidden className="border-rand bg-paneel block size-10 border" />
+      )}
+    </div>
+  );
+}
+
+/** The empty square a voter marks with an X. Decorative: nothing is voted on this site. */
+function MerkVak() {
+  return (
+    <div className={SEL_VAK} data-merk-vak aria-hidden>
+      <span className="border-ink block size-7 border-[1.5px] sm:size-8" />
+    </div>
+  );
+}
 
 function Pyltjie() {
   return (
@@ -94,16 +128,18 @@ function Naam({
   );
 }
 
-/** A ward candidate: name in ink, party (or "Onafhanklik") in grey. Nothing else. */
+/** A ward candidate: name in ink, party (or "Onafhanklik") in grey, logo slot, mark box. */
 function KandidaatRy({ kandidaat }: { kandidaat: Kandidaat }) {
   return (
     <div data-ry="kandidaat" className={RY}>
-      <div className="min-w-0 flex-1">
+      <div className={SEL_TEKS}>
         <Naam kandidaat={kandidaat} className="font-sans text-base font-bold" />
         <p className="text-grys font-sans text-sm">
           {kandidaat.party_naam ?? KOPIE.onafhanklik}
         </p>
       </div>
+      <LogoVak partyNaam={kandidaat.party_naam} />
+      <MerkVak />
     </div>
   );
 }
@@ -123,22 +159,26 @@ function PartyRy({ lys, volgorde }: { lys: PartyLys; volgorde: StembriefData["vo
   const wysNommers = volgorde === "stembrief";
   return (
     <details data-ry="party" className="border-rand group border-t">
-      <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-2 sm:px-6 [&::-webkit-details-marker]:hidden">
-        <span className="text-ink min-w-0 flex-1 font-sans text-base font-bold">
-          {lys.party_naam}
+      <summary className="grid min-h-16 cursor-pointer list-none grid-cols-[minmax(0,1fr)_4rem_3.5rem] sm:grid-cols-[minmax(0,1fr)_4.5rem_4rem] [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 sm:px-6">
+          <span className="text-ink min-w-0 flex-1 basis-40 font-sans text-base font-bold">
+            {lys.party_naam}
+          </span>
+          <span className={KNOPPIE}>
+            <span className="group-open:hidden">{KOPIE.wys_lys}</span>
+            <span className="hidden group-open:inline">{KOPIE.versteek_lys}</span>
+            <Pyltjie />
+          </span>
         </span>
-        <span className={KNOPPIE}>
-          <span className="group-open:hidden">{KOPIE.wys_lys}</span>
-          <span className="hidden group-open:inline">{KOPIE.versteek_lys}</span>
-          <Pyltjie />
-        </span>
+        <LogoVak partyNaam={lys.party_naam} />
+        <MerkVak />
       </summary>
       {lys.kandidate.length === 0 ? (
         <p className="text-grys px-5 pb-3.5 font-sans text-[0.9375rem] sm:px-6">
           {KOPIE.kandidate_nog_nie_gelaai}
         </p>
       ) : (
-        <ol className="px-5 pb-3.5 sm:px-6">
+        <ol className="border-rand bg-paneel border-t px-5 py-2.5 sm:px-6">
           {lys.kandidate.map((k, i) => (
             <li key={`${k.volle_naam}-${k.van}-${i}`} className="flex gap-3.5 py-1.5">
               {wysNommers && (
