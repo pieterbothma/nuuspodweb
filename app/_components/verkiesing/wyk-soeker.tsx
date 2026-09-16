@@ -40,9 +40,13 @@ type Opsie =
 const ONTDOP_MS = 250;
 const MIN_KARAKTERS = 2;
 
-/** Tailwind for the mockup's outline `.knop`. */
+/**
+ * The mockup's outline `.knop`, plus `min-h-11` — the mockup draws it 32 px high, which is
+ * below a thumb-sized target, so the code overrides the design here (the house idiom is
+ * already in `ovk-aksies.tsx`).
+ */
 const KNOPPIE =
-  "border-rand text-ink inline-flex items-center gap-2 rounded border px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi disabled:text-grys";
+  "border-rand text-ink inline-flex min-h-11 items-center gap-2 rounded border px-4 py-2 font-sans text-xs font-bold tracking-widest uppercase hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi disabled:text-grys";
 
 function SoekIkoon() {
   return (
@@ -133,6 +137,8 @@ export function WykSoeker() {
   const titelId = `${idBasis}-titel`;
   const lysId = `${idBasis}-lys`;
   const houer = useRef<HTMLDivElement>(null);
+  /** The query the box is on right now, readable from inside an in-flight request. */
+  const jongsteQ = useRef("");
 
   const [navraag, setNavraag] = useState("");
   /** The last answer we got, tagged with the query it answers. */
@@ -173,6 +179,7 @@ export function WykSoeker() {
 
   // --- Search -------------------------------------------------------------
   useEffect(() => {
+    jongsteQ.current = q;
     if (q.length < MIN_KARAKTERS) return;
     const afbreek = new AbortController();
     const tik = setTimeout(async () => {
@@ -182,11 +189,14 @@ export function WykSoeker() {
         });
         const data = res.ok ? await res.json() : null;
         const gevind: SoekRy[] = Array.isArray(data?.resultate) ? data.resultate : [];
+        // A slow answer for an older query must not even land in state: writing it would
+        // make `uitslag.q` stale and close a popover that is showing the right rows.
+        if (jongsteQ.current !== q) return;
         setUitslag({ q, rye: gevind });
       } catch {
         // Aborted (the reader typed on) or the network is gone. An empty result is the
         // honest answer for the second case; an abort must change nothing.
-        if (!afbreek.signal.aborted) setUitslag({ q, rye: [] });
+        if (!afbreek.signal.aborted && jongsteQ.current === q) setUitslag({ q, rye: [] });
       }
     }, ONTDOP_MS);
     return () => {
@@ -194,6 +204,14 @@ export function WykSoeker() {
       afbreek.abort();
     };
   }, [q]);
+
+  // Keep the active option visible once the list is tall enough to scroll.
+  useEffect(() => {
+    if (!wysLys || aktief < 0) return;
+    const el = document.getElementById(`${idBasis}-o${aktief}`);
+    // jsdom has no layout, so `scrollIntoView` may simply not exist there.
+    el?.scrollIntoView?.({ block: "nearest" });
+  }, [aktief, wysLys, idBasis]);
 
   // Clicking away closes the popover, the way a native combobox behaves.
   useEffect(() => {
@@ -280,7 +298,13 @@ export function WykSoeker() {
   // --- Location -----------------------------------------------------------
   async function wykByPunt(lat: number, lng: number) {
     try {
-      const res = await fetch(`/api/wyk-by-punt?lat=${lat}&lng=${lng}`, { cache: "no-store" });
+      // POST, so the point never rides in a URL the platform would log.
+      const res = await fetch("/api/wyk-by-punt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng }),
+        cache: "no-store",
+      });
       const data = res.ok ? await res.json() : null;
       const wykId: string | undefined = data?.wyk?.wyk_id;
       if (wykId) {
@@ -326,7 +350,11 @@ export function WykSoeker() {
           ? vulIn(KOPIE.soek_geen, { q })
           : null;
 
-  const telling = vulIn(KOPIE.soek_resultate_telling, { n: rye?.length ?? 0, q });
+  const aantal = rye?.length ?? 0;
+  const telling =
+    aantal === 1
+      ? vulIn(KOPIE.soek_resultate_telling_een, { n: 1, q })
+      : vulIn(KOPIE.soek_resultate_telling, { n: aantal, q });
   const aankondiging = wysLys ? telling : boodskap ? boodskap.split("\n").join(" ") : "";
 
   const genommer = (rye ?? []).map((ry, i) => ({ ry, i }));
@@ -337,6 +365,13 @@ export function WykSoeker() {
       items: genommer.filter((x) => x.ry.soort === "stemlokaal"),
     },
   ].filter((g) => g.items.length > 0);
+
+  /** "Stad Tshwane · Gauteng" for a place, "Stad Tshwane · 279 Murray Street" for a
+   * station — and just the municipality for a station whose address is empty. */
+  const onderskrif = (ry: SoekRy) =>
+    [ry.muni_naam, ry.soort === "stemlokaal" ? ry.adres : ry.provinsie]
+      .filter(Boolean)
+      .join(" · ");
 
   const kenteken = (ry: SoekRy) =>
     ry.wyk_nrs.length === 1
@@ -364,15 +399,17 @@ export function WykSoeker() {
       </div>
 
       <div className="relative">
-        <div className="border-ink flex h-12 items-center gap-2.5 border-2 px-3">
+        {/* The ring lives on the wrapper, so it frames the whole field including the
+            icon rather than just the text area. */}
+        <div className="border-ink flex h-12 items-center gap-2.5 border-2 px-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-rooi">
           <SoekIkoon />
           <input
             type="search"
             role="combobox"
             aria-labelledby={titelId}
             aria-expanded={wysLys}
-            aria-controls={lysId}
             aria-autocomplete="list"
+            {...(wysLys ? { "aria-controls": lysId } : {})}
             {...(aktief >= 0 && wysLys
               ? { "aria-activedescendant": `${idBasis}-o${aktief}` }
               : {})}
@@ -388,7 +425,7 @@ export function WykSoeker() {
               setLigging("rustig");
             }}
             onKeyDown={opSleutel}
-            className="text-ink placeholder:text-grys h-full w-full min-w-0 bg-transparent font-sans text-[1.0625rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi [&::-webkit-search-cancel-button]:hidden"
+            className="text-ink placeholder:text-grys h-full w-full min-w-0 bg-transparent font-sans text-[1.0625rem] focus:outline-none [&::-webkit-search-cancel-button]:hidden"
           />
         </div>
 
@@ -400,7 +437,7 @@ export function WykSoeker() {
             initial={minBeweging ? false : { opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={minBeweging ? { duration: 0 } : { duration: 0.16, ease: [0.4, 0, 0.2, 1] }}
-            className="border-ink bg-grond static z-20 mt-3.5 w-full border pb-2 shadow-[0_12px_32px_rgba(11,13,16,0.10)] sm:absolute sm:top-full sm:left-0 sm:mt-2"
+            className="border-ink bg-grond static z-20 mt-3.5 max-h-[min(60vh,26rem)] w-full overflow-y-auto border pb-2 shadow-[0_12px_32px_rgba(11,13,16,0.10)] sm:absolute sm:top-full sm:left-0 sm:mt-2"
           >
             <p
               aria-hidden
@@ -424,7 +461,7 @@ export function WykSoeker() {
                 {g.items.map(({ ry, i }) => {
                   const indeks = indeksVanRy.get(i) ?? 0;
                   return (
-                    <div key={i}>
+                    <div key={i} role="presentation">
                       <div
                         id={`${idBasis}-o${indeks}`}
                         role="option"
@@ -437,7 +474,9 @@ export function WykSoeker() {
                           <span className="text-ink block font-sans text-base font-bold">
                             {ry.etiket}
                           </span>
-                          <span className="text-grys block font-sans text-sm">{ry.muni_naam}</span>
+                          <span className="text-grys block font-sans text-sm">
+                            {onderskrif(ry)}
+                          </span>
                         </span>
                         <span className="text-ink font-sans text-[0.8125rem] font-bold whitespace-nowrap">
                           {kenteken(ry)}
@@ -449,7 +488,7 @@ export function WykSoeker() {
                           <p className="text-grys font-sans text-[0.8125rem]">
                             {vulIn(KOPIE.soek_wyke_kies, { n: ry.wyk_ids.length, q: ry.etiket })}
                           </p>
-                          <div className="flex flex-wrap gap-2">
+                          <div role="presentation" className="flex flex-wrap gap-2">
                             {ry.wyk_ids.map((wykId, j) => {
                               const wIndeks = indeksVanWyk.get(`${i}:${j}`) ?? 0;
                               return (
@@ -486,7 +525,9 @@ export function WykSoeker() {
         {aankondiging}
       </p>
 
-      <div aria-live="polite">{boodskap && <Boodskap teks={boodskap} />}</div>
+      {/* No `aria-live` here: the sr-only region above already announces the notice, and
+          two live regions would read it twice. */}
+      <div>{boodskap && <Boodskap teks={boodskap} />}</div>
 
       <div className="flex flex-col items-start gap-3">
         <button
@@ -501,11 +542,11 @@ export function WykSoeker() {
           </span>
         </button>
         {!boodskap && (
-          <p className="text-grys font-sans text-sm">
+          <p className="text-grys inline-flex min-h-11 items-center font-sans text-sm">
             {KOPIE.soek_registrasie_skakel}{" "}
             <a
               href="#registrasie"
-              className="text-ink decoration-rand font-bold underline underline-offset-4 hover:text-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
+              className="text-ink decoration-rand ml-1 inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
             >
               {KOPIE.held_boks_skakel} ↓
             </a>

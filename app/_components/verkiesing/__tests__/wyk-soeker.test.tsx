@@ -17,6 +17,8 @@ function ry(oorskryf: Partial<SoekRy> = {}): SoekRy {
     etiket: "Brooklyn",
     muni_kode: "TSH",
     muni_naam: "Stad Tshwane",
+    provinsie: "Gauteng",
+    adres: null,
     wyk_ids: ["19100056"],
     wyk_nrs: [56],
     teiken: "19100056",
@@ -31,6 +33,18 @@ function stelSoek(rye: SoekRy[]) {
     status: 200,
     json: async () => ({ resultate: rye }),
   }));
+  vi.stubGlobal("fetch", haal);
+  return haal;
+}
+
+/** Answers both endpoints: `/api/soek` with `rye`, `/api/wyk-by-punt` with `wyk`. */
+function stelAlbei(rye: SoekRy[], wyk: unknown) {
+  const haal = vi.fn(async (url: string, _init?: RequestInit) => {
+    if (String(url).startsWith("/api/wyk-by-punt")) {
+      return { ok: true, status: 200, json: async () => ({ wyk }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ resultate: rye }) };
+  });
   vi.stubGlobal("fetch", haal);
   return haal;
 }
@@ -254,7 +268,7 @@ describe("WykSoeker", () => {
   it("stuur nooit koördinate na /api/soek nie", async () => {
     const LAT = -25.7479;
     const LNG = 28.2293;
-    const haal = vi.fn(async (url: string) => {
+    const haal = vi.fn(async (url: string, _init?: RequestInit) => {
       const s = String(url);
       if (s.startsWith("/api/wyk-by-punt")) {
         return {
@@ -298,6 +312,19 @@ describe("WykSoeker", () => {
       expect(u).not.toContain(String(LNG));
     }
 
+    // No URL the component builds may carry a digit of either coordinate — the ward
+    // lookup POSTs the point in its body instead.
+    for (const [url] of haal.mock.calls) {
+      const u = String(url);
+      expect(u).not.toContain("25.7");
+      expect(u).not.toContain("28.2");
+      expect(u).not.toMatch(/lat|lng/);
+    }
+    const puntRoep = haal.mock.calls.find((c) => String(c[0]).startsWith("/api/wyk-by-punt"));
+    expect(puntRoep).toBeDefined();
+    expect(puntRoep?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(puntRoep?.[1]?.body))).toEqual({ lat: LAT, lng: LNG });
+
     // Never stored, never logged, never in a URL the browser keeps.
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
@@ -324,5 +351,147 @@ describe("WykSoeker", () => {
       await screen.findByText(vulIn(eersteLyn(KOPIE.soek_geen), { q: "Brooklin" }))
     ).toBeTruthy();
     expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("wys die buite-'n-wyk-boodskap wanneer die punt in geen wyk val nie", async () => {
+    stelAlbei([], null);
+    stelLigging({
+      getCurrentPosition: (ok: PositionCallback) =>
+        ok({ coords: { latitude: -34.4, longitude: 20.9 } } as GeolocationPosition),
+    });
+    const gebruiker = userEvent.setup();
+    render(<WykSoeker />);
+
+    await gebruiker.click(liggingKnoppie());
+
+    expect(await screen.findByText(eersteLyn(KOPIE.soek_ligging_buite))).toBeTruthy();
+    expect(stoot).not.toHaveBeenCalled();
+  });
+
+  it("hou 20 rye binne 'n rolbare houer", async () => {
+    const baie = Array.from({ length: 20 }, (_, i) =>
+      ry({
+        etiket: `Brooklyn ${i + 1}`,
+        wyk_ids: [`191000${String(i).padStart(2, "0")}`],
+        wyk_nrs: [i + 1],
+        teiken: `191000${String(i).padStart(2, "0")}`,
+        rang: i + 1,
+      })
+    );
+    stelSoek(baie);
+    const gebruiker = userEvent.setup();
+    render(<WykSoeker />);
+
+    await gebruiker.type(soekboks(), "Brooklyn");
+
+    const lys = await screen.findByRole("listbox");
+    // Every row renders — nothing is silently dropped.
+    expect(within(lys).getAllByRole("option")).toHaveLength(20);
+    // ...and the list is bounded and scrollable rather than 1 280 px tall.
+    expect(lys.className).toContain("overflow-y-auto");
+    expect(lys.className).toMatch(/max-h-\[min\(60vh,26rem\)\]/);
+  });
+
+  it("laat val 'n stadige antwoord vir 'n ou navraag", async () => {
+    const sluis: { los: (() => void) | null } = { los: null };
+    const stadigeRye = [ry({ etiket: "STADIGE OU ANTWOORD", teiken: "19100001" })];
+    const vinnigeRye = [ry({ etiket: "Brooklyn Vinnig", teiken: "19100002" })];
+    const haal = vi.fn(async (url: string, _init?: RequestInit) => {
+      const q = new URL(url, "http://t").searchParams.get("q");
+      if (q === "Broo") {
+        await new Promise<void>((r) => {
+          sluis.los = r;
+        });
+        return { ok: true, status: 200, json: async () => ({ resultate: stadigeRye }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ resultate: vinnigeRye }) };
+    });
+    vi.stubGlobal("fetch", haal);
+    const gebruiker = userEvent.setup();
+    render(<WykSoeker />);
+
+    const boks = soekboks();
+    // First query goes out and hangs.
+    await gebruiker.type(boks, "Broo");
+    await waitFor(() => expect(haal).toHaveBeenCalledTimes(1));
+    // The reader types on; the second query answers immediately.
+    await gebruiker.type(boks, "klyn");
+    await screen.findByRole("option", { name: /Brooklyn Vinnig/ });
+
+    // Now let the stale response land.
+    sluis.los?.();
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(screen.queryByText("STADIGE OU ANTWOORD")).toBeNull();
+    expect(soekboks().getAttribute("aria-expanded")).toBe("true");
+    const opsies = screen.getAllByRole("option");
+    expect(opsies).toHaveLength(1);
+    expect(opsies[0].textContent).toContain("Brooklyn Vinnig");
+  });
+
+  it("wys provinsie vir 'n plek en die adres vir 'n stemlokaal", async () => {
+    stelSoek([
+      ry({ etiket: "Brooklyn", provinsie: "Gauteng", adres: null }),
+      ry({
+        soort: "stemlokaal",
+        etiket: "BROOKLYN PRIMARY SCHOOL",
+        provinsie: "Gauteng",
+        adres: "279 Murray Street",
+        rang: 2,
+      }),
+      ry({
+        soort: "stemlokaal",
+        etiket: "BROOKLYN TENT",
+        provinsie: "Gauteng",
+        // The 2 stations with an empty source address arrive as null and show no third part.
+        adres: null,
+        rang: 3,
+      }),
+    ]);
+    const gebruiker = userEvent.setup();
+    render(<WykSoeker />);
+
+    await gebruiker.type(soekboks(), "Brooklyn");
+    await screen.findByRole("listbox");
+
+    expect(screen.getByText("Stad Tshwane · Gauteng")).toBeTruthy();
+    expect(screen.getByText("Stad Tshwane · 279 Murray Street")).toBeTruthy();
+    // A station with no address: municipality only, and no dangling separator.
+    const sonderAdres = screen.getByRole("option", { name: /BROOKLYN TENT/ });
+    expect(sonderAdres.textContent).toContain("Stad Tshwane");
+    expect(sonderAdres.textContent).not.toContain("Stad Tshwane ·");
+  });
+
+  it("gebruik die enkelvoud wanneer daar een resultaat is", async () => {
+    stelSoek([ry()]);
+    const gebruiker = userEvent.setup();
+    render(<WykSoeker />);
+
+    await gebruiker.type(soekboks(), "Brooklyn");
+    await screen.findByRole("listbox");
+
+    const telling = screen.getByRole("status");
+    expect(telling.textContent).toBe(
+      vulIn(KOPIE.soek_resultate_telling_een, { n: 1, q: "Brooklyn" })
+    );
+    expect(telling.textContent).not.toContain("1 resultate");
+  });
+
+  it("laat nie 'n bengelende aria-controls terwyl die lys toe is nie", async () => {
+    stelSoek([ry()]);
+    const gebruiker = userEvent.setup();
+    render(<WykSoeker />);
+
+    const boks = soekboks();
+    expect(boks.hasAttribute("aria-controls")).toBe(false);
+
+    await gebruiker.type(boks, "Brooklyn");
+    await waitFor(() => expect(boks.getAttribute("aria-expanded")).toBe("true"));
+    const beheer = boks.getAttribute("aria-controls");
+    expect(beheer).toBeTruthy();
+    expect(document.getElementById(String(beheer))).toBeTruthy();
+
+    await gebruiker.keyboard("{Escape}");
+    expect(boks.hasAttribute("aria-controls")).toBe(false);
   });
 });

@@ -19,16 +19,35 @@ const LAT_MAX = -21;
 const LNG_MIN = 15;
 const LNG_MAX = 34;
 
+function getal(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number.parseFloat(v);
+  return Number.NaN;
+}
+
 /**
- * "Find my ward" from a browser geolocation point. Coordinates are personal data (global
- * constraints: "Geolocation coordinates are never stored or logged") — this handler never
- * writes `lat`/`lng` into a console line, an error message or a cache key, and reads with
- * `cache: "no-store"` so the point itself never enters Next's fetch cache either.
+ * "Find my ward" from a browser geolocation point.
+ *
+ * **POST, not GET, and that is a privacy decision, not a REST one.** Coordinates are
+ * personal data (global constraints: "Geolocation coordinates are never stored or logged")
+ * and the hosting platform logs full request URLs, so a point may never ride in a query
+ * string. It arrives in the JSON body instead. Beyond that, this handler never writes
+ * `lat`/`lng` into a console line, an error message or a cache key, and reads upstream with
+ * `cache: "no-store"` so the point never enters Next's fetch cache either.
  */
-export async function GET(req: Request): Promise<Response> {
-  const { searchParams } = new URL(req.url);
-  const lat = Number.parseFloat(searchParams.get("lat") ?? "");
-  const lng = Number.parseFloat(searchParams.get("lng") ?? "");
+export async function POST(req: Request): Promise<Response> {
+  let lat = Number.NaN;
+  let lng = Number.NaN;
+  try {
+    const liggaam = (await req.json()) as unknown;
+    if (liggaam && typeof liggaam === "object") {
+      lat = getal((liggaam as Record<string, unknown>).lat);
+      lng = getal((liggaam as Record<string, unknown>).lng);
+    }
+  } catch {
+    // Unparseable body — nothing logged, since a parse error can quote the body.
+    return Response.json({ fout: "Ongeldige koördinate" }, { status: 400 });
+  }
 
   if (
     !Number.isFinite(lat) ||
@@ -66,4 +85,9 @@ export async function GET(req: Request): Promise<Response> {
     console.error("[wyk-by-punt] opsoek misluk");
     return Response.json({ wyk: null });
   }
+}
+
+/** A GET would put the point in a URL the platform logs. Refuse it outright. */
+export function GET(): Response {
+  return Response.json({ fout: "Gebruik POST" }, { status: 405 });
 }

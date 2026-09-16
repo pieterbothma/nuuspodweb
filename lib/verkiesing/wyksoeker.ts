@@ -56,6 +56,11 @@ export type SoekRy = {
   etiket: string;
   muni_kode: string;
   muni_naam: string;
+  /** The municipality's province, on every row — the search's second subtitle line. */
+  provinsie: string;
+  /** A station's street address; null for a place row, and null for a station whose
+   * source address is empty (that station shows its name and municipality only). */
+  adres: string | null;
   wyk_ids: string[];
   wyk_nrs: number[];
   teiken: string | null;

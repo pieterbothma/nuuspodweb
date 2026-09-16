@@ -38,9 +38,16 @@ export const KOPIE = {
   held_boks_titel: "Kyk of jy geregistreer is en waar jy stem",
   held_boks_skakel: "Sien meer",
   // --- Wyk-soeker (draft values, Task 5) ---------------------------------
-  // Placeholders are substituted by the component and MUST survive a rewrite:
-  //   {n} = a number, {q} = the reader's own search term.
-  // The two message slots below carry two lines separated by "\n": the first line is the
+  // Placeholders are substituted by the component and MUST survive a rewrite. What each
+  // one means is per slot:
+  //   soek_resultate_telling      {n} = how many results, {q} = the reader's search term
+  //   soek_resultate_telling_een  {q} = the reader's search term (the singular of the above)
+  //   soek_wyk_nommer             {n} = the ward number
+  //   soek_wyk_aantal             {n} = how many wards the place spans
+  //   soek_wyke_kies              {n} = how many wards, {q} = the MATCHED PLACE's name
+  //                               (not what the reader typed)
+  //   soek_geen                   {q} = the reader's search term
+  // The three notice slots below carry two lines separated by "\n": the first line is the
   // statement, the second the advice. Keep the newline when rewriting.
   nav_vind_wyk: "Vind jou wyk",
   soek_etiket: "VIND JOU WYK",
@@ -51,6 +58,7 @@ export const KOPIE = {
   soek_groep_plekke: "Plekke",
   soek_groep_stemlokale: "Stemlokale",
   soek_resultate_telling: "{n} resultate vir “{q}”",
+  soek_resultate_telling_een: "1 resultaat vir “{q}”",
   soek_wyk_nommer: "Wyk {n}",
   soek_wyk_aantal: "{n} wyke",
   soek_wyke_kies: "{q} val oor {n} wyke. Kies joune:",

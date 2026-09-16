@@ -18,6 +18,8 @@ const RY: SoekRy = {
   etiket: "Stellenbosch",
   muni_kode: "WC024",
   muni_naam: "Stellenbosch",
+  provinsie: "Wes-Kaap",
+  adres: null,
   wyk_ids: ["19100055"],
   wyk_nrs: [7],
   teiken: "19100055",
