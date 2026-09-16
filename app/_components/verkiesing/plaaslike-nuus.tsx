@@ -38,7 +38,7 @@ function Lys({ stories, nou, wysPlek }: { stories: Storie[]; nou: Date; wysPlek:
               <time dateTime={s.gepubliseer_om} className="tabular-nums">
                 {relatieweTyd(s.gepubliseer_om, nou)}
               </time>
-              <span aria-hidden>↗</span>
+              <span aria-hidden>↗︎</span>
               <span className="sr-only"> (maak in &apos;n nuwe oortjie oop)</span>
             </span>
           </a>

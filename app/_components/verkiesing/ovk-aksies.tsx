@@ -87,7 +87,7 @@ export function OvkAksies({ spesialeStem }: { spesialeStem: SpesialeStemStatus }
             className={KNOPPIE_PRIMER}
           >
             <span>{KOPIE.whatsapp_knoppie}</span>
-            <span aria-hidden>↗</span>
+            <span aria-hidden>↗︎</span>
           </a>
         </div>
 
@@ -116,7 +116,7 @@ export function OvkAksies({ spesialeStem }: { spesialeStem: SpesialeStemStatus }
             className={KNOPPIE_SEKONDER}
           >
             <span>{KOPIE.aanlyn_knoppie}</span>
-            <span aria-hidden>↗</span>
+            <span aria-hidden>↗︎</span>
           </a>
         </div>
 

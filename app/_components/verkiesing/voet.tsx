@@ -18,7 +18,7 @@ export function Voet() {
               rel="noopener"
               className="text-ink underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi"
             >
-              {KOPIE.voet_real411_skakel} ↗
+              {KOPIE.voet_real411_skakel} ↗︎
             </a>
           </p>
         </div>

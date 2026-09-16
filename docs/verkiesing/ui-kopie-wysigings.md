@@ -45,3 +45,4 @@ Second run (same day, adds `uitslag2021_wys_klein` and `uitslag2021_versteek_kle
 Second run (same day, adds `uitvou_wys_stemlokale`, taken as written). Edits after Gemini:
 
 - uitvou_wys_uitslag: "Wys die 2021-uitslae" -> "Wys die uitslag". The heading right above already says 2021, and it is one result (kept the first run's edit).
+- uitvou_wys_uitslag: "Wys die uitslag" -> "Wys die 2021-uitslag". Piet's wording (16 Sep 2026): the year on the button itself.

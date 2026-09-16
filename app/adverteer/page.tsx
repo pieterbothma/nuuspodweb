@@ -281,7 +281,7 @@ export default async function Adverteer() {
                 rel="noopener"
                 className="font-bold text-ink hover:text-rooi font-sans text-xs tracking-widest uppercase focus-visible:outline-2 focus-visible:outline-rooi"
               >
-                Sien die kanaal ↗
+                Sien die kanaal ↗︎
               </a>
             </div>
           </Onthul>

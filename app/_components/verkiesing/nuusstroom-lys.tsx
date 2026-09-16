@@ -76,7 +76,7 @@ export function NuusstroomLys({ items }: { items: StroomPos[] }) {
                 </span>
                 <span className="text-grys group-hover:text-rooi mt-2 inline-flex items-center gap-1 font-sans text-xs font-bold tracking-wide">
                   {KOPIE.stroom_lees_by} {i.bron}
-                  <span aria-hidden>↗</span>
+                  <span aria-hidden>↗︎</span>
                   <span className="sr-only"> (maak in &apos;n nuwe oortjie oop)</span>
                 </span>
               </span>

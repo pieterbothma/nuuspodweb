@@ -79,7 +79,7 @@ export function BronStrook({
             rel="noopener"
             className="text-ink decoration-rand underline underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
           >
-            {KOPIE.bron_ovk_skakel} ↗
+            {KOPIE.bron_ovk_skakel} ↗︎
           </a>
         </p>
         {nota && <p className="mt-1">{nota}</p>}
