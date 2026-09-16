@@ -62,21 +62,66 @@ def test_kaapstad_alias_gee_stad_kaapstad_gegroepeer():
     assert ry["muni_kode"] == "CPT"
     assert ry["muni_naam"] == "City of Cape Town"
     assert ry["rang"] == 1
-    # Die 126 sub-plekke onder hoofplek "Cape Town" dek 26 wyke.
-    assert len(ry["wyk_ids"]) == 26
-    assert len(ry["wyk_nrs"]) == 26
+    # 127 sub-plekke, 27 wyke. Herstelrondte 2 het die 127ste bygevoeg ("Morning Star AH"
+    # onder hoofplek "Cape Town NU"): die landelike agtervoegsel word nou gevou, so 'n
+    # alias dek dieselfde sub-plekke as 'n hoofplek-treffer. Voor dit: 126 en 26.
+    assert len(ry["wyk_ids"]) == 27
+    assert len(ry["wyk_nrs"]) == 27
     assert ry["teiken"] is None  # meer as een wyk
 
 
 def test_mahikeng_alias_gee_een_ry_vir_nw383():
-    rye = [
-        r for r in roep_soek("Mahikeng")
-        if r["etiket"] == "Mahikeng" and r["muni_kode"] == "NW383"
-    ]
-    assert len(rye) == 1
-    assert rye[0]["soort"] == "plek"
-    assert rye[0]["muni_naam"] == "Mafikeng"
-    assert len(rye[0]["wyk_ids"]) == 12
+    """Een ry, vir die munisipaliteit wat aliasse.csv noem, en niks anders nie.
+
+    Die alias dra sy teiken-muni_kode (NW383), so die landelike "Mafikeng NU" — wat oor
+    NW381/NW383/NW384/NW385 strek — lewer nie oorloop-rye vir die buurmunisipaliteite nie.
+    """
+    alias_rye = [r for r in roep_soek("Mahikeng") if r["etiket"] == "Mahikeng"]
+    assert len(alias_rye) == 1
+    ry = alias_rye[0]
+    assert ry["soort"] == "plek"
+    assert ry["muni_kode"] == "NW383"
+    assert ry["muni_naam"] == "Mafikeng"
+    assert ry["provinsie"] == "North West"
+    # Dorp + landelike sub-plekke saam: 26 wyke (was 12 voor herstelrondte 2).
+    assert len(ry["wyk_ids"]) == 26
+
+
+def test_mahikeng_alias_lek_nie_na_n_ander_munisipaliteit_nie():
+    """Die gelyknamige Vrystaatse "Mafikeng" (Maluti a Phofung) mag nie by die alias
+    aansluit nie — aliasse.csv se munisipaliteit_naam ontdubbelsinnig dit."""
+    alias_rye = [r for r in roep_soek("Mahikeng") if r["etiket"] == "Mahikeng"]
+    assert not [r for r in alias_rye if r["muni_naam"] == "Maluti a Phofung"]
+    assert {r["muni_kode"] for r in alias_rye} == {"NW383"}
+
+
+def test_die_enigste_maluti_a_phofung_ry_is_n_pleknaam_treffer():
+    """Wat wél vir Maluti a Phofung oorbly, is 'n egte sub-plek genaamd "Mafikeng" wat
+    die trigram-NAAM-treffer oplewer (similarity('mafikeng', 'mahikeng') = 0,5) — nie 'n
+    alias-ry nie. Dit hoort te bly: dit is 'n werklike plek met daardie naam."""
+    rye = [r for r in roep_soek("Mahikeng") if r["muni_naam"] == "Maluti a Phofung"]
+    assert [r["etiket"] for r in rye] == ["Mafikeng"]
+
+
+def test_mahikeng_dek_dieselfde_wyke_as_die_hoofplek_mafikeng():
+    rye = roep_soek("Mahikeng")
+    alias = [r for r in rye if r["etiket"] == "Mahikeng"]
+    hoofplek = [r for r in rye if r["etiket"] == "Mafikeng" and r["muni_kode"] == "NW383"]
+    assert alias and hoofplek
+    assert alias[0]["wyk_ids"] == hoofplek[0]["wyk_ids"]
+
+
+def test_mahikeng_en_mafikeng_dek_dieselfde_nw383_wyke():
+    def nw383_wyke(navraag: str) -> set[str]:
+        return {
+            wyk_id
+            for ry in roep_soek(navraag)
+            if ry["soort"] == "plek" and ry["muni_kode"] == "NW383"
+            for wyk_id in ry["wyk_ids"]
+        }
+
+    assert nw383_wyke("Mahikeng") == nw383_wyke("Mafikeng")
+    assert len(nw383_wyke("Mahikeng")) == 26
 
 
 def test_alias_en_pleknaam_met_dieselfde_etiket_smelt_saam():

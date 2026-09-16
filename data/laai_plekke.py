@@ -21,6 +21,13 @@ alias wat niks vind nie, is 'n tikfout of 'n verkeerde teiken, nie iets om stilw
 te slaan nie. Plekke sonder wyke word in die verslag aangeteken maar veroorsaak nie 'n
 nie-nul afsluitkode nie (kontroleer.py hou die harde hek daarvoor).
 
+Alias-resolusie (sien `los_alias_op`): 'n CSV-ry se `mp_naam` word aan albei kante gevou
+met `na_mp_naam_soek` (sonder " NU"/" SH", genormaliseer), so "Mafikeng" bring ook die
+landelike "Mafikeng NU" se sub-plek by — dieselfde stel wat soek() se hoofplek-pad tref.
+Die `munisipaliteit_naam`-kolom is nie dokumentasie nie maar 'n filter: net sub-plekke wie
+se 2026-wyk aan daardie munisipaliteit behoort sluit by die alias aan. 'n Onbekende
+munisipaliteitsnaam is 'n harde fout.
+
 Vier modusse (`ontleed_argumente` ontleed die CLI-argumente hieronder):
 
   cd data && uv run --with shapely,pyproj,pyshp,httpx python laai_plekke.py
@@ -328,6 +335,8 @@ def los_alias_op(
     alias_ry: dict,
     plekke_per_naam_mp: dict[tuple[str, str | None], list[str]],
     plekke_per_mp: dict[str, list[str]],
+    muni_kode_per_naam: dict[str, str] | None = None,
+    muni_kodes_per_sp_kode: dict[str, set[str]] | None = None,
 ) -> tuple[list[str], list[dict]]:
     """Los een aliasse.csv-ry op teen die reeds-gelaaide stg_plekke-data.
 
@@ -335,10 +344,19 @@ def los_alias_op(
     - naam + mp_naam albei gegee: presiese (naam, mp_naam)-opeenkoms (een sub-plek).
     - net naam gegee (mp_naam leeg): bybring oor alle mp_naam-waardes met hierdie naam.
     - net mp_naam gegee (naam leeg): "hoofplek"-alias — bring elke sub-plek onder
-      daardie mp_naam by (bv. Kaapstad -> al 126 sub-plekke met mp_naam="Cape Town").
+      daardie hoofplek by (bv. Kaapstad -> al 126 sub-plekke onder "Cape Town").
 
-    munisipaliteit_naam word nie hier gebruik om te filter nie (dis dokumentasie in
-    die CSV vir die mens); die loader se enigste opeenkoms is naam en/of mp_naam.
+    Die mp_naam word aan albei kante deur `na_mp_naam_soek` gevou, dus sonder die
+    landelike " NU"/" SH"-agtervoegsel en genormaliseer — presies soos soek() se
+    `mp_naam_soek`-pad. "Mafikeng" bring dus ook die landelike "Mafikeng NU" by, sodat
+    'n alias dieselfde sub-plekke dek as wat 'n hoofplek-treffer sou dek.
+
+    `munisipaliteit_naam` in die CSV is nie meer net dokumentasie nie: dit ontdubbelsinnig
+    die teiken. Slegs sub-plekke wie se 2026-wyk aan daardie munisipaliteit behoort mag by
+    die alias aansluit — sonder dit sleep "Mahikeng" (hoofplek Mafikeng, NW383) ook 'n
+    gelyknamige Vrystaatse sub-plek in Maluti a Phofung (FS194) in. Die filter word net
+    toegepas as albei indekse gegee is; `vind_onopgeloste_aliasse` (die voor-laai-hek) roep
+    dit doelbewus daarsonder aan, want stg_plek_wyke bestaan op daardie punt nog nie.
 
     Gee (sp_kodes, []) terug — sp_kodes is leeg as niks ooreenstem nie (word deur die
     aanroeper as onopgelos aangeteken). Die tweede lid is 'n gereserveerde plekhouer
@@ -346,35 +364,70 @@ def los_alias_op(
     """
     naam = (alias_ry.get("naam") or "").strip() or None
     mp_naam = (alias_ry.get("mp_naam") or "").strip() or None
+    mp_soek = na_mp_naam_soek(mp_naam)
 
-    if naam is not None and mp_naam is not None:
-        return list(plekke_per_naam_mp.get((naam, mp_naam), [])), []
-
-    if naam is not None:
+    if naam is not None and mp_soek is not None:
+        gevonde = list(plekke_per_naam_mp.get((naam, mp_soek), []))
+    elif naam is not None:
         # geen mp_naam gegee nie: bybring oor alle plekke met hierdie naam, ongeag mp_naam
-        gevonde: list[str] = []
+        gevonde = []
         for (kand_naam, _kand_mp), sp_kodes in plekke_per_naam_mp.items():
             if kand_naam == naam:
                 gevonde.extend(sp_kodes)
-        return gevonde, []
+    elif mp_soek is not None:
+        # "hoofplek"-alias: elke sub-plek onder hierdie hoofplek
+        gevonde = list(plekke_per_mp.get(mp_soek, []))
+    else:
+        return [], []
 
-    if mp_naam is not None:
-        # "hoofplek"-alias: elke sub-plek onder hierdie mp_naam
-        return list(plekke_per_mp.get(mp_naam, [])), []
+    return _filtreer_op_munisipaliteit(
+        alias_ry, gevonde, muni_kode_per_naam, muni_kodes_per_sp_kode
+    ), []
 
-    return [], []
+
+def _filtreer_op_munisipaliteit(
+    alias_ry: dict,
+    sp_kodes: list[str],
+    muni_kode_per_naam: dict[str, str] | None,
+    muni_kodes_per_sp_kode: dict[str, set[str]] | None,
+) -> list[str]:
+    """Hou net die sp_kodes wie se 2026-wyke die CSV-ry se munisipaliteit raak.
+
+    'n Plek wat oor meer as een munisipaliteit strek (bv. die landelike "Mafikeng NU",
+    wat NW381/NW383/NW384/NW385 raak) bly behoue sodra dit die teiken raak — soek() se
+    groepering per (etiket, muni_kode) wys dan net daardie munisipaliteit se wyke.
+    """
+    muni_naam = (alias_ry.get("munisipaliteit_naam") or "").strip()
+    if not muni_naam or muni_kode_per_naam is None or muni_kodes_per_sp_kode is None:
+        return sp_kodes
+
+    teiken = muni_kode_per_naam.get(teks.normaliseer(muni_naam))
+    if teiken is None:
+        # Onbekende munisipaliteitsnaam: `vind_onbekende_alias_munisipaliteite` keer dit
+        # as 'n harde fout voor enige skryfwerk, so hierdie pad is net 'n gordel-en-
+        # kruisbande — filtreer niks weg eerder as om stil die verkeerde ding te doen.
+        return sp_kodes
+
+    return [sp for sp in sp_kodes if teiken in muni_kodes_per_sp_kode.get(sp, set())]
 
 
 def bou_alias_indeks(
     gelaaide_plekke: list[dict],
 ) -> tuple[dict[tuple[str, str | None], list[str]], dict[str, list[str]]]:
-    """Gee (naam+mp_naam-indeks, mp_naam-alleen-indeks) uit die gelaaide stg_plekke-rye."""
+    """Gee (naam+hoofplek-indeks, hoofplek-alleen-indeks) uit die gelaaide stg_plekke-rye.
+
+    Albei indekse word op die **gevoude** hoofplek-naam gesleutel (`na_mp_naam_soek`:
+    sonder " NU"/" SH", genormaliseer), sodat 'n alias-teiken soos "Mafikeng" ook die
+    landelike "Mafikeng NU" se sub-plek insluit — dieselfde stel wat soek() se
+    `mp_naam_soek`-pad sou tref.
+    """
     per_naam_mp: dict[tuple[str, str | None], list[str]] = {}
     per_mp: dict[str, list[str]] = {}
     for ry in gelaaide_plekke:
-        per_naam_mp.setdefault((ry["naam"], ry["mp_naam"]), []).append(ry["sp_kode"])
-        if ry["mp_naam"]:
-            per_mp.setdefault(ry["mp_naam"], []).append(ry["sp_kode"])
+        mp_soek = na_mp_naam_soek(ry["mp_naam"])
+        per_naam_mp.setdefault((ry["naam"], mp_soek), []).append(ry["sp_kode"])
+        if mp_soek:
+            per_mp.setdefault(mp_soek, []).append(ry["sp_kode"])
     return per_naam_mp, per_mp
 
 
@@ -382,23 +435,96 @@ def bou_alias_rye(
     aliasse_csv_rye: list[dict],
     plekke_per_naam_mp: dict[tuple[str, str | None], list[str]],
     plekke_per_mp: dict[str, list[str]],
+    muni_kode_per_naam: dict[str, str] | None = None,
+    muni_kodes_per_sp_kode: dict[str, set[str]] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Gee (stg_plek_aliasse-rye, onopgeloste_rye) terug.
 
     'n stg_plek_aliasse-ry word geskryf vir élke sp_kode wat 'n alias-CSV-ry
     oplewer (een alias kan na meer as een sp_kode wys, bv. 'n hoofplek-alias soos
-    Kaapstad wat elke sub-plek onder mp_naam="Cape Town" bybring).
+    Kaapstad wat elke sub-plek onder "Cape Town" bybring).
+
+    Elke ry dra ook die alias se teiken-`muni_kode` (of None as die CSV-ry geen
+    munisipaliteit noem nie). soek() gebruik dit om 'n alias se rye tot daardie
+    munisipaliteit te beperk: 'n landelike sub-plek soos "Mafikeng NU" strek oor vier
+    munisipaliteite, en sonder die beperking sou "Mahikeng" ook oorloop-rye vir Ratlou,
+    Ditsobotla en Ramotshere Moiloa gegee het i.p.v. een gegroepeerde Mafikeng-ry.
+
+    (alias, sp_kode)-pare word ontdubbel oor die hele CSV, want twee rye kan dieselfde
+    alias na oorvleuelende sp_kodes oplos en `plek_aliasse` het 'n unieke sleutel daarop.
     """
     aliasse: list[dict] = []
+    gesien: set[tuple[str, str]] = set()
     onopgelos: list[dict] = []
     for csv_ry in aliasse_csv_rye:
-        sp_kodes, _ = los_alias_op(csv_ry, plekke_per_naam_mp, plekke_per_mp)
+        sp_kodes, _ = los_alias_op(
+            csv_ry, plekke_per_naam_mp, plekke_per_mp,
+            muni_kode_per_naam, muni_kodes_per_sp_kode,
+        )
         if not sp_kodes:
             onopgelos.append(csv_ry)
             continue
+        muni_naam = (csv_ry.get("munisipaliteit_naam") or "").strip()
+        muni_kode = (
+            (muni_kode_per_naam or {}).get(teks.normaliseer(muni_naam)) if muni_naam else None
+        )
         for sp_kode in sp_kodes:
-            aliasse.append({"alias": csv_ry["alias"], "sp_kode": sp_kode})
+            sleutel = (csv_ry["alias"], sp_kode)
+            if sleutel in gesien:
+                continue
+            gesien.add(sleutel)
+            aliasse.append(
+                {"alias": csv_ry["alias"], "sp_kode": sp_kode, "muni_kode": muni_kode}
+            )
     return aliasse, onopgelos
+
+
+def bou_muni_kode_indeks() -> dict[str, str]:
+    """{genormaliseerde munisipaliteitsnaam: kode} uit stg_munisipaliteite."""
+    rye = supabase.kry_alles("stg_munisipaliteite", {"select": "kode,naam"}, orde="kode")
+    return {teks.normaliseer(ry["naam"]): ry["kode"] for ry in rye}
+
+
+def bou_plek_muni_indeks() -> dict[str, set[str]]:
+    """{sp_kode: {muni_kode van elke 2026-wyk wat die plek raak}} uit stg_plek_wyke+stg_wyke."""
+    plek_wyke = supabase.kry_alles(
+        "stg_plek_wyke", {"select": "sp_kode,wyk_id"}, orde="sp_kode,wyk_id"
+    )
+    wyke = supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, orde="wyk_id")
+    muni_per_wyk = {ry["wyk_id"]: ry["muni_kode"] for ry in wyke}
+
+    uit: dict[str, set[str]] = {}
+    for ry in plek_wyke:
+        muni_kode = muni_per_wyk.get(ry["wyk_id"])
+        if muni_kode:
+            uit.setdefault(ry["sp_kode"], set()).add(muni_kode)
+    return uit
+
+
+def vind_onbekende_alias_munisipaliteite(
+    aliasse_csv_rye: list[dict], muni_kode_per_naam: dict[str, str]
+) -> list[dict]:
+    """CSV-rye wie se `munisipaliteit_naam` nie 'n munisipaliteit is nie.
+
+    'n Tikfout hier sou die munisipaliteitsfilter stil laat deurglip, so die aanroeper
+    hanteer 'n nie-leë resultaat as 'n harde fout en skryf niks.
+    """
+    onbekend = []
+    for csv_ry in aliasse_csv_rye:
+        muni_naam = (csv_ry.get("munisipaliteit_naam") or "").strip()
+        if muni_naam and teks.normaliseer(muni_naam) not in muni_kode_per_naam:
+            onbekend.append(csv_ry)
+    return onbekend
+
+
+def druk_onbekende_alias_munisipaliteite_fout(onbekend: list[dict]) -> None:
+    print(
+        f"Fout: {len(onbekend)} alias-ry(e) in {ALIASSE_CSV_PAD.name} noem 'n "
+        "munisipaliteit wat nie in stg_munisipaliteite bestaan nie — niks is geskryf nie:",
+        file=sys.stderr,
+    )
+    for ry in onbekend:
+        print(f"  - {ry['alias']}: munisipaliteit_naam={ry.get('munisipaliteit_naam')!r}", file=sys.stderr)
 
 
 def vind_onopgeloste_aliasse(aliasse_csv_rye: list[dict], plekke: list[dict]) -> list[dict]:
@@ -430,18 +556,35 @@ def bou_alias_resolusie_tabel(
     aliasse_csv_rye: list[dict],
     plekke_per_naam_mp: dict[tuple[str, str | None], list[str]],
     plekke_per_mp: dict[str, list[str]],
+    muni_kode_per_naam: dict[str, str] | None = None,
+    muni_kodes_per_sp_kode: dict[str, set[str]] | None = None,
 ) -> list[dict]:
-    """Een inskrywing per aliasse.csv-ry: {alias, naam, mp_naam, opgelos, sp_kode_tal}."""
+    """Een inskrywing per aliasse.csv-ry: {alias, naam, mp_naam, muni, sp_kode_tal, ...}.
+
+    `sp_kode_tal_ongefiltreer` wys hoeveel sub-plekke die naam-/hoofplek-opeenkoms alleen
+    gegee het, sodat die verslag wys wat die munisipaliteitsfilter uitgehou het.
+    """
     tabel: list[dict] = []
     for csv_ry in aliasse_csv_rye:
-        sp_kodes, _ = los_alias_op(csv_ry, plekke_per_naam_mp, plekke_per_mp)
+        rou, _ = los_alias_op(csv_ry, plekke_per_naam_mp, plekke_per_mp)
+        sp_kodes, _ = los_alias_op(
+            csv_ry, plekke_per_naam_mp, plekke_per_mp,
+            muni_kode_per_naam, muni_kodes_per_sp_kode,
+        )
+        muni_naam = (csv_ry.get("munisipaliteit_naam") or "").strip()
         tabel.append(
             {
                 "alias": csv_ry["alias"],
                 "naam": csv_ry["naam"],
                 "mp_naam": csv_ry.get("mp_naam") or None,
+                "munisipaliteit_naam": muni_naam or None,
+                "muni_kode": (
+                    (muni_kode_per_naam or {}).get(teks.normaliseer(muni_naam))
+                    if muni_naam else None
+                ),
                 "opgelos": bool(sp_kodes),
                 "sp_kode_tal": len(sp_kodes),
+                "sp_kode_tal_ongefiltreer": len(rou),
             }
         )
     return tabel
@@ -466,12 +609,19 @@ def bou_alias_afdeling_reëls(
     r.append(f"- Gelaai na `stg_plek_aliasse`: **{aliasse_gelaai}**")
     r.append("")
     r.append("### Alias-resolusietabel")
-    r.append("| alias | naam | mp_naam | opgelos? | sp_kode-tal |")
-    r.append("|---|---|---|---|---:|")
+    r.append(
+        "`sp_kode-tal` is ná die munisipaliteitsfilter; `ongefiltreer` is wat die naam-/"
+        "hoofplek-opeenkoms alleen sou gee (die verskil is wat die filter uitgehou het)."
+    )
+    r.append("")
+    r.append("| alias | naam | mp_naam | munisipaliteit | kode | opgelos? | sp_kode-tal | ongefiltreer |")
+    r.append("|---|---|---|---|---|---|---:|---:|")
     for reël in alias_resolusie_tabel:
         r.append(
             f"| {reël['alias']} | {reël['naam']} | {reël['mp_naam'] or ''} | "
-            f"{'ja' if reël['opgelos'] else '**nee**'} | {reël['sp_kode_tal']} |"
+            f"{reël.get('munisipaliteit_naam') or ''} | {reël.get('muni_kode') or ''} | "
+            f"{'ja' if reël['opgelos'] else '**nee**'} | {reël['sp_kode_tal']} | "
+            f"{reël.get('sp_kode_tal_ongefiltreer', reël['sp_kode_tal'])} |"
         )
     r.append("")
     if onopgeloste_aliasse:
@@ -808,9 +958,30 @@ def hoof(volledig: bool = False) -> int:
     # --- aliasse ---
     aliasse_csv_rye = lees_aliasse_csv(ALIASSE_CSV_PAD)
     plekke_per_naam_mp, plekke_per_mp = bou_alias_indeks(alle_plekke)
-    alias_rye, onopgeloste_aliasse = bou_alias_rye(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
 
-    alias_resolusie_tabel = bou_alias_resolusie_tabel(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
+    # Munisipaliteitsfilter: stg_plek_wyke is nou gebou, so 'n alias se teiken-
+    # munisipaliteit kan nagegaan word (sien `los_alias_op`).
+    try:
+        muni_kode_per_naam = bou_muni_kode_indeks()
+        muni_kodes_per_sp_kode = bou_plek_muni_indeks()
+    except supabase.SupabaseFout as fout:
+        print(f"kon nie die munisipaliteit-indekse bou nie: {fout}", file=sys.stderr)
+        return 1
+
+    onbekende_munis = vind_onbekende_alias_munisipaliteite(aliasse_csv_rye, muni_kode_per_naam)
+    if onbekende_munis:
+        druk_onbekende_alias_munisipaliteite_fout(onbekende_munis)
+        return 1
+
+    alias_rye, onopgeloste_aliasse = bou_alias_rye(
+        aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp,
+        muni_kode_per_naam, muni_kodes_per_sp_kode,
+    )
+
+    alias_resolusie_tabel = bou_alias_resolusie_tabel(
+        aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp,
+        muni_kode_per_naam, muni_kodes_per_sp_kode,
+    )
 
     if onopgeloste_aliasse:
         # Can only happen if stg_plekke read back differs from what was just loaded.
@@ -929,8 +1100,28 @@ def hoof_net_aliasse() -> int:
 
     aliasse_csv_rye = lees_aliasse_csv(ALIASSE_CSV_PAD)
     plekke_per_naam_mp, plekke_per_mp = bou_alias_indeks(alle_plekke)
-    alias_rye, onopgeloste_aliasse = bou_alias_rye(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
-    alias_resolusie_tabel = bou_alias_resolusie_tabel(aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp)
+
+    try:
+        muni_kode_per_naam = bou_muni_kode_indeks()
+        muni_kodes_per_sp_kode = bou_plek_muni_indeks()
+    except supabase.SupabaseFout as fout:
+        print(f"kon nie die munisipaliteit-indekse bou nie: {fout}", file=sys.stderr)
+        return 1
+
+    onbekende_munis = vind_onbekende_alias_munisipaliteite(aliasse_csv_rye, muni_kode_per_naam)
+    if onbekende_munis:
+        # Hard failure before stg_leeg, so the aliases already in the DB stay intact.
+        druk_onbekende_alias_munisipaliteite_fout(onbekende_munis)
+        return 1
+
+    alias_rye, onopgeloste_aliasse = bou_alias_rye(
+        aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp,
+        muni_kode_per_naam, muni_kodes_per_sp_kode,
+    )
+    alias_resolusie_tabel = bou_alias_resolusie_tabel(
+        aliasse_csv_rye, plekke_per_naam_mp, plekke_per_mp,
+        muni_kode_per_naam, muni_kodes_per_sp_kode,
+    )
 
     if onopgeloste_aliasse:
         # Hard failure before stg_leeg, so the aliases already in the DB stay intact.

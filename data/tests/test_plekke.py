@@ -91,7 +91,53 @@ def _sintetiese_plekke() -> list[dict]:
         {"sp_kode": "3", "naam": "Pretoria West", "mp_naam": "Pretoria"},
         {"sp_kode": "4", "naam": "Brooklyn", "mp_naam": "Pretoria"},
         {"sp_kode": "5", "naam": "Brooklyn", "mp_naam": "Overberg"},
+        # Landelike hoofplek: vou na dieselfde hoofplek as "Cape Town".
+        {"sp_kode": "6", "naam": "Kaapse Buitegebied", "mp_naam": "Cape Town NU"},
+        # Gelyknamige hoofplek in 'n ander munisipaliteit — die munisipaliteitsfilter
+        # moet hierdie een uithou.
+        {"sp_kode": "7", "naam": "Cape Town", "mp_naam": "Cape Town"},
     ]
+
+
+# {sp_kode: {muni_kode}} vir _sintetiese_plekke: 1, 2 en 6 in CPT, 3 en 4 in TSH,
+# 5 in WC031, en 7 in 'n heel ander munisipaliteit.
+_SINTETIESE_PLEK_MUNIS = {
+    "1": {"CPT"}, "2": {"CPT"}, "3": {"TSH"}, "4": {"TSH"},
+    "5": {"WC031"}, "6": {"CPT"}, "7": {"FS194"},
+}
+_SINTETIESE_MUNI_KODES = {
+    "city of cape town": "CPT",
+    "city of tshwane": "TSH",
+    "maluti a phofung": "FS194",
+}
+
+
+def _stub_kry_alles(pad, *a, **kw):
+    """Vervang lib.supabase.kry_alles vir die hoof_net_aliasse-toetse (geen netwerk)."""
+    if pad == "stg_plekke":
+        return _sintetiese_plekke()
+    if pad == "stg_munisipaliteite":
+        return [
+            {"kode": kode, "naam": naam}
+            for naam, kode in (
+                ("City of Cape Town", "CPT"),
+                ("City of Tshwane", "TSH"),
+                ("Maluti a Phofung", "FS194"),
+            )
+        ]
+    if pad == "stg_plek_wyke":
+        return [
+            {"sp_kode": sp, "wyk_id": f"{sp}000000{i}"}
+            for sp, munis in _SINTETIESE_PLEK_MUNIS.items()
+            for i, _m in enumerate(sorted(munis))
+        ]
+    if pad == "stg_wyke":
+        return [
+            {"wyk_id": f"{sp}000000{i}", "muni_kode": m}
+            for sp, munis in _SINTETIESE_PLEK_MUNIS.items()
+            for i, m in enumerate(sorted(munis))
+        ]
+    raise AssertionError(f"onverwagte pad: {pad}")
 
 
 def test_los_alias_op_naam_en_mp_naam_presies():
@@ -109,7 +155,66 @@ def test_los_alias_op_net_naam_bybring_oor_alle_mp_naam():
 def test_los_alias_op_net_mp_naam_bring_hele_hoofplek_by():
     per_naam_mp, per_mp = lp.bou_alias_indeks(_sintetiese_plekke())
     sp_kodes, _ = lp.los_alias_op({"naam": "", "mp_naam": "Cape Town"}, per_naam_mp, per_mp)
-    assert sorted(sp_kodes) == ["1", "2"]
+    # 6 is "Cape Town NU" — die landelike agtervoegsel word gestroop, so dit hoort by
+    # dieselfde hoofplek; 7 is 'n gelyknamige hoofplek in 'n ander munisipaliteit en word
+    # eers deur die munisipaliteitsfilter uitgehou (sien die toets hieronder).
+    assert sorted(sp_kodes) == ["1", "2", "6", "7"]
+
+
+def test_los_alias_op_vou_die_landelike_hoofplek_agtervoegsel():
+    """"Cape Town NU" en "Cape Town" is dieselfde hoofplek vir 'n alias-teiken.
+
+    Dít is wat soek() se mp_naam_soek-pad ook doen, so 'n alias dek presies dieselfde
+    sub-plekke as 'n hoofplek-treffer.
+    """
+    per_naam_mp, per_mp = lp.bou_alias_indeks(_sintetiese_plekke())
+    via_dorp, _ = lp.los_alias_op({"naam": "", "mp_naam": "Cape Town"}, per_naam_mp, per_mp)
+    via_nu, _ = lp.los_alias_op({"naam": "", "mp_naam": "Cape Town NU"}, per_naam_mp, per_mp)
+    assert sorted(via_dorp) == sorted(via_nu)
+    assert "6" in via_dorp
+
+
+def test_los_alias_op_filtreer_op_munisipaliteit():
+    """Net sub-plekke wie se 2026-wyk aan die CSV se munisipaliteit behoort sluit aan."""
+    per_naam_mp, per_mp = lp.bou_alias_indeks(_sintetiese_plekke())
+    ry = {"naam": "", "mp_naam": "Cape Town", "munisipaliteit_naam": "City of Cape Town"}
+    sp_kodes, _ = lp.los_alias_op(
+        ry, per_naam_mp, per_mp, _SINTETIESE_MUNI_KODES, _SINTETIESE_PLEK_MUNIS
+    )
+    # 7 het dieselfde hoofpleknaam maar lê in Maluti a Phofung — uitgehou.
+    assert sorted(sp_kodes) == ["1", "2", "6"]
+
+
+def test_los_alias_op_sonder_munisipaliteit_filtreer_niks():
+    per_naam_mp, per_mp = lp.bou_alias_indeks(_sintetiese_plekke())
+    ry = {"naam": "", "mp_naam": "Cape Town", "munisipaliteit_naam": ""}
+    sp_kodes, _ = lp.los_alias_op(
+        ry, per_naam_mp, per_mp, _SINTETIESE_MUNI_KODES, _SINTETIESE_PLEK_MUNIS
+    )
+    assert sorted(sp_kodes) == ["1", "2", "6", "7"]
+
+
+def test_bou_alias_rye_ontdubbel_dieselfde_alias_sp_kode_paar():
+    """Twee CSV-rye vir dieselfde alias mag nie 'n (alias, sp_kode)-duplikaat gee nie."""
+    per_naam_mp, per_mp = lp.bou_alias_indeks(_sintetiese_plekke())
+    csv_rye = [
+        {"alias": "Kaapstad", "naam": "", "mp_naam": "Cape Town", "munisipaliteit_naam": ""},
+        {"alias": "Kaapstad", "naam": "", "mp_naam": "Cape Town NU", "munisipaliteit_naam": ""},
+    ]
+    rye, onopgelos = lp.bou_alias_rye(csv_rye, per_naam_mp, per_mp)
+    assert onopgelos == []
+    pare = [(r["alias"], r["sp_kode"]) for r in rye]
+    assert len(pare) == len(set(pare))
+
+
+def test_vind_onbekende_alias_munisipaliteite():
+    csv_rye = [
+        {"alias": "Kaapstad", "munisipaliteit_naam": "City of Cape Town"},
+        {"alias": "Sonder", "munisipaliteit_naam": ""},
+        {"alias": "Tikfout", "munisipaliteit_naam": "Stad Kaapstadt"},
+    ]
+    onbekend = lp.vind_onbekende_alias_munisipaliteite(csv_rye, _SINTETIESE_MUNI_KODES)
+    assert [r["alias"] for r in onbekend] == ["Tikfout"]
 
 
 def test_los_alias_op_onopgelos_gee_leë_lys():
@@ -322,7 +427,9 @@ def test_bou_alias_rye_skei_opgelos_van_onopgelos():
         {"alias": "Nooit-Bestaan-Nie", "naam": "Nêrens", "mp_naam": ""},
     ]
     aliasse, onopgelos = lp.bou_alias_rye(csv_rye, per_naam_mp, per_mp)
-    assert {a["sp_kode"] for a in aliasse if a["alias"] == "Kaapstad"} == {"1", "2"}
+    # 6 = "Cape Town NU" (gevoude agtervoegsel), 7 = gelyknamige hoofplek elders; sonder
+    # 'n munisipaliteit in die ry word niks gefiltreer nie.
+    assert {a["sp_kode"] for a in aliasse if a["alias"] == "Kaapstad"} == {"1", "2", "6", "7"}
     assert len(onopgelos) == 1
     assert onopgelos[0]["alias"] == "Nooit-Bestaan-Nie"
 
@@ -387,7 +494,7 @@ def test_net_aliasse_faal_hard_en_skryf_niks_as_n_alias_na_0_plekke_oplos(monkey
     )
     monkeypatch.setattr(lp, "ALIASSE_CSV_PAD", csv_pad)
     monkeypatch.setattr(lp, "VERSLAG_PAD", tmp_path / "plekke-verslag.md")
-    monkeypatch.setattr(lp.supabase, "kry_alles", lambda *a, **kw: _sintetiese_plekke())
+    monkeypatch.setattr(lp.supabase, "kry_alles", _stub_kry_alles)
 
     def _mag_nie_skryf_nie(*a, **kw):
         raise AssertionError("mag nie na Supabase skryf nie")
@@ -396,3 +503,24 @@ def test_net_aliasse_faal_hard_en_skryf_niks_as_n_alias_na_0_plekke_oplos(monkey
     monkeypatch.setattr(lp.supabase, "plaas_bondels", _mag_nie_skryf_nie)
 
     assert lp.hoof_net_aliasse() == 1
+
+
+def test_bou_alias_rye_dra_die_teiken_muni_kode():
+    """soek() beperk 'n alias se rye tot hierdie muni_kode (sien migrasie
+    plek_aliasse_muni_kode) — 'n landelike sub-plek kan oor meer as een munisipaliteit
+    strek, en 'n alias praat net van een."""
+    per_naam_mp, per_mp = lp.bou_alias_indeks(_sintetiese_plekke())
+    csv_rye = [
+        {"alias": "Kaapstad", "naam": "", "mp_naam": "Cape Town",
+         "munisipaliteit_naam": "City of Cape Town"},
+        {"alias": "Sonder-Muni", "naam": "", "mp_naam": "Cape Town", "munisipaliteit_naam": ""},
+    ]
+    rye, onopgelos = lp.bou_alias_rye(
+        csv_rye, per_naam_mp, per_mp, _SINTETIESE_MUNI_KODES, _SINTETIESE_PLEK_MUNIS
+    )
+    assert onopgelos == []
+    kaapstad = [r for r in rye if r["alias"] == "Kaapstad"]
+    assert {r["muni_kode"] for r in kaapstad} == {"CPT"}
+    assert sorted(r["sp_kode"] for r in kaapstad) == ["1", "2", "6"]
+    sonder = [r for r in rye if r["alias"] == "Sonder-Muni"]
+    assert {r["muni_kode"] for r in sonder} == {None}
