@@ -1,0 +1,93 @@
+{
+ "artboards": [
+  {
+   "file": "Main.dc.html",
+   "title": "Tuisblad — soek oop (rekenaar)",
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1080
+  },
+  {
+   "file": "SoekFoon.dc.html",
+   "title": "Tuisblad — soek oop (foon)",
+   "x": 1540,
+   "y": 0,
+   "w": 390,
+   "h": 1180
+  },
+  {
+   "file": "SoekToestande.dc.html",
+   "title": "Soekboks — toestande",
+   "x": 2030,
+   "y": 0,
+   "w": 1440,
+   "h": 900
+  },
+  {
+   "file": "Wyk.dc.html",
+   "title": "/wyk/[id] — Wyk 10, Stellenbosch (rekenaar)",
+   "x": 0,
+   "y": 1380,
+   "w": 1440,
+   "h": 2200
+  },
+  {
+   "file": "WykFoon.dc.html",
+   "title": "/wyk/[id] (foon)",
+   "x": 1540,
+   "y": 1380,
+   "w": 390,
+   "h": 2500
+  },
+  {
+   "file": "Deelkaart.dc.html",
+   "title": "Deelkaart (Open Graph)",
+   "x": 2030,
+   "y": 1380,
+   "w": 1200,
+   "h": 630
+  },
+  {
+   "file": "Munisipaliteit.dc.html",
+   "title": "/munisipaliteit/[kode] — Stellenbosch",
+   "x": 2030,
+   "y": 2160,
+   "w": 1440,
+   "h": 1700
+  }
+ ],
+ "annotations": [
+  {
+   "id": "nota-soek",
+   "x": 0,
+   "y": -330,
+   "w": 520,
+   "text": "Wyk-soeker in die neon-boks langs “Verkiesing 2026”.\nPlekke en stemlokale in een lys. ’n Plek oor meer as een wyk wys ’n kiesstrook (Wyk 56 / Wyk 82).\n“Gebruik my ligging” stoor of log nooit jou ligging nie.\n“Bevestig jou status” skuif na ’n klein “Sien meer”-skakel onder die soekboks."
+  },
+  {
+   "id": "nota-data",
+   "x": 560,
+   "y": -330,
+   "w": 520,
+   "text": "Regte data: Brooklyn-treffers, wyke, stemlokale (OVK) en die 2021-setels vir Stellenbosch.\nVOORBEELD-name en PARTY A–F is plekhouers — die OVK publiseer die finale kandidaatlyste op 16 September.\nAlle Afrikaanse koppelvlak-kopie hier is ’n konsep; Gemini skryf die finale kopie."
+  },
+  {
+   "id": "nota-wyk",
+   "x": 0,
+   "y": 1180,
+   "w": 620,
+   "text": "Wykblad: 3 stembriewe vir ’n plaaslike munisipaliteit (wyk, raad, distriksraad); metro’s kry 2.\nKandidate kry elk presies dieselfde ruimte, geen partykleure nie. Volgorde: “Alfabeties” tot die trekking op 23 Sep, dan “Volgorde soos op die stembrief”.\nName van die OVK word gewys soos gepubliseer (hoofletters)."
+  },
+  {
+   "id": "nota-muni",
+   "x": 3510,
+   "y": 2160,
+   "w": 380,
+   "text": "Raad ná 2021: gesorteer op partynaam, nie op setels nie.\nPartye sonder setels is by verstek versteek (jou besluit).\nVir die 70 rade sonder ’n meerderheid wys ’n reël: “Geen party het in 2021 ’n meerderheid gehad nie.” Stellenbosch het wel een."
+  }
+ ],
+ "launch": {
+  "view": "canvas"
+ }
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&amp;family=Source+Sans+3:wght@400;700&amp;display=swap">
+  <style>
+    body { margin: 0; background: #ffffff; }
+    a { color: #0b0d10; text-decoration: none; } a:hover { color: #e53935; }
+    .disp { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; }
+    .sans { font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; }
+    .neon { border: 3px solid transparent; background: linear-gradient(#fff, #fff) padding-box, linear-gradient(120deg, #00d2fa, #fa2229) border-box; }
+    .neon-dun { border: 2px solid transparent; background: linear-gradient(#fff, #fff) padding-box, linear-gradient(120deg, #00d2fa, #fa2229) border-box; }
+    .etiket { font-family: 'Source Sans 3', Arial, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: #0b0d10; }
+    .knop { font-family: 'Source Sans 3', Arial, sans-serif; border: 1px solid #e5e5e5; border-radius: 4px; padding: 8px 16px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #0b0d10; background: #fff; display: inline-flex; align-items: center; gap: 8px; }
+  </style>
+</helmet>
+<div style="width: 1200px; height: 630px; background: #fff; padding: 28px; box-sizing: border-box;">
+  <div class="neon" style="border-width: 8px; height: 100%; box-sizing: border-box; padding: 48px 64px; display: flex; flex-direction: column; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <img src="logo.jpg" alt="" style="width: 64px; height: 64px; border-radius: 999px; display: block;">
+      <div style="line-height: 1;"><div class="disp" style="font-size: 32px; letter-spacing: 0.14em; color: #0b0d10;">NUUSPOD</div><div class="sans" style="margin-top: 6px; font-size: 16px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #0b0d10;">Verkiesing 2026</div></div>
+    </div>
+    <div>
+      <div class="disp" style="font-size: 150px; line-height: 0.88; letter-spacing: -0.02em; color: #0b0d10;">Wyk <span style="color: #e53935;">10</span></div>
+      <div class="disp" style="margin-top: 12px; font-size: 52px; color: #0b0d10;">Stellenbosch</div>
+    </div>
+    <div class="sans" style="font-size: 26px; font-weight: 700; color: #0b0d10;">[n] kandidate · Stem op 4 November</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
