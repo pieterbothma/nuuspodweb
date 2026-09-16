@@ -14,11 +14,11 @@ leaves `data/uitvoer/publiseer-verslag.md` behind — even when it fails.
 
 What it does, in order:
 
-1. `kontroleer_datastelle` — every name must be on the same 11-name allow-list the SQL
+1. `kontroleer_datastelle` — every name must be on the same 13-name allow-list the SQL
    functions hard-code (`publiseer_leeg`/`publiseer_tabel`/`publiseer_afrond`, migration
    20260916062706 and its fix rounds). A name off the list is a `PubliseerFout` before
    anything is read, let alone written.
-2. Counts: every requested dataset's `stg_` count, and all 11 public counts.
+2. Counts: every requested dataset's `stg_` count, and all 13 public counts.
 3. `kontroleer_afhanklikhede` — the FK gate. The public tables carry real foreign keys
    with no ON DELETE CASCADE, so `publiseer_leeg('wyke')` fails while `public.stemstasies`
    still holds rows. Emptying a parent therefore requires its non-empty children in the
@@ -60,7 +60,7 @@ from lib import omgewing, supabase
 BASIS_PAD = Path(__file__).parent
 VERSLAG_PAD = BASIS_PAD / "uitvoer" / "publiseer-verslag.md"
 
-# The same 11 names, in the same order, as the hard-coded `publiseerbaar` array inside
+# The same 13 names, in the same order, as the hard-coded `publiseerbaar` array inside
 # publiseer_leeg / publiseer_tabel / publiseer_afrond. The order is also the FK-safe
 # **fill** order (every parent before its children); the empty phase walks it backwards.
 PUBLISEERBAAR: tuple[str, ...] = (
@@ -75,6 +75,8 @@ PUBLISEERBAAR: tuple[str, ...] = (
     "partye",
     "kandidate",
     "stembrief_volgorde",
+    "wyk_2021_opsomming",
+    "wyk_uitslae_2021",
 )
 
 # public FK dependents per dataset (migration 20260915082741 + 20260915111818). Used by
@@ -89,7 +91,8 @@ KINDERS: dict[str, tuple[str, ...]] = {
         "kandidate",
         "stembrief_volgorde",
     ),
-    "wyke": ("stemstasies", "plek_wyke", "kandidate"),
+    "wyke": ("stemstasies", "plek_wyke", "kandidate", "wyk_2021_opsomming"),
+    "wyk_2021_opsomming": ("wyk_uitslae_2021",),
     "plekke": ("plek_wyke", "plek_aliasse"),
     "partye": ("kandidate", "stembrief_volgorde"),
 }
@@ -108,6 +111,8 @@ TAG_PER_DATASTEL: dict[str, str] = {
     "partye": "kandidate",
     "kandidate": "kandidate",
     "stembrief_volgorde": "kandidate",
+    "wyk_2021_opsomming": "wyke",
+    "wyk_uitslae_2021": "wyke",
 }
 TAG_ORDE: tuple[str, ...] = ("wyke", "kandidate")
 
@@ -186,7 +191,7 @@ def kontroleer_afhanklikhede(
     `publiseer_leeg(ouer)` is a plain DELETE, and the public FKs have no ON DELETE
     CASCADE, so a parent can only be emptied when each of its children is either empty
     or being republished in the same run. A missing count counts as 0 (the caller reads
-    all 11 public counts before calling this).
+    all 13 public counts before calling this).
     """
     gevra = set(datastelle)
     blokkeerders: list[str] = []

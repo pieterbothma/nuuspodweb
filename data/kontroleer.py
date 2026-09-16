@@ -85,6 +85,11 @@ DIFF_SPEK: dict[str, tuple[tuple[str, ...], str]] = {
         "id,muni_kode,stembrief,wyk_id,lys_posisie,party_id,onafhanklik,volle_naam,van,bron_lêer,bron_ry",
     ),
     "stembrief_volgorde": (("muni_kode", "stembrief", "party_id"), "muni_kode,stembrief,party_id,posisie"),
+    "wyk_2021_opsomming": (
+        ("wyk_id",),
+        "wyk_id,wyk_id_2021,wyk_nr_2021,geregistreer,geldige_stemme,bedorwe_stemme,stemdistrikte",
+    ),
+    "wyk_uitslae_2021": (("wyk_id", "party_naam"), "wyk_id,party_naam,stemme"),
 }
 PUBLIEKE_TABELLE = tuple(DIFF_SPEK)
 

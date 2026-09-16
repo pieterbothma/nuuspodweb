@@ -67,8 +67,8 @@ def test_kontroleer_datastelle_weier_duplikate():
 
 
 def test_witlys_is_presies_die_sql_funksie_se_lys():
-    # Same 11 names, same order, as the hard-coded array in publiseer_leeg /
-    # publiseer_tabel / publiseer_afrond (migration 20260916062706 and its fix rounds).
+    # Same 13 names, same order, as the hard-coded array in publiseer_leeg /
+    # publiseer_tabel / publiseer_afrond (migration 20260916062706, its fix rounds and 20260916152525).
     assert publiseer.PUBLISEERBAAR == (
         "munisipaliteite",
         "wyke",
@@ -81,6 +81,8 @@ def test_witlys_is_presies_die_sql_funksie_se_lys():
         "partye",
         "kandidate",
         "stembrief_volgorde",
+        "wyk_2021_opsomming",
+        "wyk_uitslae_2021",
     )
 
 
