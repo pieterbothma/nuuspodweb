@@ -1,6 +1,7 @@
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { vergelykNaam, type Raad2021, type Raad2021Rooi } from "@/lib/verkiesing/orden";
 import { vulIn } from "./stembriewe";
+import { Uitvou } from "./uitvou";
 
 /**
  * How the council looked after the 2021 election — `Munisipaliteit.dc.html`'s "Raad ná 2021"
@@ -182,65 +183,69 @@ export function Raad2021Tabel({ raad }: { raad: Raad2021 }) {
         </p>
       )}
 
-      {/* The rows stack below `sm`, so nothing overflows on a phone; the container covers the
-          narrow end of the band where the table itself is still in play. */}
-      <div className="border-rand mt-3 border-b sm:overflow-x-auto">
-        <table className={TABEL}>
-          <Kolomme />
-          <Kop />
-          <tbody className="max-sm:block">
-            {seteld.map((r) => (
-              <PartyRy key={r.party_naam} ry={r} merker="seteld" />
-            ))}
-            {raad.onafhanklike_setels > 0 && (
-              <tr data-raad-ry className={RY}>
-                <th scope="row" className={`${SEL} text-left font-bold max-sm:block max-sm:pb-1.5`}>
-                  {KOPIE.muni_2021_onafhanklikes}
-                </th>
-                <Syfer etiket={KOPIE.muni_2021_kolom_wyk} waarde={null} />
-                <Syfer etiket={KOPIE.muni_2021_kolom_pv} waarde={null} />
-                <Syfer
-                  etiket={KOPIE.muni_2021_kolom_totaal}
-                  waarde={raad.onafhanklike_setels}
-                  vet
-                />
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {sonder.length > 0 && (
-        <details data-sonder-setels className="group mt-3.5">
-          {/* w-fit: a block-level summary would stretch the focus ring across the whole column
-              instead of drawing it around the button. */}
-          <summary className="flex w-fit cursor-pointer list-none items-center rounded [&::-webkit-details-marker]:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi">
-            <span className={KNOPPIE}>
-              <span className="group-open:hidden">{sonderEtiket}</span>
-              <span className="hidden group-open:inline">
-                {KOPIE.muni_2021_versteek_sonder_setels}
-              </span>
-              <Pyltjie />
-            </span>
-          </summary>
-          {/* The same <Kolomme /> and <Kop /> as above: identical columns, and an opened
-              disclosure labels its three number columns instead of showing bare digits. */}
+      <div className="mt-4">
+        <Uitvou naam="raad-2021" aantal={raad.rye.length + (raad.onafhanklike_setels > 0 ? 1 : 0)} wys={KOPIE.uitvou_wys_uitslag}>
+          {/* The rows stack below `sm`, so nothing overflows on a phone; the container covers the
+              narrow end of the band where the table itself is still in play. */}
           <div className="border-rand mt-3 border-b sm:overflow-x-auto">
             <table className={TABEL}>
-              <caption className="sr-only">{sonderEtiket}</caption>
               <Kolomme />
               <Kop />
               <tbody className="max-sm:block">
-                {sonder.map((r) => (
-                  <PartyRy key={r.party_naam} ry={r} merker="nul" />
+                {seteld.map((r) => (
+                  <PartyRy key={r.party_naam} ry={r} merker="seteld" />
                 ))}
+                {raad.onafhanklike_setels > 0 && (
+                  <tr data-raad-ry className={RY}>
+                    <th scope="row" className={`${SEL} text-left font-bold max-sm:block max-sm:pb-1.5`}>
+                      {KOPIE.muni_2021_onafhanklikes}
+                    </th>
+                    <Syfer etiket={KOPIE.muni_2021_kolom_wyk} waarde={null} />
+                    <Syfer etiket={KOPIE.muni_2021_kolom_pv} waarde={null} />
+                    <Syfer
+                      etiket={KOPIE.muni_2021_kolom_totaal}
+                      waarde={raad.onafhanklike_setels}
+                      vet
+                    />
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        </details>
-      )}
 
-      <p className="text-grys mt-3.5 font-sans text-sm">{KOPIE.muni_2021_sortering}</p>
+          {sonder.length > 0 && (
+            <details data-sonder-setels className="group mt-3.5">
+              {/* w-fit: a block-level summary would stretch the focus ring across the whole column
+                  instead of drawing it around the button. */}
+              <summary className="flex w-fit cursor-pointer list-none items-center rounded [&::-webkit-details-marker]:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi">
+                <span className={KNOPPIE}>
+                  <span className="group-open:hidden">{sonderEtiket}</span>
+                  <span className="hidden group-open:inline">
+                    {KOPIE.muni_2021_versteek_sonder_setels}
+                  </span>
+                  <Pyltjie />
+                </span>
+              </summary>
+              {/* The same <Kolomme /> and <Kop /> as above: identical columns, and an opened
+                  disclosure labels its three number columns instead of showing bare digits. */}
+              <div className="border-rand mt-3 border-b sm:overflow-x-auto">
+                <table className={TABEL}>
+                  <caption className="sr-only">{sonderEtiket}</caption>
+                  <Kolomme />
+                  <Kop />
+                  <tbody className="max-sm:block">
+                    {sonder.map((r) => (
+                      <PartyRy key={r.party_naam} ry={r} merker="nul" />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+
+          <p className="text-grys mt-3.5 font-sans text-sm">{KOPIE.muni_2021_sortering}</p>
+        </Uitvou>
+      </div>
     </section>
   );
 }

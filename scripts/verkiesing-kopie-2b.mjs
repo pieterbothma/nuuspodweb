@@ -23,6 +23,8 @@ const PLAASLIK = process.argv.includes("--plaaslik");
 const UITSLAG2021 = process.argv.includes("--uitslag2021");
 // `--kandidaat` rewrites only the nameless-candidate placeholder.
 const KANDIDAAT = process.argv.includes("--kandidaat");
+// `--uitvou` rewrites only the show/hide button labels for long lists.
+const UITVOU = process.argv.includes("--uitvou");
 const UIT = join(
   WORTEL,
   PLAASLIK
@@ -31,7 +33,9 @@ const UIT = join(
       ? "docs/verkiesing/ui-kopie-uitslag2021.json"
       : KANDIDAAT
         ? "docs/verkiesing/ui-kopie-kandidaat.json"
-        : "docs/verkiesing/ui-kopie-2b.json"
+        : UITVOU
+          ? "docs/verkiesing/ui-kopie-uitvou.json"
+          : "docs/verkiesing/ui-kopie-2b.json"
 );
 
 function sleutel() {
@@ -78,8 +82,16 @@ const BRIEWE_KANDIDAAT = {
   kandidaat_sonder_naam: "Kort plekhouer op 'n stembrief waar die OVK 'n kandidaat se reël sonder naam gepubliseer het: die kandidaat bestaan, maar die OVK-lys noem geen naam nie. Geen skuld of spekulasie nie.",
 };
 
+const BRIEWE_UITVOU = {
+  uitvou_wys_kandidate: "Kort knoppie wat 'n stembrief se volledige kandidaatlys oopmaak; {n} = hoeveel kandidate. Tot 5 woorde.",
+  uitvou_wys_partye: "Kort knoppie wat die volledige lys partye (op 'n stembrief of in 'n munisipaliteit) oopmaak; {n} = hoeveel partye.",
+  uitvou_wys_berigte: "Kort knoppie wat 'n lys plaaslike nuusopskrifte oopmaak; {n} = hoeveel berigte.",
+  uitvou_wys_uitslag: "Kort knoppie wat die tabel met die 2021-uitslag oopmaak.",
+  uitvou_versteek: "Een woord op dieselfde knoppie wanneer die lys oop is: maak dit weer toe.",
+};
+
 const aktieweBriewe = () =>
-  PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : KANDIDAAT ? BRIEWE_KANDIDAAT : BRIEWE;
+  PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : KANDIDAAT ? BRIEWE_KANDIDAAT : UITVOU ? BRIEWE_UITVOU : BRIEWE;
 
 const plekhouers = (s) => (s.match(/\{[a-z]\}/g) ?? []).sort().join(",");
 const woorde = (s) => s.split(/\s+/).filter(Boolean).length;

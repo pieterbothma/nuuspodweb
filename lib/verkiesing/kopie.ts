@@ -213,6 +213,14 @@ export const KOPIE = {
   plaaslik_dorp: "In {q}",
   plaaslik_munisipaliteit: "Nuus oor {q}",
   plaaslik_muni_opskrif: "Plaaslike nuus uit {q}",
+  // --- Uitvou-knoppies (Gemini) -------------------------------------------
+  // A long list sits behind one button so a phone reader is not scrolling past it.
+  // {n} = how many rows the list holds.
+  uitvou_wys_kandidate: "Wys al {n} kandidate",
+  uitvou_wys_partye: "Wys al {n} partye",
+  uitvou_wys_berigte: "Wys al {n} berigte",
+  uitvou_wys_uitslag: "Wys die uitslag",
+  uitvou_versteek: "Versteek",
   // --- Bladsy nie gevind nie (Gemini, Fase 2b) ----------------------
   nie_gevind_titel: "Bladsy nie gevind nie — Verkiesing 2026",
   nie_gevind_opskrif: "Bladsy nie gevind nie",

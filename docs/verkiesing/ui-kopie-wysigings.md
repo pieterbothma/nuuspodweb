@@ -34,3 +34,10 @@ Second run (same day, adds `uitslag2021_wys_klein` and `uitslag2021_versteek_kle
 # Kandidaat sonder naam (gemini-3.5-flash, 16 Sep 2026)
 
 `node scripts/verkiesing-kopie-2b.mjs --kandidaat` → `ui-kopie-kandidaat.json` (1 slot). Taken as written.
+
+
+# Uitvou-knoppies (gemini-3.5-flash, 16 Sep 2026)
+
+`node scripts/verkiesing-kopie-2b.mjs --uitvou` → `ui-kopie-uitvou.json` (5 slots). Piet asked for long lists behind a button so phone readers don't scroll endlessly. Edits after Gemini:
+
+- uitvou_wys_uitslag: "Wys die uitslae" -> "Wys die uitslag". The button opens one ward's (or one council's) single result, so the singular is correct.

@@ -276,4 +276,26 @@ describe("/wyk/[wykId]", () => {
     expect(screen.getAllByText(KOPIE.volgorde_stembrief)).toHaveLength(3);
     expect(screen.queryByText(KOPIE.volgorde_alfabeties)).toBeNull();
   });
+
+  it("vou 'n lang stembrief heeltemal toe agter een knoppie en laat 'n kort een oop", async () => {
+    const ses = Array.from({ length: 6 }, (_, i) => kandidaat({ volle_naam: `KANDIDAAT ${i}` }));
+    const partye = Array.from({ length: 6 }, (_, i) => partyLys({ party_naam: `PARTY ${i}` }));
+    stel(STELLENBOSCH, [stasie()], { ...LEEG, wyk: ses, pv_plaaslik: partye, pv_distrik: [partyLys()] });
+    const { container } = await wys("10204009");
+
+    const wyk = container.querySelector("details[data-uitvou='wyk']") as HTMLDetailsElement;
+    expect(wyk.open).toBe(false);
+    expect(wyk.querySelector("summary")?.textContent).toContain(vulIn(KOPIE.uitvou_wys_kandidate, { n: 6 }));
+    // The whole list folds, never a "first few" preview that would favour early names.
+    expect(wyk.querySelectorAll("[data-ry='kandidaat']")).toHaveLength(6);
+    expect(container.querySelectorAll("[data-stembrief='wyk'] [data-ry='kandidaat']")).toHaveLength(6);
+
+    const pv = container.querySelector("details[data-uitvou='pv_plaaslik']") as HTMLDetailsElement;
+    expect(pv.open).toBe(false);
+    expect(pv.querySelector("summary")?.textContent).toContain(vulIn(KOPIE.uitvou_wys_partye, { n: 6 }));
+
+    // One party on the district ballot: nothing to fold.
+    expect(container.querySelector("[data-uitvou='pv_distrik']")).toBeNull();
+    expect(container.querySelectorAll("[data-stembrief='pv_distrik'] [data-ry='party']")).toHaveLength(1);
+  });
 });

@@ -385,4 +385,19 @@ describe("/munisipaliteit/[kode]", () => {
     const meta = await generateMetadata({ params: Promise.resolve({ kode: "DC2" }) });
     expect(meta.title).toBe(vulIn(KOPIE.muni_bladtitel, { q: "Kaapse Wynland" }));
   });
+
+  it("vou 'n lang partylys heeltemal toe, maar nie 'n kort een nie", async () => {
+    const lank = ["F", "E", "D", "C", "B", "A"].map((l) => `PARTY ${l}`);
+    haalMuni.mockResolvedValue(muni({ partye: lank }));
+    const { container } = await wys("WC024");
+    const partye = container.querySelector("details[data-uitvou='partye']") as HTMLDetailsElement;
+    expect(partye.open).toBe(false);
+    expect(partye.querySelector("summary")?.textContent).toContain(vulIn(KOPIE.uitvou_wys_partye, { n: 6 }));
+    expect(partye.querySelectorAll("[data-kontesterende-party]")).toHaveLength(6);
+    cleanup();
+
+    haalMuni.mockResolvedValue(muni({ partye: ["PARTY A", "PARTY B"] }));
+    const kort = await wys("WC024");
+    expect(kort.container.querySelector("[data-uitvou='partye']")).toBeNull();
+  });
 });

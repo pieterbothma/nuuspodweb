@@ -2,6 +2,7 @@ import { KOPIE } from "@/lib/verkiesing/kopie";
 import type { NuusGroep, PlaaslikeStorie } from "@/lib/verkiesing/plaaslik";
 import { relatieweTyd } from "@/lib/verkiesing/stroom";
 import { vulIn } from "./stembriewe";
+import { Uitvou } from "./uitvou";
 
 type Storie = Omit<PlaaslikeStorie, "vlak" | "plek"> & { plek: string | null };
 
@@ -55,21 +56,26 @@ function groepOpskrif(g: NuusGroep, muniNaam: string): string {
 
 export function WykNuus({ groepe, muniNaam, nou }: { groepe: NuusGroep[]; muniNaam: string; nou: Date }) {
   if (groepe.length === 0) return null;
+  const aantal = groepe.reduce((som, g) => som + g.stories.length, 0);
   return (
     <section aria-labelledby="plaaslike-nuus" data-plaaslike-nuus className="scroll-mt-24">
       <h2 id="plaaslike-nuus" className="text-rooi-teks font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase">
         {KOPIE.plaaslik_opskrif}
       </h2>
       <p className="text-grys mt-1.5 font-sans text-sm">{KOPIE.plaaslik_onderskrif}</p>
-      <div className="mt-5 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
-        {groepe.map((g) => (
-          <div key={g.vlak} data-nuus-vlak={g.vlak}>
-            <h3 className="text-ink font-sans text-sm font-bold">{groepOpskrif(g, muniNaam)}</h3>
-            {/* The neighbourhood group always names each story's place: "Uit jou omgewing"
-                alone does not say which suburb a headline is about. */}
-            <Lys stories={g.stories} nou={nou} wysPlek={g.vlak === "wyk" || (g.vlak === "dorp" && g.plek === null)} />
+      <div className="mt-4">
+        <Uitvou naam="plaaslike-nuus" aantal={aantal} wys={vulIn(KOPIE.uitvou_wys_berigte, { n: aantal })}>
+          <div className="mt-5 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
+            {groepe.map((g) => (
+              <div key={g.vlak} data-nuus-vlak={g.vlak}>
+                <h3 className="text-ink font-sans text-sm font-bold">{groepOpskrif(g, muniNaam)}</h3>
+                {/* The neighbourhood group always names each story's place: "Uit jou omgewing"
+                    alone does not say which suburb a headline is about. */}
+                <Lys stories={g.stories} nou={nou} wysPlek={g.vlak === "wyk" || (g.vlak === "dorp" && g.plek === null)} />
+              </div>
+            ))}
           </div>
-        ))}
+        </Uitvou>
       </div>
     </section>
   );
@@ -83,8 +89,10 @@ export function MuniNuus({ stories, muniNaam, nou }: { stories: Storie[]; muniNa
         {vulIn(KOPIE.plaaslik_muni_opskrif, { q: muniNaam })}
       </h2>
       <p className="text-grys mt-1.5 font-sans text-sm">{KOPIE.plaaslik_onderskrif}</p>
-      <div className="max-w-3xl">
-        <Lys stories={stories} nou={nou} wysPlek />
+      <div className="mt-4 max-w-3xl">
+        <Uitvou naam="plaaslike-nuus" aantal={stories.length} wys={vulIn(KOPIE.uitvou_wys_berigte, { n: stories.length })}>
+          <Lys stories={stories} nou={nou} wysPlek />
+        </Uitvou>
       </div>
     </section>
   );

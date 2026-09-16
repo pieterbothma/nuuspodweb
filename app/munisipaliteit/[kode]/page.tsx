@@ -6,6 +6,7 @@ import { Kopstuk } from "@/app/_components/verkiesing/kopstuk";
 import { Raad2021Tabel } from "@/app/_components/verkiesing/raad-2021";
 import { vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { Voet } from "@/app/_components/verkiesing/voet";
+import { Uitvou } from "@/app/_components/verkiesing/uitvou";
 import { WykRooster } from "@/app/_components/verkiesing/wyk-rooster";
 import { MuniNuus } from "@/app/_components/verkiesing/plaaslike-nuus";
 import { KOPIE } from "@/lib/verkiesing/kopie";
@@ -114,18 +115,25 @@ function KontesterendePartye({ partye, volgorde }: { partye: string[]; volgorde:
         <p className="text-grys font-sans text-[0.9375rem]">{KOPIE.muni_partye_nog_nie_gelaai}</p>
       ) : (
         // Every party is listed. The mockup's "+ 14 meer" truncation is not implemented:
-        // equal space per party beats hiding some of them behind a count.
-        <ul className="border-rand border-b">
-          {gesorteer.map((p) => (
-            <li
-              key={p}
-              data-kontesterende-party
-              className="border-rand text-ink border-t py-3 font-sans text-[0.9375rem] font-bold"
-            >
-              {p}
-            </li>
-          ))}
-        </ul>
+        // equal space per party beats hiding some of them behind a count. A long list folds
+        // away whole behind one button instead, so no party is shown before another.
+        <Uitvou
+          naam="partye"
+          aantal={gesorteer.length}
+          wys={vulIn(KOPIE.uitvou_wys_partye, { n: gesorteer.length })}
+        >
+          <ul className="border-rand border-b">
+            {gesorteer.map((p) => (
+              <li
+                key={p}
+                data-kontesterende-party
+                className="border-rand text-ink border-t py-3 font-sans text-[0.9375rem] font-bold"
+              >
+                {p}
+              </li>
+            ))}
+          </ul>
+        </Uitvou>
       )}
     </section>
   );

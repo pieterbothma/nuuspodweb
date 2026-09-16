@@ -2,6 +2,7 @@ import Link from "next/link";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import type { WykUitslag2021 } from "@/lib/verkiesing/wyksoeker";
 import { vulIn } from "./stembriewe";
+import { Uitvou } from "./uitvou";
 
 const GETAL = new Intl.NumberFormat("af-ZA");
 const PERSENT = new Intl.NumberFormat("af-ZA", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -117,21 +118,25 @@ export function Uitslag2021({
         </div>
       </dl>
 
-      <Tabel rye={groot} geldig={u.geldige_stemme} />
-      {klein.length > 0 && (
-        <details data-klein-partye className="group mt-3.5">
-          <summary className="flex w-fit cursor-pointer list-none items-center rounded [&::-webkit-details-marker]:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi">
-            <span className="border-rand text-ink hover:border-ink inline-flex items-center gap-2 border px-3 py-2 font-sans text-xs font-bold tracking-[0.12em] uppercase">
-              <span className="group-open:hidden">{vulIn(KOPIE.uitslag2021_wys_klein, { n: klein.length })}</span>
-              <span className="hidden group-open:inline">{KOPIE.uitslag2021_versteek_klein}</span>
-            </span>
-          </summary>
-          <Tabel rye={klein} geldig={u.geldige_stemme} />
-        </details>
-      )}
-      <p className="text-grys mt-2 font-sans text-xs">
-        {KOPIE.muni_2021_sortering} · {KOPIE.uitslag2021_bron}
-      </p>
+      <div className="mt-4">
+        <Uitvou naam="uitslag-2021" aantal={u.rye.length} wys={KOPIE.uitvou_wys_uitslag}>
+          <Tabel rye={groot} geldig={u.geldige_stemme} />
+          {klein.length > 0 && (
+            <details data-klein-partye className="group mt-3.5">
+              <summary className="flex w-fit cursor-pointer list-none items-center rounded [&::-webkit-details-marker]:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi">
+                <span className="border-rand text-ink hover:border-ink inline-flex items-center gap-2 border px-3 py-2 font-sans text-xs font-bold tracking-[0.12em] uppercase">
+                  <span className="group-open:hidden">{vulIn(KOPIE.uitslag2021_wys_klein, { n: klein.length })}</span>
+                  <span className="hidden group-open:inline">{KOPIE.uitslag2021_versteek_klein}</span>
+                </span>
+              </summary>
+              <Tabel rye={klein} geldig={u.geldige_stemme} />
+            </details>
+          )}
+          <p className="text-grys mt-2 font-sans text-xs">
+            {KOPIE.muni_2021_sortering} · {KOPIE.uitslag2021_bron}
+          </p>
+        </Uitvou>
+      </div>
     </section>
   );
 }

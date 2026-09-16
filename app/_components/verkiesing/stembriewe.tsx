@@ -1,6 +1,7 @@
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { distrikNaam, muniNaam } from "@/lib/verkiesing/name";
 import { kandidaatNaam } from "@/lib/verkiesing/orden";
+import { Uitvou } from "./uitvou";
 import type {
   Kandidaat,
   PartyLys,
@@ -25,7 +26,8 @@ import type {
  *  4. **No Afrikaans here.** Every visible string comes from `KOPIE`.
  *
  * Server-rendered end to end: the party lists use `<details>`, so the disclosure needs no
- * client JavaScript.
+ * client JavaScript. A ballot with more than five rows folds its whole list behind one button
+ * (`Uitvou`); the header — which ballot it is — always stays visible.
  */
 
 /**
@@ -270,16 +272,30 @@ export function Stembriewe({ wyk, stembriewe }: { wyk: Wyk; stembriewe: Stembrie
               blok.kandidate.length === 0 ? (
                 <NogGeenKandidate />
               ) : (
-                blok.kandidate.map((k, j) => (
-                  <KandidaatRy key={`${k.volle_naam}-${k.van}-${j}`} kandidaat={k} />
-                ))
+                <Uitvou
+                  naam={blok.sleutel}
+                  binne
+                  aantal={blok.kandidate.length}
+                  wys={vulIn(KOPIE.uitvou_wys_kandidate, { n: blok.kandidate.length })}
+                >
+                  {blok.kandidate.map((k, j) => (
+                    <KandidaatRy key={`${k.volle_naam}-${k.van}-${j}`} kandidaat={k} />
+                  ))}
+                </Uitvou>
               )
             ) : blok.lyste.length === 0 ? (
               <NogGeenKandidate />
             ) : (
-              blok.lyste.map((l) => (
-                <PartyRy key={l.party_naam} lys={l} volgorde={stembriewe.volgorde} />
-              ))
+              <Uitvou
+                naam={blok.sleutel}
+                binne
+                aantal={blok.lyste.length}
+                wys={vulIn(KOPIE.uitvou_wys_partye, { n: blok.lyste.length })}
+              >
+                {blok.lyste.map((l) => (
+                  <PartyRy key={l.party_naam} lys={l} volgorde={stembriewe.volgorde} />
+                ))}
+              </Uitvou>
             )}
           </div>
         </div>
