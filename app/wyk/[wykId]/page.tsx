@@ -6,6 +6,7 @@ import { Kopstuk } from "@/app/_components/verkiesing/kopstuk";
 import { Stembriewe, vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { StemlokaleLys } from "@/app/_components/verkiesing/stemlokale-lys";
 import { KOPIE } from "@/lib/verkiesing/kopie";
+import { muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
 import { geldigeWykId, haalStembriewe, haalStemstasies, haalWyk } from "@/lib/verkiesing/wyksoeker";
 
 /**
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // The same read the page makes, deduplicated by Next's fetch cache within the request.
   const wyk = await haalWyk(wykId);
   if (!wyk) return {};
-  const waardes = { w: wyk.wyk_nr, q: wyk.muni_naam };
+  const waardes = { w: wyk.wyk_nr, q: muniNaam(wyk.muni_kode, wyk.muni_naam) };
   const titel = vulIn(KOPIE.wyk_bladtitel, waardes);
   const beskrywing = vulIn(KOPIE.wyk_beskrywing, waardes);
   return {
@@ -79,7 +80,7 @@ export default async function WykBladsy({ params }: Props) {
           </Link>{" "}
           ›{" "}
           <Link href={`/munisipaliteit/${wyk.muni_kode}`} className={SKAKEL}>
-            {wyk.muni_naam}
+            {muniNaam(wyk.muni_kode, wyk.muni_naam)}
           </Link>{" "}
           › <span aria-current="page">{vulIn(KOPIE.soek_wyk_nommer, { n: wyk.wyk_nr })}</span>
         </nav>
@@ -91,9 +92,9 @@ export default async function WykBladsy({ params }: Props) {
             href={`/munisipaliteit/${wyk.muni_kode}`}
             className="decoration-rand font-bold underline underline-offset-[5px] hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
           >
-            {wyk.muni_naam}
+            {muniNaam(wyk.muni_kode, wyk.muni_naam)}
           </Link>{" "}
-          <span className="text-grys">· {wyk.provinsie}</span>
+          <span className="text-grys">· {provinsieNaam(wyk.provinsie)}</span>
         </p>
 
         {/* Phone order: councillor, stations, ballots (the sidebar comes first in the DOM).

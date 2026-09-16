@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import { KOPIE } from "@/lib/verkiesing/kopie";
+import { muniNaam } from "@/lib/verkiesing/name";
 import { haalStembriewe, haalWyk } from "@/lib/verkiesing/wyksoeker";
 
 /**
@@ -38,7 +39,7 @@ export default async function DeelKaart({ params }: { params: Promise<{ wykId: s
   const aantal = wyk ? (await haalStembriewe(wyk)).wyk.length : 0;
   const onderaan = aantal > 0 ? KOPIE.og_wyk_sjabloon.replace("{n}", String(aantal)) : KOPIE.og_wyk_geen;
   const [voor] = KOPIE.soek_wyk_nommer.split("{n}");
-  const naam = wyk?.muni_naam ?? "";
+  const naam = wyk ? muniNaam(wyk.muni_kode, wyk.muni_naam) : "";
 
   const display = leesLeer("public/fonts/DMSerifDisplay-Regular.ttf");
   const sansNormaal = leesLeer("public/fonts/SourceSans3-Regular.ttf");
