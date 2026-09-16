@@ -270,6 +270,96 @@ def kontroleer_id_skans(kandidaat: Kandidaat, bladsy_nr: int, ry_nr: int) -> Non
             )
 
 
+# --- 2026-uitleg: geen tabelrooster nie, dus woorde per kolomposisie ------------------------
+
+# Header words that open a column, in the order they may appear. The 2026 national list adds
+# "Province" in front; the provincial lists start at "Municipality".
+_KOP_ANKERS = ("Province", "Municipality", "Party", "Ward", "IDNumber", "Fullname", "Surname")
+_RY_TOLERANSIE = 2.5  # points: words whose tops differ by less than this share a line
+
+
+def _lyne(woorde: list[dict]) -> list[list[dict]]:
+    """Group pdfplumber words into lines by their top coordinate, left to right."""
+    lyne: list[list[dict]] = []
+    for w in sorted(woorde, key=lambda w: (round(w["top"], 1), w["x0"])):
+        if lyne and abs(lyne[-1][0]["top"] - w["top"]) < _RY_TOLERANSIE:
+            lyne[-1].append(w)
+        else:
+            lyne.append([w])
+    return [sorted(l, key=lambda w: w["x0"]) for l in lyne]
+
+
+_VOETNOOT = re.compile(r"\s*Page\s*\d+\s*of\s*\d+\s*")
+
+
+def _sonder_voetnoot(bladsy):
+    """The page without its "Page N of M" footer. In the OVK's national 2026 PDF that footer
+    is drawn 0.24 pt above the page's last row, so word grouping would merge its letters into
+    the row ("AFRICPAage 2040 of 2137"). Characters are grouped by their exact top; a group
+    whose text is exactly the footer is dropped."""
+    groepe: dict[float, list[dict]] = {}
+    for ch in bladsy.chars:
+        groepe.setdefault(round(ch["top"], 2), []).append(ch)
+    voet_tops = {
+        top for top, chars in groepe.items()
+        if _VOETNOOT.fullmatch("".join(c["text"] for c in sorted(chars, key=lambda c: c["x0"])))
+    }
+    if not voet_tops:
+        return bladsy
+    return bladsy.filter(lambda obj: not (obj.get("object_type") == "char" and round(obj["top"], 2) in voet_tops))
+
+
+def woord_rye(bladsy) -> Iterator[list[str]]:
+    """Rows for a page without table rules (the 2026 lists): the header line's words give
+    each column's left edge, and every later word is placed in the column whose edge it
+    starts after. Yields the header row first (cell texts), then data rows.
+
+    PERSONAL DATA RULE: words that fall in the ID-number column are dropped here, before
+    any cell text is built — the row carries "" in that position, so no ID value ever
+    leaves this function. A wrapped line (no municipality and no ward/list value) is joined
+    onto the row above.
+    """
+    lyne = _lyne(_sonder_voetnoot(bladsy).extract_words(x_tolerance=1.5, keep_blank_chars=False))
+    kop_idx = next(
+        (i for i, l in enumerate(lyne) if {"Municipality", "Surname"} <= {w["text"] for w in l}),
+        None,
+    )
+    if kop_idx is None:
+        return
+    ankers = [(w["text"], w["x0"]) for w in lyne[kop_idx] if w["text"] in _KOP_ANKERS]
+    ankers.sort(key=lambda a: a[1])
+    kolomme = [a[0] for a in ankers]
+    rande = [a[1] for a in ankers]
+    id_kol = kolomme.index("IDNumber") if "IDNumber" in kolomme else None
+    muni_kol = kolomme.index("Municipality")
+    wyk_kol = kolomme.index("Ward") if "Ward" in kolomme else None
+
+    kop = [("Ward \\ List Order" if k == "Ward" else k) for k in kolomme]
+    yield kop
+
+    vorige: list[str] | None = None
+    for lyn in lyne[kop_idx + 1:]:
+        selle: list[list[str]] = [[] for _ in kolomme]
+        for w in lyn:
+            kol = max((i for i, rand in enumerate(rande) if w["x0"] >= rand - 2), default=0)
+            if kol == id_kol:
+                continue  # never read, never kept
+            selle[kol].append(w["text"])
+        ry = [" ".join(c) for c in selle]
+        if not any(ry):
+            continue
+        if not ry[muni_kol] and (wyk_kol is None or not ry[wyk_kol]) and vorige is not None:
+            for i, c in enumerate(ry):
+                if c and i != id_kol:
+                    vorige[i] = f"{vorige[i]} {c}".strip()
+            continue
+        if vorige is not None:
+            yield vorige
+        vorige = ry
+    if vorige is not None:
+        yield vorige
+
+
 def ontleed(pdf_pad: Path | str) -> Iterator[Kandidaat]:
     """Ontleed 'n IEC-kandidaatlys-PDF na 'n stroom `Kandidaat`-rekords.
 
@@ -284,7 +374,13 @@ def ontleed(pdf_pad: Path | str) -> Iterator[Kandidaat]:
     with pdfplumber.open(pdf_pad) as pdf:
         for bladsy_idx, bladsy in enumerate(pdf.pages, start=1):
             ry_nr = 0
-            for tabel in bladsy.extract_tables():
+            tabelle = bladsy.extract_tables()
+            # A ruled page yields the whole list as tables; the 2026 pages yield at most a
+            # stray header-sized fragment, so fewer than 5 rows means "no real table".
+            if sum(len(t) for t in tabelle) < 5:
+                # No ruled table on this page (2026 layout): rebuild rows from word positions.
+                tabelle = [list(woord_rye(bladsy))]
+            for tabel in tabelle:
                 for rou_ry in tabel:
                     moontlike_kop = kry_kolom_indekse(rou_ry)
                     if moontlike_kop is not None:

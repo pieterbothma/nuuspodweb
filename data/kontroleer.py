@@ -397,8 +397,8 @@ def evalueer_kandidaat_hekke(res: dict | None) -> list[str]:
         foute.append(f"kandidate: {len(res['id_vorm'])} ID-vormige veld(e) (moet 0 wees) — sien die kandidaat-afdeling")
     if res["duplikate"]:
         foute.append(f"kandidate: {res['duplikate']} duplikaatgroep(e)")
-    if res["leë_name"]:
-        foute.append(f"kandidate: {res['leë_name']} ry(e) met 'n leë naam of van")
+    # Rows without a name are kept as the OVK published them (Piet, 2026-09-16) and only
+    # counted in the report; the site shows a "no name in the list" placeholder.
     foute.extend(f"kandidate: {f}" for f in res["id_foute"])
     if res["partye_totaal"] == 0:
         foute.append("kandidate gelaai maar stg_partye is leeg")
@@ -454,8 +454,8 @@ def formatteer_kandidaat_afdeling(res: dict | None, sectie_foute: dict[str, str]
     r.append(f"- wyk_id nie in stg_wyke nie: **{len(res['onbekende_wyk'])}**")
     for wyk_id in res["onbekende_wyk"][:50]:
         r.append(f"  - `{wyk_id}`")
-    r.append(f"- duplikaatgroepe (muni_kode, stembrief, wyk_id, volle_naam, van, party_id): **{res['duplikate']}**")
-    r.append(f"- leë naam of van: **{res['leë_name']}**")
+    r.append(f"- duplikaatgroepe (muni_kode, stembrief, wyk_id, lys_posisie, volle_naam, van, party_id): **{res['duplikate']}**")
+    r.append(f"- sonder naam of van in die OVK-lys (behou, plekhouer op die werf): **{res['leë_name']}**")
     r.append(f"- ID-vormige velde (6+-syferreeks, wyk_id nie 8 syfers, ens.; moet 0 wees): **{len(res['id_vorm'])}**")
     for f in res["id_vorm"][:20]:
         r.append(f"  - {f}")

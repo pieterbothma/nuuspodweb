@@ -188,9 +188,9 @@ def test_duplikate_en_leë_name_word_gevang():
     rye = lk.bou_kandidaat_rye([a, b, leeg], partye)
     foute = lk.valideer(rye, partye, MUNIS, WYKE)
     assert any("duplika" in f for f in foute)
-    assert any("leë naam" in f for f in foute)
-    # the empty-name message names the source position, not a person
-    assert any("bladsy 1 ry 3" in f for f in foute)
+    # A nameless row is kept (Piet, 2026-09-16) — no gate failure, only a report entry.
+    assert not any("leë naam" in f for f in foute)
+    assert lk.sonder_naam_posisies([a, b, leeg]) == ["kandidate-2026-WC.pdf bladsy 1 ry 3"]
 
 
 def test_elke_ry_kry_n_unieke_nie_nul_id():
@@ -211,7 +211,7 @@ def test_iec_totale_verskil_is_n_besluit_nie_n_fout_nie():
     assert len(besluite) == 2  # ward and total differ
     assert any("100856" in b.replace(",", "").replace(" ", "") for b in besluite)
     assert lk.vergelyk_met_iec(
-        {"wyk_party": 100_856, "wyk_onafhanklik": 975, "pv": 40_241, "totaal": 142_072}
+        {"wyk_party": 100_856, "wyk_onafhanklik": 975, "pv": 40_241, "totaal": 136_790}
     ) == []
 
 
@@ -421,7 +421,7 @@ def test_kontroleer_kandidaat_afdeling_wys_iec_vergelyking():
     rye, partye = _db_rye()
     res = kontroleer.ontleed_kandidate(rye, partye, WYKE, MUNI_PROVINSIE)
     teks = "\n".join(kontroleer.formatteer_kandidaat_afdeling(res, {}))
-    assert "142 072" in teks and "100 856" in teks and "40 241" in teks and "975" in teks
+    assert "136 790" in teks and "100 856" in teks and "40 241" in teks and "975" in teks
     assert "Besluit" in teks
 
 
@@ -458,11 +458,33 @@ def test_vergelyk_tabelle_saamgestelde_sleutel():
     assert res["verander"] == 1 and res["voorbeelde"]["verander"] == ["x|1"]
 
 
-def test_diff_spek_dek_al_11_publieke_tabelle():
+def test_diff_spek_dek_al_13_publieke_tabelle():
     assert set(kontroleer.DIFF_SPEK) == {
         "munisipaliteite", "wyke", "stemstasies", "plekke", "plek_wyke", "plek_aliasse",
         "raad_uitslae_2021", "raad_grootte_2021", "partye", "kandidate", "stembrief_volgorde",
+        "wyk_2021_opsomming", "wyk_uitslae_2021",
     }
     for sleutel, kolomme in kontroleer.DIFF_SPEK.values():
         assert "geom" not in kolomme
         assert set(sleutel) <= set(kolomme.split(","))
+
+
+def test_hou_eie_provinsie_laat_ander_provinsies_weg():
+    from types import SimpleNamespace as K
+    rye = [K(muni_kode="CPT"), K(muni_kode="WC024"), K(muni_kode="DC2"), K(muni_kode="NC091"), K(muni_kode="DC9")]
+    hou, weg = lk.hou_eie_provinsie(rye, "kandidate-2026-WC.pdf")
+    assert [k.muni_kode for k in hou] == ["CPT", "WC024", "DC2"]
+    assert weg == 2
+    # Files without a province suffix pass through untouched.
+    assert lk.hou_eie_provinsie(rye, "kandidate-2021-toets.pdf") == (rye, 0)
+    # "DC10" (Eastern Cape) must not count as the Western Cape's "DC1".
+    assert lk.hou_eie_provinsie([K(muni_kode="DC10")], "kandidate-2026-WC.pdf")[1] == 1
+
+
+def test_selfde_persoon_op_twee_lysposisies_is_nie_n_duplikaat_nie():
+    a = _k(party="PARTY A", wyklys="20", naam="SAME", van="NAME", ry=1)
+    b = _k(party="PARTY A", wyklys="24", naam="SAME", van="NAME", ry=2)
+    partye = lk.bou_partye([a, b])
+    rye = lk.bou_kandidaat_rye([a, b], partye)
+    assert lk.vind_duplikate(rye) == []
+    assert [sorted(r["lys_posisie"] for r in g) for g in lk.herhaal_op_lys(rye)] == [[20, 24]]

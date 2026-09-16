@@ -437,3 +437,17 @@ def test_gewone_ry_slaag_steeds_die_id_skans():
     ry = ["CPT - City of Cape Town", "TOETSPARTY", "12", "######****00*", "TOETS", "PERSOON"]
     k = ko.bou_kandidaat(ry, _KOLOM_INDEKSE, bladsy_nr=1, ry_nr=1, bron_lêer="toets.pdf")
     assert k.lys_posisie == 12
+
+
+def test_nasionale_voetnoot_word_nie_by_die_laaste_ry_gevoeg_nie():
+    """The 2026 national PDF prints "Page N of M" 0.24 pt above the last row; no party or
+    name may carry footer text (skipped when the downloaded 2026 file is not present)."""
+    import pytest
+    pad = Path(__file__).parent.parent / "bron" / "kandidate-2026-WC.pdf"
+    if not pad.exists():
+        pytest.skip("2026 WC-lys nie afgelaai nie")
+    import pdfplumber
+    with pdfplumber.open(pad) as pdf:
+        rye = list(ko.woord_rye(pdf.pages[1]))
+    assert len(rye) > 10
+    assert not any("Page" in sel or "PAage" in sel for ry in rye[1:] for sel in ry)

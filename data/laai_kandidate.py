@@ -58,10 +58,13 @@ BASIS_PAD = Path(__file__).parent
 VERSLAG_PAD = BASIS_PAD / "uitvoer" / "kandidate-verslag.md"
 
 # The OVK's published 2026 totals (candidacies). Ward excludes independents.
+# IEC_TOTAAL is the certified figure from the OVK media release of 16 Sep 2026 (136 790);
+# the split below is still the pre-certification one from 14 Sep, for which no certified
+# breakdown was published yet — differences there are expected and reported as decisions.
 IEC_WYK_PARTY = 100_856
 IEC_PV = 40_241
 IEC_WYK_ONAFHANKLIK = 975
-IEC_TOTAAL = 142_072
+IEC_TOTAAL = 136_790
 IEC_REGSTELLING_TOT = "25 Sep"
 
 ID_SKANS_PATROON = ko.ID_SKANS_PATROON  # any 6+ digit run
@@ -90,6 +93,40 @@ PARTY_TEKSVELDE = ("naam", "afkorting")
 HEELGETAL_TELLERS = ("id", "party_id", "lys_posisie", "bron_ry")
 
 MAKS_LYS = 30  # cap on items listed per failure line
+
+
+# `kandidate-2026-<PROV>.pdf` → the municipality codes that belong to that province (local
+# and metro prefixes plus the district councils). The Western Cape file is cut from the
+# OVK's national PDF, whose first cut page still carries Northern Cape rows; every file is
+# filtered so a row can only come from its own province, and the drop count is reported.
+PROVINSIE_VOORVOEGSELS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
+    "EC": (("EC", "BUF", "NMA"), frozenset({"DC10", "DC12", "DC13", "DC14", "DC15", "DC44"})),
+    "FS": (("FS", "MAN"), frozenset({"DC16", "DC18", "DC19", "DC20"})),
+    "GP": (("GT", "JHB", "TSH", "EKU"), frozenset({"DC42", "DC48"})),
+    "KZN": (("KZN", "ETH"), frozenset({"DC21", "DC22", "DC23", "DC24", "DC25", "DC26", "DC27", "DC28", "DC29", "DC43"})),
+    "LP": (("LIM",), frozenset({"DC33", "DC34", "DC35", "DC36", "DC47"})),
+    "MP": (("MP",), frozenset({"DC30", "DC31", "DC32"})),
+    "NC": (("NC",), frozenset({"DC6", "DC7", "DC8", "DC9", "DC45"})),
+    "NW": (("NW",), frozenset({"DC37", "DC38", "DC39", "DC40"})),
+    "WC": (("WC", "CPT"), frozenset({"DC1", "DC2", "DC3", "DC4", "DC5"})),
+}
+LÊER_PROVINSIE = re.compile(r"^kandidate-\d{4}-([A-Z]{2,3})\.pdf$")
+
+
+def hou_eie_provinsie(kandidate: list, lêernaam: str) -> tuple[list, int]:
+    """Keep only rows whose municipality belongs to the province in the file name. Files
+    without a province suffix are returned unchanged."""
+    m = LÊER_PROVINSIE.match(lêernaam)
+    if not m or m.group(1) not in PROVINSIE_VOORVOEGSELS:
+        return kandidate, 0
+    voorvoegsels, distrikte = PROVINSIE_VOORVOEGSELS[m.group(1)]
+
+    def hoort(kode: str | None) -> bool:
+        kode = kode or ""
+        return kode in distrikte or (not kode.startswith("DC") and kode.startswith(voorvoegsels))
+
+    hou = [k for k in kandidate if hoort(k.muni_kode)]
+    return hou, len(kandidate) - len(hou)
 
 
 class BronFout(Exception):
@@ -215,7 +252,13 @@ def kontroleer_id_skans(rye: list[dict], partye: list[dict]) -> list[str]:
 
 
 def duplikaat_sleutel(ry: dict) -> tuple:
-    return (ry["muni_kode"], ry["stembrief"], ry["wyk_id"], ry["volle_naam"], ry["van"], ry["party_id"])
+    """Identical in every published field, list position included: a true duplicate row.
+    (Piet, 2026-09-16: the same person at two positions on one party list is kept as the
+    OVK published it — list positions decide seats — and reported, not failed.)"""
+    return (
+        ry["muni_kode"], ry["stembrief"], ry["wyk_id"], ry["lys_posisie"],
+        ry["volle_naam"], ry["van"], ry["party_id"],
+    )
 
 
 def vind_duplikate(rye: list[dict]) -> list[list[dict]]:
@@ -224,6 +267,27 @@ def vind_duplikate(rye: list[dict]) -> list[list[dict]]:
     for ry in rye:
         groepe[duplikaat_sleutel(ry)].append(ry)
     return [g for g in groepe.values() if len(g) > 1]
+
+
+def herhaal_op_lys(rye: list[dict]) -> list[list[dict]]:
+    """The same name on the same council's party list at more than one position — kept
+    exactly as published, and listed in the report."""
+    groepe: dict[tuple, list[dict]] = defaultdict(list)
+    for ry in rye:
+        if ry["lys_posisie"] is not None:
+            groepe[(ry["muni_kode"], ry["stembrief"], ry["party_id"], ry["volle_naam"], ry["van"])].append(ry)
+    return [g for g in groepe.values() if len({r["lys_posisie"] for r in g}) > 1]
+
+
+def sonder_naam_posisies(kandidate: list) -> list[str]:
+    """Source positions of rows the OVK published without a name or surname. They are kept
+    (Piet, 2026-09-16: the candidate is on the ballot; the site shows "no name in the OVK
+    list" in place of the name) and listed in the report — positions only, never a value."""
+    return [
+        f"{k.bron_lêer} bladsy {k.bron_ry // 10000} ry {k.bron_ry % 10000}"
+        for k in kandidate
+        if not ((k.volle_naam or "").strip() and (k.van or "").strip())
+    ]
 
 
 def _afkap(items: list, n: int = MAKS_LYS) -> str:
@@ -242,14 +306,11 @@ def valideer_struktuur(rye: list[dict], partye: list[dict]) -> list[str]:
     if leë_partye:
         foute.append(f"stg_partye: {getal(len(leë_partye))} party(e) met 'n leë naam")
 
-    sonder_muni, leë_naam, sonder_wyk, sonder_lys = [], [], [], []
+    sonder_muni, sonder_wyk, sonder_lys = [], [], []
     onafhanklik_met_party, onafhanklik_op_pv, party_sonder_id, onbekende_party = [], [], [], []
     for ry in rye:
         if not ry["muni_kode"]:
             sonder_muni.append(posisie(ry))
-        for veld in ("volle_naam", "van"):
-            if not (ry[veld] or "").strip():
-                leë_naam.append(f"{posisie(ry)} ({veld})")
         if ry["stembrief"] == "wyk":
             if not ry["wyk_id"]:
                 sonder_wyk.append(posisie(ry))
@@ -269,7 +330,7 @@ def valideer_struktuur(rye: list[dict], partye: list[dict]) -> list[str]:
 
     for lys, beskrywing in (
         (sonder_muni, "muni_kode ontbreek (geen 'KODE - Naam' in die munisipaliteit-sel)"),
-        (leë_naam, "leë naam"),
+
         (sonder_wyk, "wyk-stembrief sonder wyk_id"),
         (sonder_lys, "PV-stembrief sonder 'n geldige lys_posisie"),
         (onafhanklik_met_party, "onafhanklike kandidaat met 'n party_id"),
@@ -284,7 +345,7 @@ def valideer_struktuur(rye: list[dict], partye: list[dict]) -> list[str]:
     if duplikate:
         beskryf = [" = ".join(posisie(r) for r in groep) for groep in duplikate]
         foute.append(
-            f"duplikate op (muni_kode, stembrief, wyk_id, volle_naam, van, party_id): "
+            f"duplikate op (muni_kode, stembrief, wyk_id, lys_posisie, volle_naam, van, party_id): "
             f"{getal(len(duplikate))} groep(e) — {_afkap(beskryf, 10)}"
         )
     return foute
@@ -534,9 +595,20 @@ def bou_verslag(**kw) -> str:
         r.append(f"**Alle hekke geslaag — {kw['skryf_status']}**")
     r.append("")
 
+    if kw.get("sonder_naam"):
+        r.append(f"## Sonder naam of van in die OVK-lys — behou, werf wys 'naam nie in die lys nie' ({getal(len(kw['sonder_naam']))})")
+        r.extend(f"- {w}" for w in kw["sonder_naam"])
+        r.append("")
+    herhaal = herhaal_op_lys(kw.get("rye") or [])
+    if herhaal:
+        r.append(f"## Herhaal op dieselfde partylys — behou soos gepubliseer ({getal(len(herhaal))})")
+        r.extend("- " + " = ".join(f"{posisie(x)} (posisie {x['lys_posisie']})" for x in g) for g in herhaal)
+        r.append("")
+
     r.append("## Bronlêers")
     for naam, n in kw.get("per_lêer", {}).items():
-        r.append(f"- `{naam}`: {getal(n)} kandidate")
+        weg = kw.get("ander_provinsie", {}).get(naam, 0)
+        r.append(f"- `{naam}`: {getal(n)} kandidate" + (f" ({getal(weg)} rye van 'n ander provinsie weggelaat)" if weg else ""))
     if not kw.get("per_lêer"):
         r.append("- (niks ontleed nie)")
     r.append(f"- Ontleedtyd: {kw.get('ontleedtyd', 0):.1f}s")
@@ -732,6 +804,9 @@ def hoof(
         except Exception as fout:  # corrupt PDF etc. — type and scrubbed message only
             foute.append(f"ontleding van {pad.name} het misluk: {type(fout).__name__}: {skrop_verslag(str(fout)[:300])[0]}")
             break
+        uit_lêer, weggelaat = hou_eie_provinsie(uit_lêer, pad.name)
+        if weggelaat:
+            konteks.setdefault("ander_provinsie", {})[pad.name] = weggelaat
         if not uit_lêer:
             foute.append(f"{pad.name}: 0 kandidate ontleed")
         per_lêer[pad.name] = len(uit_lêer)
@@ -740,6 +815,7 @@ def hoof(
     konteks["ontleedtyd"] = time.monotonic() - begin
     if foute:
         return klaar(1)
+    konteks["sonder_naam"] = sonder_naam_posisies(kandidate)
 
     # --- 2-3. rye bou ------------------------------------------------------------------
     partye = bou_partye(kandidate)
