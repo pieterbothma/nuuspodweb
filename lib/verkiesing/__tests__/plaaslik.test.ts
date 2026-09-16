@@ -17,11 +17,19 @@ describe("groepeer", () => {
     expect(uit.map((g) => g.vlak)).toEqual(["wyk", "munisipaliteit"]);
   });
 
-  it("names the place in the heading only when every story in the level shares it", () => {
-    expect(groepeer([s({ vlak: "dorp", plek: "Krugersdorp" }), s({ vlak: "dorp", plek: "Krugersdorp" })])[0].plek).toBe(
-      "Krugersdorp"
-    );
-    expect(groepeer([s({ vlak: "dorp", plek: "Krugersdorp" }), s({ vlak: "dorp", plek: "Rangeview" })])[0].plek).toBeNull();
+  it("gives a single-town level its own group", () => {
+    const uit = groepeer([s({ vlak: "wyk" }), s({ vlak: "dorp", plek: "Krugersdorp" }), s({ vlak: "dorp", plek: "Krugersdorp" })]);
+    expect(uit.map((g) => [g.vlak, g.plek, g.stories.length])).toEqual([
+      ["wyk", "Pretoria North", 1],
+      ["dorp", "Krugersdorp", 2],
+    ]);
+  });
+
+  it("folds town stories from different towns into the neighbourhood group — never two neighbourhood headings", () => {
+    const uit = groepeer([s({ vlak: "wyk" }), s({ vlak: "dorp", plek: "Randburg" }), s({ vlak: "dorp", plek: "Bryanston" })]);
+    expect(uit).toHaveLength(1);
+    expect(uit[0]).toMatchObject({ vlak: "wyk", plek: null });
+    expect(uit[0].stories).toHaveLength(3);
   });
 });
 

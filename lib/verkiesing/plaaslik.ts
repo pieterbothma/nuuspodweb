@@ -18,7 +18,6 @@ export type PlaaslikeStorie = {
 export type NuusGroep = { vlak: NuusVlak; plek: string | null; stories: PlaaslikeStorie[] };
 
 const KAS = { tags: ["plaaslik"], revalidate: 900 };
-const ORDE: NuusVlak[] = ["wyk", "dorp", "munisipaliteit"];
 
 async function rpc<T>(naam: string, args: Record<string, unknown>): Promise<T[]> {
   const url = process.env.SUPABASE_URL;
@@ -43,17 +42,28 @@ async function rpc<T>(naam: string, args: Record<string, unknown>): Promise<T[]>
 }
 
 /**
- * Groups a ward's stories by level, narrowest first. Within one level the heading can only
- * name a place when every story shares it ("In Krugersdorp"); otherwise `plek` is null and each
- * story carries its own place.
+ * Groups a ward's stories by level, narrowest first. A town level whose stories all share one
+ * town gets its own heading ("In Krugersdorp"); town stories from different towns join the
+ * neighbourhood group instead, so the page never shows two "Uit jou omgewing" headings. A group
+ * whose stories do not share one place has `plek` null, and each story then shows its own place.
  */
 export function groepeer(stories: PlaaslikeStorie[]): NuusGroep[] {
-  return ORDE.flatMap((vlak) => {
-    const hier = stories.filter((s) => s.vlak === vlak);
-    if (hier.length === 0) return [];
-    const plekke = new Set(hier.map((s) => s.plek));
-    return [{ vlak, plek: plekke.size === 1 ? hier[0].plek : null, stories: hier }];
-  });
+  const van = (vlak: NuusVlak) => stories.filter((s) => s.vlak === vlak);
+  const eenPlek = (lys: PlaaslikeStorie[]) => (new Set(lys.map((s) => s.plek)).size === 1 ? lys[0].plek : null);
+
+  const wyk = van("wyk");
+  const dorp = van("dorp");
+  const muni = van("munisipaliteit");
+  const groepe: NuusGroep[] = [];
+
+  const dorpApart = dorp.length > 0 && eenPlek(dorp) !== null;
+  const omgewing = dorpApart ? wyk : [...wyk, ...dorp];
+  if (omgewing.length > 0) {
+    groepe.push({ vlak: "wyk", plek: eenPlek(omgewing), stories: omgewing });
+  }
+  if (dorpApart) groepe.push({ vlak: "dorp", plek: eenPlek(dorp), stories: dorp });
+  if (muni.length > 0) groepe.push({ vlak: "munisipaliteit", plek: null, stories: muni });
+  return groepe;
 }
 
 export async function haalWykNuus(wykId: string): Promise<NuusGroep[]> {

@@ -50,7 +50,6 @@ function Lys({ stories, nou, wysPlek }: { stories: Storie[]; nou: Date; wysPlek:
 function groepOpskrif(g: NuusGroep, muniNaam: string): string {
   if (g.vlak === "wyk") return KOPIE.plaaslik_omgewing;
   if (g.vlak === "dorp" && g.plek) return vulIn(KOPIE.plaaslik_dorp, { q: g.plek });
-  if (g.vlak === "dorp") return KOPIE.plaaslik_omgewing;
   return vulIn(KOPIE.plaaslik_munisipaliteit, { q: muniNaam });
 }
 
@@ -66,7 +65,9 @@ export function WykNuus({ groepe, muniNaam, nou }: { groepe: NuusGroep[]; muniNa
         {groepe.map((g) => (
           <div key={g.vlak} data-nuus-vlak={g.vlak}>
             <h3 className="text-ink font-sans text-sm font-bold">{groepOpskrif(g, muniNaam)}</h3>
-            <Lys stories={g.stories} nou={nou} wysPlek={g.vlak !== "munisipaliteit" && g.plek === null} />
+            {/* The neighbourhood group always names each story's place: "Uit jou omgewing"
+                alone does not say which suburb a headline is about. */}
+            <Lys stories={g.stories} nou={nou} wysPlek={g.vlak === "wyk" || (g.vlak === "dorp" && g.plek === null)} />
           </div>
         ))}
       </div>
