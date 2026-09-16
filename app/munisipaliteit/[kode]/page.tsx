@@ -7,7 +7,9 @@ import { Raad2021Tabel } from "@/app/_components/verkiesing/raad-2021";
 import { vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { Voet } from "@/app/_components/verkiesing/voet";
 import { WykRooster } from "@/app/_components/verkiesing/wyk-rooster";
+import { MuniNuus } from "@/app/_components/verkiesing/plaaslike-nuus";
 import { KOPIE } from "@/lib/verkiesing/kopie";
+import { haalMuniNuus } from "@/lib/verkiesing/plaaslik";
 import { distrikNaam, muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
 import { vergelykNaam, type Volgorde } from "@/lib/verkiesing/orden";
 import { geldigeMuniKode, haalMuni, type MuniOpsomming } from "@/lib/verkiesing/wyksoeker";
@@ -137,7 +139,7 @@ export default async function MuniBladsy({ params }: Props) {
   const muni = await haalMuni(kode);
   if (!muni) notFound();
 
-  const bronDatum = await haalBronDatum();
+  const [bronDatum, nuus] = await Promise.all([haalBronDatum(), haalMuniNuus(muni.kode)]);
   const naam = vertoonNaam(muni);
 
   return (
@@ -182,6 +184,10 @@ export default async function MuniBladsy({ params }: Props) {
             {muni.raad2021 && <Raad2021Tabel raad={muni.raad2021} />}
           </div>
           <KontesterendePartye partye={muni.partye} volgorde={muni.volgorde} />
+        </div>
+
+        <div className="mt-12 lg:mt-14">
+          <MuniNuus stories={nuus} muniNaam={naam} nou={new Date()} />
         </div>
 
         {/* The footer asks the feedback question, so the strip does not — the reader is

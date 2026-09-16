@@ -184,6 +184,15 @@ export const KOPIE = {
   muni_2021_wys_sonder_setels: "Wys ook partye sonder setels ({n})",
   muni_2021_versteek_sonder_setels: "Versteek partye sonder setels",
   muni_2021_sortering: "Gesorteer op partynaam",
+  // --- Plaaslike nuus (Gemini) --------------------------------------------
+  // Placeholders: plaaslik_dorp {q} = a town name; plaaslik_munisipaliteit and
+  // plaaslik_muni_opskrif {q} = the municipality's display name.
+  plaaslik_opskrif: "PLAASLIKE NUUS",
+  plaaslik_onderskrif: "Nuusopskrifte presies soos plaaslike koerante dit gepubliseer het, met skakels na die oorspronklike berigte.",
+  plaaslik_omgewing: "Uit jou omgewing",
+  plaaslik_dorp: "In {q}",
+  plaaslik_munisipaliteit: "Nuus oor {q}",
+  plaaslik_muni_opskrif: "Plaaslike nuus uit {q}",
   // --- Bladsy nie gevind nie (Gemini, Fase 2b) ----------------------
   nie_gevind_titel: "Bladsy nie gevind nie — Verkiesing 2026",
   nie_gevind_opskrif: "Bladsy nie gevind nie",

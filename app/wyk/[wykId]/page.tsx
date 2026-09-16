@@ -5,6 +5,8 @@ import { BronStrook, haalBronDatum, OVK_LYS_SKAKEL } from "@/app/_components/ver
 import { Kopstuk } from "@/app/_components/verkiesing/kopstuk";
 import { Stembriewe, vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { StemlokaleLys } from "@/app/_components/verkiesing/stemlokale-lys";
+import { WykNuus } from "@/app/_components/verkiesing/plaaslike-nuus";
+import { haalWykNuus } from "@/lib/verkiesing/plaaslik";
 import { Voet } from "@/app/_components/verkiesing/voet";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
@@ -66,10 +68,11 @@ export default async function WykBladsy({ params }: Props) {
   const wyk = await haalWyk(wykId);
   if (!wyk) notFound();
 
-  const [stasies, stembriewe, bronDatum] = await Promise.all([
+  const [stasies, stembriewe, bronDatum, nuus] = await Promise.all([
     haalStemstasies(wyk.wyk_id),
     haalStembriewe(wyk),
     haalBronDatum(),
+    haalWykNuus(wyk.wyk_id),
   ]);
 
   const SKAKEL =
@@ -123,6 +126,10 @@ export default async function WykBladsy({ params }: Props) {
           <div className="lg:col-start-1 lg:row-start-1">
             <Stembriewe wyk={wyk} stembriewe={stembriewe} />
           </div>
+        </div>
+
+        <div className="mt-12 lg:mt-14">
+          <WykNuus groepe={nuus} muniNaam={muniNaam(wyk.muni_kode, wyk.muni_naam)} nou={new Date()} />
         </div>
 
         {/* The footer asks the feedback question, so the strip does not: the ward page is the

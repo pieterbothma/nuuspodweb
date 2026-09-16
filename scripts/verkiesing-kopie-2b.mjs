@@ -17,7 +17,9 @@ import { join } from "node:path";
 
 const MODEL = "gemini-3.5-flash";
 const WORTEL = new URL("..", import.meta.url).pathname;
-const UIT = join(WORTEL, "docs/verkiesing/ui-kopie-2b.json");
+// `--plaaslik` rewrites only the local-news slots and writes their own provenance file.
+const PLAASLIK = process.argv.includes("--plaaslik");
+const UIT = join(WORTEL, PLAASLIK ? "docs/verkiesing/ui-kopie-plaaslik.json" : "docs/verkiesing/ui-kopie-2b.json");
 
 function sleutel() {
   const env = readFileSync(join(homedir(), "nuuspod/.env.local"), "utf8");
@@ -36,10 +38,12 @@ function leesGleuwe() {
   // Drop 1's slots (dates, rail, footer) sit between the 2b sections; they are already
   // Gemini-written (ui-kopie.json), so only the slots briefed below are rewritten.
   for (const m of deel.matchAll(/^\s+([a-z0-9_]+):\s*\n?\s*("(?:[^"\\]|\\.)*")\s*,/gm)) {
-    if (m[1] in BRIEWE) gleuwe[m[1]] = JSON.parse(m[2]);
+    if (m[1] in aktieweBriewe()) gleuwe[m[1]] = JSON.parse(m[2]);
   }
   return gleuwe;
 }
+
+const aktieweBriewe = () => (PLAASLIK ? BRIEWE_PLAASLIK : BRIEWE);
 
 const plekhouers = (s) => (s.match(/\{[a-z]\}/g) ?? []).sort().join(",");
 const woorde = (s) => s.split(/\s+/).filter(Boolean).length;
@@ -127,6 +131,15 @@ const BRIEWE = {
   nie_gevind_soek: "Skakel na die wyk-soeker.",
 };
 
+const BRIEWE_PLAASLIK = {
+  plaaslik_opskrif: "Klein etiket in HOOFLETTERS bo 'n blok plaaslike nuusopskrifte op 'n wyk- of munisipaliteitsblad.",
+  plaaslik_onderskrif: "Een sin: dit is opskrifte presies soos plaaslike (gemeenskaps)koerante dit gepubliseer het, met skakels na die oorspronklike berigte. Geen belofte nie.",
+  plaaslik_omgewing: "Kort opskrif vir nuus uit die leser se eie buurt/voorstad (1–3 wyke).",
+  plaaslik_dorp: "Kort opskrif vir nuus uit 'n groter dorp of gebied; {q} = die dorp se naam, bv. 'In {q}'.",
+  plaaslik_munisipaliteit: "Kort opskrif vir nuus oor die hele munisipaliteit; {q} = munisipaliteit se naam.",
+  plaaslik_muni_opskrif: "Klein etiket in HOOFLETTERS of kort opskrif bo plaaslike nuus op 'n munisipaliteitsblad; {q} = munisipaliteit se naam.",
+};
+
 const FEITE = [
   "Die plaaslike verkiesing is op Woensdag 4 November 2026; stemlokale is oop van 07:00 tot 21:00.",
   "Jy mag net stem by die stemlokaal waar jy geregistreer is.",
@@ -141,12 +154,12 @@ const FEITE = [
 function prompt(gleuwe) {
   const lys = Object.entries(gleuwe).map(([k, konsep]) => ({
     sleutel: k,
-    doel: BRIEWE[k] ?? "",
+    doel: aktieweBriewe()[k] ?? "",
     konsep,
     plekhouers: plekhouers(konsep) || "geen",
     maks_woorde: woordLimiet(konsep),
   }));
-  return `Jy skryf die Afrikaanse koppelvlakteks vir Nuuspod se webwerf oor die Suid-Afrikaanse plaaslike verkiesing van 2026: 'n wyk-soeker, 'n wykblad, 'n munisipaliteitsblad en 'n 404-blad.
+  return `Jy skryf die Afrikaanse koppelvlakteks vir Nuuspod se webwerf oor die Suid-Afrikaanse plaaslike verkiesing van 2026: 'n wyk-soeker, 'n wykblad, 'n munisipaliteitsblad, 'n 404-blad en 'n blok plaaslike nuusopskrifte uit gemeenskapskoerante.
 
 STEM
 - Direk, warm, alledaagse Suid-Afrikaanse Afrikaans. Spreek die leser aan as "jy".
@@ -191,7 +204,7 @@ function kontroleer(gleuwe, uit) {
 
 async function hoof() {
   const gleuwe = leesGleuwe();
-  const nieGevind = Object.keys(BRIEWE).filter((k) => !(k in gleuwe));
+  const nieGevind = Object.keys(aktieweBriewe()).filter((k) => !(k in gleuwe));
   if (nieGevind.length) throw new Error(`Nie in kopie.ts nie: ${nieGevind.join(", ")}`);
 
   const antwoord = await fetch(

@@ -3,7 +3,8 @@ import { revalidateTag } from "next/cache";
 // `wyke` covers the election geography (municipalities, wards, stations, places,
 // aliases, the 2021 council); `kandidate` covers candidates, parties and ballot order.
 // data/publiseer.py posts one of these per publish run.
-const TAGS = new Set(["nuusstroom", "episodes", "wyke", "kandidate"]);
+// `plaaslik` is posted by the admin cron when community headlines are linked to wards.
+const TAGS = new Set(["nuusstroom", "episodes", "wyke", "kandidate", "plaaslik"]);
 
 /** Called by the admin when Piet hides a headline or a new episode lands. */
 export async function POST(req: Request) {
