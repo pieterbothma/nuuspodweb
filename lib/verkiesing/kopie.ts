@@ -131,6 +131,53 @@ export const KOPIE = {
   bron_ovk_skakel: "Sien die OVK se lys",
   og_wyk_sjabloon: "{n} kandidate · Stem op 4 November",
   og_wyk_geen: "Stem op 4 November",
+  // --- Munisipaliteitsblad (draft values, Task 7) ------------------------
+  // Placeholders are substituted by the components and MUST survive a rewrite:
+  //   muni_bladtitel / muni_beskrywing      {q} = the municipality's display name
+  //   muni_onderskrif_distrik               {q} = the district's name
+  //   muni_wyke_aantal                      {n} = how many wards
+  //   muni_wyke_aantal_een                  (the singular of the above, no placeholder)
+  //   muni_2021_raadsgrootte                {n} = the full 2021 council size
+  //   muni_2021_wys_sonder_setels           {n} = how many parties hold 0 seats
+  // The ward links in the grid reuse `soek_wyk_nommer` ("Wyk {n}"), so the two pages can
+  // never disagree about what a ward is called.
+  //
+  // muni_geen_wyke is shown on a district council, which has no wards of its own. It is
+  // deliberately one plain sentence: anything about how a district council's seats are
+  // actually filled is a legal claim and needs fact-checking first (Task 9).
+  muni_tipe_plaaslik: "Plaaslike munisipaliteit",
+  muni_tipe_metro: "Metro",
+  muni_tipe_distrik: "Distriksraad",
+  muni_bladtitel: "{q} — Verkiesing 2026",
+  muni_beskrywing:
+    "Die wyke van {q}, die partye op die stembrief, en hoe die raad ná 2021 gelyk het — vir die plaaslike verkiesing van 4 November 2026.",
+  muni_onderskrif_distrik: "{q}-distrik",
+  muni_wyke_aantal: "{n} wyke",
+  muni_wyke_aantal_een: "1 wyk",
+  muni_wyke_opskrif: "Wyke",
+  muni_geen_wyke: "Hierdie raad het nie sy eie wyke nie.",
+  muni_partye_opskrif: "Partye op die stembrief",
+  muni_partye_nog_nie_gelaai:
+    "Daar is nog geen partye vir hierdie munisipaliteit om te wys nie. Die OVK se finale kandidaatlyste word op 16 September 2026 gepubliseer.",
+  muni_2021_opskrif: "Raad ná 2021 (amptelik)",
+  muni_2021_raadsgrootte: "{n} setels",
+  muni_2021_geen_meerderheid:
+    "Geen party het ná die verkiesing van 2021 'n meerderheid in hierdie raad gehad nie.",
+  muni_2021_kolom_party: "Party",
+  muni_2021_kolom_wyk: "Wyksetels",
+  muni_2021_kolom_pv: "PV-setels",
+  muni_2021_kolom_totaal: "Totaal",
+  muni_2021_onafhanklikes: "Onafhanklike raadslede",
+  muni_2021_wys_sonder_setels: "Wys ook partye sonder setels ({n})",
+  muni_2021_versteek_sonder_setels: "Versteek partye sonder setels",
+  muni_2021_sortering: "Gesorteer op partynaam",
+  // --- Bladsy nie gevind nie (draft values, Task 7) ----------------------
+  nie_gevind_titel: "Bladsy nie gevind nie — Verkiesing 2026",
+  nie_gevind_opskrif: "Bladsy nie gevind nie",
+  nie_gevind_teks:
+    "Hierdie blad bestaan nie, of die wyk- of munisipaliteitskode in die adres is verkeerd.",
+  nie_gevind_tuis: "Terug na die tuisblad",
+  nie_gevind_soek: "Soek jou wyk",
   voet_bron: "Bron van verkiesingsinligting: OVK (IEC)",
   voet_onafhanklik: "Nuuspod is nie aan die OVK of enige party verbonde nie.",
   voet_real411_vraag: "Sien jy vals verkiesingsinligting?",
