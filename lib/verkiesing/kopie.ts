@@ -177,6 +177,10 @@ export const KOPIE = {
   muni_2021_kolom_pv: "PV-setels",
   muni_2021_kolom_totaal: "Totaal",
   muni_2021_onafhanklikes: "Onafhanklike raadslede",
+  // Screen-reader text for the two cells of the independents row that hold a dash: the
+  // ward/PR split of independent seats is in no database row, so the cell states that
+  // rather than being hidden, which would leave the row with two cells instead of four.
+  muni_2021_geen_data: "Geen data",
   muni_2021_wys_sonder_setels: "Wys ook partye sonder setels ({n})",
   muni_2021_versteek_sonder_setels: "Versteek partye sonder setels",
   muni_2021_sortering: "Gesorteer op partynaam",

@@ -10,6 +10,8 @@
  *  - all nine provinces, because "Wes-Kaap" reads as Afrikaans and "Western Cape" does not;
  *  - the eight metros only, because their official names are English descriptions ("City
  *    of …") rather than place names;
+ *  - five district councils, for the same reason ("West Coast", "Garden Route"); Overberg,
+ *    Amajuba, Ehlanzeni, Namakwa, Sedibeng and the rest are proper names and stay;
  *  - every other municipality keeps its official name, because Stellenbosch, Kou-Kamma and
  *    Mafikeng are the same word in both languages and inventing translations for 250-odd
  *    councils would be a model-generated claim about a place.
@@ -47,6 +49,34 @@ const METROS: Record<string, string> = {
   TSH: "Stad Tshwane",
 };
 
+/**
+ * The five district councils whose official name is an English description rather than a
+ * proper name, keyed on the district code. Verified against
+ * `munisipaliteite where tipe = 'distrik'` (2026-09-16). Every other district keeps its
+ * stored name.
+ */
+const DISTRIKTE: Record<string, string> = {
+  DC1: "Weskus",
+  DC2: "Kaapse Wynland",
+  DC4: "Tuinroete",
+  DC5: "Sentraal-Karoo",
+  DC48: "Wesrand",
+};
+
+/**
+ * The stored official name of each district above, so a caller that holds only the name can
+ * still resolve it: `MuniOpsomming` carries `distrik_naam` but not `distrik_kode`, and adding
+ * the code would mean changing the data layer. An index into `DISTRIKTE`, not a second source
+ * of truth — the code always wins when it is known.
+ */
+const DISTRIK_KODE_PER_NAAM: Record<string, string> = {
+  "West Coast": "DC1",
+  "Cape Winelands": "DC2",
+  "Garden Route": "DC4",
+  "Central Karoo": "DC5",
+  "West Rand": "DC48",
+};
+
 /** "Western Cape" → "Wes-Kaap". Anything else comes back unchanged. */
 export function provinsieNaam(provinsie: string): string {
   return PROVINSIES[provinsie] ?? provinsie;
@@ -59,4 +89,15 @@ export function provinsieNaam(provinsie: string): string {
  */
 export function muniNaam(kode: string, naam: string): string {
   return METROS[kode] ?? (naam || kode);
+}
+
+/**
+ * The name to show for a district council. `kode` is the district's own code (which is also
+ * its municipality code — a district is a row in `munisipaliteite`) and may be null when the
+ * caller only has the stored name; the name is then used to find the code. An unknown
+ * district keeps its stored name.
+ */
+export function distrikNaam(kode: string | null | undefined, naam: string): string {
+  const k = kode ?? DISTRIK_KODE_PER_NAAM[naam];
+  return (k ? DISTRIKTE[k] : undefined) ?? (naam || kode || "");
 }

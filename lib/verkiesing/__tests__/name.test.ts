@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
+import { distrikNaam, muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
 
 /**
  * Display-only translation of the two proper nouns the MDB/IEC publishes in English. The
@@ -56,5 +56,44 @@ describe("muniNaam", () => {
   it("vertaal net op die kode, nooit op die Engelse naam nie", () => {
     // A local municipality that happened to share a metro's name must not be renamed.
     expect(muniNaam("WC999", "City of Cape Town")).toBe("City of Cape Town");
+  });
+});
+
+describe("distrikNaam", () => {
+  it("vertaal die vyf distrikte met 'n Engelse beskrywing as naam", () => {
+    expect(distrikNaam("DC1", "West Coast")).toBe("Weskus");
+    expect(distrikNaam("DC2", "Cape Winelands")).toBe("Kaapse Wynland");
+    expect(distrikNaam("DC4", "Garden Route")).toBe("Tuinroete");
+    expect(distrikNaam("DC5", "Central Karoo")).toBe("Sentraal-Karoo");
+    expect(distrikNaam("DC48", "West Rand")).toBe("Wesrand");
+  });
+
+  it("laat elke ander distrik se eienaam staan", () => {
+    expect(distrikNaam("DC3", "Overberg")).toBe("Overberg");
+    expect(distrikNaam("DC25", "Amajuba")).toBe("Amajuba");
+    expect(distrikNaam("DC32", "Ehlanzeni")).toBe("Ehlanzeni");
+    expect(distrikNaam("DC42", "Sedibeng")).toBe("Sedibeng");
+    expect(distrikNaam("DC6", "Namakwa")).toBe("Namakwa");
+    expect(distrikNaam("DC10", "Sarah Baartman")).toBe("Sarah Baartman");
+  });
+
+  it("los dit op uit die naam alleen, vir 'n oproeper sonder die kode", () => {
+    // MuniOpsomming carries distrik_naam but not distrik_kode.
+    expect(distrikNaam(null, "Cape Winelands")).toBe("Kaapse Wynland");
+    expect(distrikNaam(undefined, "West Rand")).toBe("Wesrand");
+    expect(distrikNaam(null, "Overberg")).toBe("Overberg");
+  });
+
+  it("val terug op die naam, en dan op die kode — nooit op 'n leë string nie", () => {
+    expect(distrikNaam("DC99", "Nuwe Distrik")).toBe("Nuwe Distrik");
+    expect(distrikNaam(null, "Nuwe Distrik")).toBe("Nuwe Distrik");
+    expect(distrikNaam("DC2", "")).toBe("Kaapse Wynland");
+    expect(distrikNaam("DC99", "")).toBe("DC99");
+    expect(distrikNaam(null, "")).toBe("");
+  });
+
+  it("gee die kode voorkeur bo die naam-indeks", () => {
+    // A row whose name has changed must not be renamed by the old name's entry.
+    expect(distrikNaam("DC3", "Cape Winelands")).toBe("Cape Winelands");
   });
 });

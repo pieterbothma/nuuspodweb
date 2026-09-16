@@ -1,5 +1,5 @@
 import { KOPIE } from "@/lib/verkiesing/kopie";
-import { muniNaam } from "@/lib/verkiesing/name";
+import { distrikNaam, muniNaam } from "@/lib/verkiesing/name";
 import type {
   Kandidaat,
   PartyLys,
@@ -177,7 +177,7 @@ function blokke(wyk: Wyk, data: StembriefData): Blok[] {
     uit.push({
       sleutel: "pv_distrik",
       titel: vulIn(KOPIE.stembrief_distrik, {
-        q: muniNaam(wyk.distrik_kode, wyk.distrik_naam ?? wyk.distrik_kode),
+        q: distrikNaam(wyk.distrik_kode, wyk.distrik_naam ?? wyk.distrik_kode),
       }),
       uitleg: KOPIE.stembrief_distrik_uitleg,
       soort: "pv",

@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import type { MuniOpsomming, Raad2021, Raad2021Rooi } from "@/lib/verkiesing/wyksoeker";
 import { vulIn } from "@/app/_components/verkiesing/stembriewe";
-import MuniBladsy from "../[kode]/page";
+import MuniBladsy, { generateMetadata } from "../[kode]/page";
 
 /**
  * The municipality page is an async server component, so it is invoked as a function and the
@@ -231,6 +231,8 @@ describe("/munisipaliteit/[kode]", () => {
     // No 2021 council row exists, so no heading promises a table that is not there.
     expect(screen.queryByText(KOPIE.muni_2021_opskrif)).toBeNull();
     expect(container.querySelector("[data-onderskrif]")?.textContent).toBe("Wes-Kaap");
+    // A district's own page shows its Afrikaans name where one exists.
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Kaapse Wynland");
   });
 
   it("wys die partye-nog-nie-gelaai-boodskap totdat kandidate gelaai is", async () => {
@@ -257,5 +259,111 @@ describe("/munisipaliteit/[kode]", () => {
         expect(el.getAttribute("style")).toBeNull();
       }
     }
+  });
+  it("gee die distriksnaam in Afrikaans in die onderskrif", async () => {
+    haalMuni.mockResolvedValue(muni());
+    const { container } = await wys("WC024");
+    expect(container.querySelector("[data-distrik]")?.textContent).toBe(
+      vulIn(KOPIE.muni_onderskrif_distrik, { q: "Kaapse Wynland" })
+    );
+    expect(screen.queryByText(/Cape Winelands/)).toBeNull();
+    cleanup();
+
+    // A district whose name is a proper name keeps it.
+    haalMuni.mockResolvedValue(muni({ kode: "EC109", distrik_naam: "Sarah Baartman" }));
+    const tweede = await wys("EC109");
+    expect(tweede.container.querySelector("[data-distrik]")?.textContent).toBe(
+      vulIn(KOPIE.muni_onderskrif_distrik, { q: "Sarah Baartman" })
+    );
+  });
+
+  it("gee die ontvoude tabel dieselfde kolomme en opskrifte as die hooftabel", async () => {
+    haalMuni.mockResolvedValue(
+      muni({
+        raad2021: {
+          ...STELLENBOSCH_RAAD,
+          rye: [...STELLENBOSCH_RAAD.rye, ry("'N BAIE LANG PARTYNAAM SONDER ENIGE SETELS", 0, 0)],
+        },
+      })
+    );
+    const { container } = await wys("WC024");
+    const tabelle = container.querySelectorAll("table");
+    expect(tabelle).toHaveLength(2);
+    const [hoof, ontvou] = [...tabelle];
+    // Fixed layout with identical column definitions is what makes the columns line up:
+    // auto layout sizes each table's party column from its own content.
+    for (const t of [hoof, ontvou]) expect(t.className).toContain("table-fixed");
+    const kolomme = (t: Element) =>
+      [...t.querySelectorAll("colgroup col")].map((c) => c.getAttribute("class") ?? "");
+    expect(kolomme(ontvou)).toEqual(kolomme(hoof));
+    expect(kolomme(hoof)).toHaveLength(4);
+    // An opened disclosure labels its number columns rather than showing bare digits.
+    const opskrifte = (t: Element) => [...t.querySelectorAll("thead th")].map((c) => c.textContent);
+    expect(opskrifte(ontvou)).toEqual([
+      KOPIE.muni_2021_kolom_party,
+      KOPIE.muni_2021_kolom_wyk,
+      KOPIE.muni_2021_kolom_pv,
+      KOPIE.muni_2021_kolom_totaal,
+    ]);
+    expect(opskrifte(ontvou)).toEqual(opskrifte(hoof));
+  });
+
+  it("gee elke party se syfers hul eie etiket vir die gestapelde foonuitleg", async () => {
+    haalMuni.mockResolvedValue(muni());
+    const { container } = await wys("WC024");
+    for (const r of container.querySelectorAll("[data-raad-ry]")) {
+      const selle = r.querySelectorAll("td");
+      expect(selle).toHaveLength(4);
+      // The three figures each carry their column's label as real text in the cell.
+      expect(selle[1].textContent).toContain(KOPIE.muni_2021_kolom_wyk);
+      expect(selle[2].textContent).toContain(KOPIE.muni_2021_kolom_pv);
+      expect(selle[3].textContent).toContain(KOPIE.muni_2021_kolom_totaal);
+    }
+  });
+
+  it("hou vier selle in die onafhanklike-ry en sê 'geen data' vir die strepies", async () => {
+    haalMuni.mockResolvedValue(
+      muni({ raad2021: { ...STELLENBOSCH_RAAD, onafhanklike_setels: 2 } })
+    );
+    const { container } = await wys("WC024");
+    const ry = [...container.querySelectorAll("[data-raad-ry]")].find((r) =>
+      r.textContent?.includes(KOPIE.muni_2021_onafhanklikes)
+    )!;
+    expect(ry).toBeTruthy();
+    // One row header plus three data cells — none of them hidden from assistive technology.
+    expect(ry.querySelectorAll("th, td")).toHaveLength(4);
+    for (const sel of ry.querySelectorAll("th, td")) expect(sel.getAttribute("aria-hidden")).toBeNull();
+    expect(ry.querySelectorAll(".sr-only")).toHaveLength(2);
+    expect([...ry.querySelectorAll(".sr-only")].map((e) => e.textContent)).toEqual([
+      KOPIE.muni_2021_geen_data,
+      KOPIE.muni_2021_geen_data,
+    ]);
+    // The row header is a <th>, so the data cells are ward, PR, total.
+    const [wyk, pv, totaal] = [...ry.querySelectorAll("td")];
+    expect(wyk.textContent).toContain("—");
+    expect(pv.textContent).toContain("—");
+    expect(totaal.textContent).not.toContain("—");
+    expect(totaal.textContent).toContain("2");
+  });
+
+  it("vra die terugvoervraag net een keer en dra die 2021-nota in die bronstrook", async () => {
+    haalMuni.mockResolvedValue(muni());
+    const { container } = await wys("WC024");
+    expect(screen.getAllByText(KOPIE.terugvoer_vraag)).toHaveLength(1);
+    expect(container.querySelector("footer")).toBeTruthy();
+    expect(screen.getByText(KOPIE.bron_nota_setels_2021)).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: KOPIE.kruimelspoor_etiket })).toBeTruthy();
+  });
+
+  it("gee die 404 se eie titel vir 'n onbekende of ongeldige kode", async () => {
+    haalMuni.mockResolvedValue(null);
+    for (const kode of ["ZZ999", "nonsens-123"]) {
+      const meta = await generateMetadata({ params: Promise.resolve({ kode }) });
+      expect(meta.title).toBe(KOPIE.nie_gevind_titel);
+      expect(meta.robots).toEqual({ index: false, follow: true });
+    }
+    haalMuni.mockResolvedValue(muni({ kode: "DC2", naam: "Cape Winelands", tipe: "distrik" }));
+    const meta = await generateMetadata({ params: Promise.resolve({ kode: "DC2" }) });
+    expect(meta.title).toBe(vulIn(KOPIE.muni_bladtitel, { q: "Kaapse Wynland" }));
   });
 });

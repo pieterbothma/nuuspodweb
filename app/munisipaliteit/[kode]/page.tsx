@@ -5,9 +5,10 @@ import { BronStrook, haalBronDatum, OVK_LYS_SKAKEL } from "@/app/_components/ver
 import { Kopstuk } from "@/app/_components/verkiesing/kopstuk";
 import { Raad2021Tabel } from "@/app/_components/verkiesing/raad-2021";
 import { vulIn } from "@/app/_components/verkiesing/stembriewe";
+import { Voet } from "@/app/_components/verkiesing/voet";
 import { WykRooster } from "@/app/_components/verkiesing/wyk-rooster";
 import { KOPIE } from "@/lib/verkiesing/kopie";
-import { muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
+import { distrikNaam, muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
 import { vergelykNaam } from "@/lib/verkiesing/orden";
 import { geldigeMuniKode, haalMuni, type MuniOpsomming } from "@/lib/verkiesing/wyksoeker";
 
@@ -33,12 +34,23 @@ type Props = { params: Promise<{ kode: string }> };
 function onderskrif(muni: MuniOpsomming): string[] {
   const dele: string[] = [];
   if (muni.distrik_naam) {
-    dele.push(vulIn(KOPIE.muni_onderskrif_distrik, { q: muni.distrik_naam }));
+    // MuniOpsomming has no distrik_kode, so the helper resolves it from the stored name.
+    dele.push(vulIn(KOPIE.muni_onderskrif_distrik, { q: distrikNaam(null, muni.distrik_naam) }));
   }
   dele.push(provinsieNaam(muni.provinsie));
   if (muni.wyke.length === 1) dele.push(KOPIE.muni_wyke_aantal_een);
   else if (muni.wyke.length > 1) dele.push(vulIn(KOPIE.muni_wyke_aantal, { n: muni.wyke.length }));
   return dele;
+}
+
+/**
+ * A district council is a row in `munisipaliteite` too, so its own page's heading goes
+ * through the district map rather than the metro map.
+ */
+function vertoonNaam(muni: MuniOpsomming): string {
+  return muni.tipe === "distrik"
+    ? distrikNaam(muni.kode, muni.naam)
+    : muniNaam(muni.kode, muni.naam);
 }
 
 function tipeEtiket(tipe: string): string {
@@ -49,11 +61,18 @@ function tipeEtiket(tipe: string): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { kode } = await params;
-  if (!geldigeMuniKode(kode)) return {};
+  // An unknown code renders the site's 404, and a `notFound()` from a dynamic segment keeps
+  // whatever title this function returned — so return the 404's own title, not an empty
+  // object, which would leave the root layout's homepage title on a 404.
+  const nieGevind: Metadata = {
+    title: KOPIE.nie_gevind_titel,
+    robots: { index: false, follow: true },
+  };
+  if (!geldigeMuniKode(kode)) return nieGevind;
   // The same read the page makes, deduplicated by Next's fetch cache within the request.
   const muni = await haalMuni(kode);
-  if (!muni) return {};
-  const naam = muniNaam(muni.kode, muni.naam);
+  if (!muni) return nieGevind;
+  const naam = vertoonNaam(muni);
   const titel = vulIn(KOPIE.muni_bladtitel, { q: naam });
   const beskrywing = vulIn(KOPIE.muni_beskrywing, { q: naam });
   return {
@@ -117,13 +136,13 @@ export default async function MuniBladsy({ params }: Props) {
   if (!muni) notFound();
 
   const bronDatum = await haalBronDatum();
-  const naam = muniNaam(muni.kode, muni.naam);
+  const naam = vertoonNaam(muni);
 
   return (
     <>
       <Kopstuk />
       <main className="mx-auto max-w-6xl px-5 pt-8 pb-10 sm:px-8 sm:pt-11">
-        <nav aria-label="Kruimelspoor" className="text-grys font-sans text-sm">
+        <nav aria-label={KOPIE.kruimelspoor_etiket} className="text-grys font-sans text-sm">
           <Link
             href="/"
             className="text-grys hover:text-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
@@ -163,8 +182,16 @@ export default async function MuniBladsy({ params }: Props) {
           <KontesterendePartye partye={muni.partye} />
         </div>
 
-        <BronStrook bronDatum={bronDatum} bronSkakel={OVK_LYS_SKAKEL} />
+        {/* The footer asks the feedback question, so the strip does not — the reader is
+            asked once. The strip's second line qualifies the 2021 seat figures above it. */}
+        <BronStrook
+          bronDatum={bronDatum}
+          bronSkakel={OVK_LYS_SKAKEL}
+          nota={KOPIE.bron_nota_setels_2021}
+          metTerugvoer={false}
+        />
       </main>
+      <Voet />
     </>
   );
 }

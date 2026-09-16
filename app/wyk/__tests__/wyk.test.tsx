@@ -131,7 +131,8 @@ describe("/wyk/[wykId]", () => {
     expect(screen.getByText(KOPIE.stembrief_wyk)).toBeTruthy();
     expect(screen.getByText(vulIn(KOPIE.stembrief_pv, { q: "Stellenbosch" }))).toBeTruthy();
     expect(
-      screen.getByText(vulIn(KOPIE.stembrief_distrik, { q: "Cape Winelands" }))
+      // DC2's stored name is "Cape Winelands"; the ballot shows the Afrikaans display name.
+      screen.getByText(vulIn(KOPIE.stembrief_distrik, { q: "Kaapse Wynland" }))
     ).toBeTruthy();
   });
 
