@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { KOPIE } from "@/lib/verkiesing/kopie";
-import { Terugvoer } from "./terugvoer";
 
 export function Voet() {
   return (
     <footer className="border-rand mt-16 border-t">
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-10 sm:px-8">
-        <Terugvoer />
         <div className="text-grys grid gap-2 font-sans text-sm">
           <p>{KOPIE.voet_bron}</p>
           <p>{KOPIE.voet_onafhanklik}</p>

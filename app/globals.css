@@ -17,6 +17,9 @@
   /* Section headings: the brand red darkened just enough for small text on white
      (5.6:1; #e53935 is 4.2:1, below WCAG AA for 12px). */
   --color-rooi-teks: #c62828;
+  /* News group sub-headings ("In Parow"): the brand cyan darkened to 5.1:1 on white, so
+     they read apart from the red section headings and the ink headlines. */
+  --color-siaan-teks: #00779a;
   --color-neon-siaan: #00d2fa;
   --color-neon-rooi: #fa2229;
 }

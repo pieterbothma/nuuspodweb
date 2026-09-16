@@ -143,10 +143,7 @@ export default async function WykBladsy({ params }: Props) {
           <WykNuus groepe={nuus} muniNaam={muniNaam(wyk.muni_kode, wyk.muni_naam)} nou={new Date()} />
         </div>
 
-        {/* The footer asks the feedback question, so the strip does not: the ward page is the
-            most-shared page in this drop and needs the footer's independence line and the
-            Real411 link, not two "Het jy gekry wat jy gesoek het?" widgets. */}
-        <BronStrook bronDatum={bronDatum} bronSkakel={OVK_LYS_SKAKEL} metTerugvoer={false} />
+        <BronStrook bronDatum={bronDatum} bronSkakel={OVK_LYS_SKAKEL} />
       </main>
       <Voet />
     </>

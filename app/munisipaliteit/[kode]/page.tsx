@@ -202,13 +202,11 @@ export default async function MuniBladsy({ params }: Props) {
           <MuniNuus stories={nuus} muniNaam={naam} nou={new Date()} />
         </div>
 
-        {/* The footer asks the feedback question, so the strip does not — the reader is
-            asked once. The strip's second line qualifies the 2021 seat figures above it. */}
+        {/* The strip's second line qualifies the 2021 seat figures above it. */}
         <BronStrook
           bronDatum={bronDatum}
           bronSkakel={OVK_LYS_SKAKEL}
           nota={KOPIE.bron_nota_setels_2021}
-          metTerugvoer={false}
         />
       </main>
       <Voet />

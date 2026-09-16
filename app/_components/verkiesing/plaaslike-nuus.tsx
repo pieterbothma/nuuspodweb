@@ -68,7 +68,7 @@ export function WykNuus({ groepe, muniNaam, nou }: { groepe: NuusGroep[]; muniNa
           <div className="mt-5 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
             {groepe.map((g) => (
               <div key={g.vlak} data-nuus-vlak={g.vlak}>
-                <h3 className="text-ink font-sans text-sm font-bold">{groepOpskrif(g, muniNaam)}</h3>
+                <h3 className="text-siaan-teks font-sans text-sm font-black">{groepOpskrif(g, muniNaam)}</h3>
                 {/* The neighbourhood group always names each story's place: "Uit jou omgewing"
                     alone does not say which suburb a headline is about. */}
                 <Lys stories={g.stories} nou={nou} wysPlek={g.vlak === "wyk" || (g.vlak === "dorp" && g.plek === null)} />

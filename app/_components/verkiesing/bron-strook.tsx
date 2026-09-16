@@ -1,12 +1,10 @@
 import { lees } from "@/lib/supabase-rest";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { vulIn } from "./stembriewe";
-import { Terugvoer } from "./terugvoer";
 
 /**
  * The attribution strip that closes the ward page and the municipality page: who the rows
- * come from, how old they are, where the reader can check them, and the one-question
- * feedback widget.
+ * come from, how old they are, and where the reader can check them.
  *
  * Both pages read the date once and pass it in, so the strip itself makes no request.
  */
@@ -54,16 +52,10 @@ export function BronStrook({
    * qualifier beyond the shared attribution.
    */
   nota,
-  /**
-   * Whether the strip asks the feedback question itself. A page that also mounts `<Voet />`
-   * passes `false`, so the reader is asked once — the ward page does exactly that.
-   */
-  metTerugvoer = true,
 }: {
   bronDatum: string | null;
   bronSkakel: string;
   nota?: string;
-  metTerugvoer?: boolean;
 }) {
   const datum = bronDatum ? skryfDatum(bronDatum) : null;
 
@@ -84,7 +76,6 @@ export function BronStrook({
         </p>
         {nota && <p className="mt-1">{nota}</p>}
       </div>
-      {metTerugvoer && <Terugvoer />}
     </div>
   );
 }

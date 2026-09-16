@@ -80,10 +80,6 @@ export const KOPIE = {
   stroom_minder: "Wys minder berigte",
   stroom_lees_by: "Lees by",
   stroom_leeg: "Geen berigte tans beskikbaar nie",
-  terugvoer_vraag: "Het jy gekry wat jy gesoek het?",
-  terugvoer_ja: "Ja",
-  terugvoer_nee: "Nee",
-  terugvoer_dankie: "Dankie, dit help ons om die blad te verbeter.",
   // --- Wykblad (Gemini, Fase 2b) ------------------------------------
   // Placeholders are substituted by the components and MUST survive a rewrite:
   //   {w} = the ward number        {n} = a count        {m} = a total

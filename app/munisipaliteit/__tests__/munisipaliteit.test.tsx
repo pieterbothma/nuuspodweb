@@ -365,10 +365,11 @@ describe("/munisipaliteit/[kode]", () => {
     expect(totaal.textContent).toContain("2");
   });
 
-  it("vra die terugvoervraag net een keer en dra die 2021-nota in die bronstrook", async () => {
+  it("dra die 2021-nota in die bronstrook en vra geen terugvoervraag nie", async () => {
     haalMuni.mockResolvedValue(muni());
     const { container } = await wys("WC024");
-    expect(screen.getAllByText(KOPIE.terugvoer_vraag)).toHaveLength(1);
+    // Piet, 2026-09-16: the "Het jy gekry wat jy gesoek het?" widget is gone everywhere.
+    expect(screen.queryByText(/gekry wat jy gesoek/)).toBeNull();
     expect(container.querySelector("footer")).toBeTruthy();
     expect(screen.getByText(KOPIE.bron_nota_setels_2021)).toBeTruthy();
     expect(screen.getByRole("navigation", { name: KOPIE.kruimelspoor_etiket })).toBeTruthy();
