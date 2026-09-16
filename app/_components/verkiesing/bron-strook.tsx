@@ -48,28 +48,43 @@ function skryfDatum(datum: string): string | null {
 export function BronStrook({
   bronDatum,
   bronSkakel,
+  /**
+   * A page-specific second line, e.g. the municipality page's note about the 2021 seat
+   * calculation (`KOPIE.bron_nota_setels_2021`). Unset on the ward page, whose rows need no
+   * qualifier beyond the shared attribution.
+   */
+  nota,
+  /**
+   * Whether the strip asks the feedback question itself. A page that also mounts `<Voet />`
+   * passes `false`, so the reader is asked once — the ward page does exactly that.
+   */
+  metTerugvoer = true,
 }: {
   bronDatum: string | null;
   bronSkakel: string;
+  nota?: string;
+  metTerugvoer?: boolean;
 }) {
   const datum = bronDatum ? skryfDatum(bronDatum) : null;
 
   return (
     <div className="border-rand mt-12 flex flex-col items-start gap-4 border-t pt-6 sm:flex-row sm:items-center sm:gap-6">
-      <p className="text-grys flex-1 font-sans text-sm leading-relaxed">
-        {KOPIE.bron_ovk}
-        {datum ? ` · ${vulIn(KOPIE.laas_bygewerk, { q: datum })}` : ""}{" "}
-        ·{" "}
-        <a
-          href={bronSkakel}
-          target="_blank"
-          rel="noopener"
-          className="text-ink decoration-rand underline underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
-        >
-          {KOPIE.bron_ovk_skakel} ↗
-        </a>
-      </p>
-      <Terugvoer />
+      <div className="text-grys flex-1 font-sans text-sm leading-relaxed">
+        <p>
+          {KOPIE.bron_ovk}
+          {datum ? ` · ${vulIn(KOPIE.laas_bygewerk, { q: datum })}` : ""} ·{" "}
+          <a
+            href={bronSkakel}
+            target="_blank"
+            rel="noopener"
+            className="text-ink decoration-rand underline underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
+          >
+            {KOPIE.bron_ovk_skakel} ↗
+          </a>
+        </p>
+        {nota && <p className="mt-1">{nota}</p>}
+      </div>
+      {metTerugvoer && <Terugvoer />}
     </div>
   );
 }

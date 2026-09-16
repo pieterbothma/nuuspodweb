@@ -5,6 +5,7 @@ import { BronStrook, haalBronDatum, OVK_LYS_SKAKEL } from "@/app/_components/ver
 import { Kopstuk } from "@/app/_components/verkiesing/kopstuk";
 import { Stembriewe, vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { StemlokaleLys } from "@/app/_components/verkiesing/stemlokale-lys";
+import { Voet } from "@/app/_components/verkiesing/voet";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
 import { geldigeWykId, haalStembriewe, haalStemstasies, haalWyk } from "@/lib/verkiesing/wyksoeker";
@@ -23,10 +24,14 @@ type Props = { params: Promise<{ wykId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { wykId } = await params;
-  if (!geldigeWykId(wykId)) return {};
+  // An unknown ward renders the site's 404, and a `notFound()` from a dynamic segment keeps
+  // whatever title this function returned — so return the 404's own title, not an empty
+  // object, which would leave the root layout's homepage title on a 404.
+  const nieGevind: Metadata = { title: KOPIE.nie_gevind_titel, robots: { index: false, follow: true } };
+  if (!geldigeWykId(wykId)) return nieGevind;
   // The same read the page makes, deduplicated by Next's fetch cache within the request.
   const wyk = await haalWyk(wykId);
-  if (!wyk) return {};
+  if (!wyk) return nieGevind;
   const waardes = { w: wyk.wyk_nr, q: muniNaam(wyk.muni_kode, wyk.muni_naam) };
   const titel = vulIn(KOPIE.wyk_bladtitel, waardes);
   const beskrywing = vulIn(KOPIE.wyk_beskrywing, waardes);
@@ -74,7 +79,7 @@ export default async function WykBladsy({ params }: Props) {
     <>
       <Kopstuk />
       <main className="mx-auto max-w-6xl px-5 pt-8 pb-10 sm:px-8 sm:pt-11">
-        <nav aria-label="Kruimelspoor" className="text-grys font-sans text-sm">
+        <nav aria-label={KOPIE.kruimelspoor_etiket} className="text-grys font-sans text-sm">
           <Link href="/" className={SKAKEL}>
             {KOPIE.wyk_kruimel_tuis}
           </Link>{" "}
@@ -120,8 +125,12 @@ export default async function WykBladsy({ params }: Props) {
           </div>
         </div>
 
-        <BronStrook bronDatum={bronDatum} bronSkakel={OVK_LYS_SKAKEL} />
+        {/* The footer asks the feedback question, so the strip does not: the ward page is the
+            most-shared page in this drop and needs the footer's independence line and the
+            Real411 link, not two "Het jy gekry wat jy gesoek het?" widgets. */}
+        <BronStrook bronDatum={bronDatum} bronSkakel={OVK_LYS_SKAKEL} metTerugvoer={false} />
       </main>
+      <Voet />
     </>
   );
 }

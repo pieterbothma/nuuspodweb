@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
+import { vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { muniNaam } from "@/lib/verkiesing/name";
-import { haalStembriewe, haalWyk } from "@/lib/verkiesing/wyksoeker";
+import { geldigeWykId, haalStembriewe, haalWyk } from "@/lib/verkiesing/wyksoeker";
 
 /**
  * The ward's share card — `Deelkaart.dc.html` in code: white ground, the neon gradient as an
@@ -19,6 +21,8 @@ import { haalStembriewe, haalWyk } from "@/lib/verkiesing/wyksoeker";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+/** Next only allows a static `alt`, so it describes the card without naming a ward. */
+export const alt = KOPIE.og_wyk_alt;
 
 const INK = "#0b0d10";
 const ROOI = "#e53935";
@@ -34,12 +38,15 @@ function logoUri(): string {
 
 export default async function DeelKaart({ params }: { params: Promise<{ wykId: string }> }) {
   const { wykId } = await params;
-  const wyk = await haalWyk(wykId);
+  const wyk = geldigeWykId(wykId) ? await haalWyk(wykId) : null;
+  // The card 404s with the page it belongs to: a 200 PNG reading "Wyk" with no number would
+  // be a share image for a ward that does not exist.
+  if (!wyk) notFound();
   // A ward ballot's candidate count — the figure a reader can check against the page itself.
-  const aantal = wyk ? (await haalStembriewe(wyk)).wyk.length : 0;
-  const onderaan = aantal > 0 ? KOPIE.og_wyk_sjabloon.replace("{n}", String(aantal)) : KOPIE.og_wyk_geen;
+  const aantal = (await haalStembriewe(wyk)).wyk.length;
+  const onderaan = aantal > 0 ? vulIn(KOPIE.og_wyk_sjabloon, { n: aantal }) : KOPIE.og_wyk_geen;
   const [voor] = KOPIE.soek_wyk_nommer.split("{n}");
-  const naam = wyk ? muniNaam(wyk.muni_kode, wyk.muni_naam) : "";
+  const naam = muniNaam(wyk.muni_kode, wyk.muni_naam);
 
   const display = leesLeer("public/fonts/DMSerifDisplay-Regular.ttf");
   const sansNormaal = leesLeer("public/fonts/SourceSans3-Regular.ttf");
@@ -100,7 +107,7 @@ export default async function DeelKaart({ params }: { params: Promise<{ wykId: s
                     color: INK,
                   }}
                 >
-                  {KOPIE.wyk_kruimel_tuis.toUpperCase()}
+                  {KOPIE.og_masthead.toUpperCase()}
                 </div>
               </div>
             </div>
@@ -118,7 +125,7 @@ export default async function DeelKaart({ params }: { params: Promise<{ wykId: s
               >
                 {/* A trailing ordinary space collapses in Satori's flex row. */}
                 <span>{voor.replace(/\s+$/, " ")}</span>
-                <span style={{ color: ROOI }}>{wyk?.wyk_nr ?? ""}</span>
+                <span style={{ color: ROOI }}>{wyk.wyk_nr}</span>
               </div>
               {naam && (
                 <div

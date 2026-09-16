@@ -1,4 +1,5 @@
 import { KOPIE } from "@/lib/verkiesing/kopie";
+import { muniNaam } from "@/lib/verkiesing/name";
 import type {
   Kandidaat,
   PartyLys,
@@ -85,8 +86,16 @@ function KandidaatRy({ kandidaat }: { kandidaat: Kandidaat }) {
 /**
  * One party on a PR ballot, with its list behind a disclosure. `<details>` keeps the whole
  * page server-rendered; the two labels swap with `group-open`, so no state is involved.
+ *
+ * `volgorde` decides whether the list shows numbers at all. Before the 23 September draw the
+ * rows are alphabetical, so a "1, 2, 3" beside them would be a number the database does not
+ * have — and a real `lys_posisie` printed next to an alphabetical list would contradict the
+ * "Alfabeties" label above it. The array index is never used as a stand-in.
  */
-function PartyRy({ lys }: { lys: PartyLys }) {
+function PartyRy({ lys, volgorde }: { lys: PartyLys; volgorde: StembriefData["volgorde"] }) {
+  // The column is present for the whole list once the draw has landed, so the names stay
+  // aligned even if a single row arrives without a position; that row's cell stays empty.
+  const wysNommers = volgorde === "stembrief";
   return (
     <details data-ry="party" className="border-rand group border-t">
       <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-2 sm:px-6 [&::-webkit-details-marker]:hidden">
@@ -107,9 +116,14 @@ function PartyRy({ lys }: { lys: PartyLys }) {
         <ol className="px-5 pb-3.5 sm:px-6">
           {lys.kandidate.map((k, i) => (
             <li key={`${k.volle_naam}-${i}`} className="flex gap-3.5 py-1.5">
-              <span className="text-grys w-5 shrink-0 text-right font-sans text-sm tabular-nums">
-                {k.lys_posisie ?? i + 1}
-              </span>
+              {wysNommers && (
+                <span
+                  data-lys-nr={k.lys_posisie ?? ""}
+                  className="text-grys w-5 shrink-0 text-right font-sans text-sm tabular-nums"
+                >
+                  {k.lys_posisie ?? ""}
+                </span>
+              )}
               <span className="text-ink font-sans text-[0.9375rem]">{k.volle_naam}</span>
             </li>
           ))}
@@ -138,6 +152,9 @@ type Blok =
 
 /** The blocks a voter in this ward gets: 3 in a local municipality, 2 in a metro. */
 function blokke(wyk: Wyk, data: StembriefData): Blok[] {
+  // Council names reach the site in English ("City of Cape Town"); `muniNaam` decides what a
+  // reader sees without touching the row. Task 9 still owns the sentence around it.
+  const raadNaam = muniNaam(wyk.muni_kode, wyk.muni_naam);
   const uit: Blok[] = [
     {
       sleutel: "wyk",
@@ -148,7 +165,7 @@ function blokke(wyk: Wyk, data: StembriefData): Blok[] {
     },
     {
       sleutel: "pv_plaaslik",
-      titel: vulIn(KOPIE.stembrief_pv, { q: wyk.muni_naam }),
+      titel: vulIn(KOPIE.stembrief_pv, { q: raadNaam }),
       uitleg: KOPIE.stembrief_pv_uitleg,
       soort: "pv",
       lyste: data.pv_plaaslik,
@@ -159,7 +176,9 @@ function blokke(wyk: Wyk, data: StembriefData): Blok[] {
   if (wyk.distrik_kode) {
     uit.push({
       sleutel: "pv_distrik",
-      titel: vulIn(KOPIE.stembrief_distrik, { q: wyk.distrik_naam ?? wyk.distrik_kode }),
+      titel: vulIn(KOPIE.stembrief_distrik, {
+        q: muniNaam(wyk.distrik_kode, wyk.distrik_naam ?? wyk.distrik_kode),
+      }),
       uitleg: KOPIE.stembrief_distrik_uitleg,
       soort: "pv",
       lyste: data.pv_distrik,
@@ -205,7 +224,9 @@ export function Stembriewe({ wyk, stembriewe }: { wyk: Wyk; stembriewe: Stembrie
             ) : blok.lyste.length === 0 ? (
               <NogGeenKandidate />
             ) : (
-              blok.lyste.map((l) => <PartyRy key={l.party_naam} lys={l} />)
+              blok.lyste.map((l) => (
+                <PartyRy key={l.party_naam} lys={l} volgorde={stembriewe.volgorde} />
+              ))
             )}
           </div>
         </div>

@@ -131,6 +131,15 @@ export const KOPIE = {
   bron_ovk_skakel: "Sien die OVK se lys",
   og_wyk_sjabloon: "{n} kandidate · Stem op 4 November",
   og_wyk_geen: "Stem op 4 November",
+  // Fix round 1. og_masthead is the share card's own masthead line — its own slot, so a
+  // rewrite of the breadcrumb's "Verkiesing 2026" can never change the card. og_wyk_alt is
+  // the card's alt text and must stay generic: Next only allows a static `alt` export, so
+  // it cannot name a ward. bron_nota_setels_2021 is passed in by the municipality page;
+  // the ward page leaves the note unset.
+  og_masthead: "Verkiesing 2026",
+  og_wyk_alt: "Nuuspod se wykblad vir die plaaslike verkiesing van 4 November 2026",
+  kruimelspoor_etiket: "Kruimelspoor",
+  bron_nota_setels_2021: "Setelberekening 2021 volgens die OVK se amptelike uitslae",
   // --- Munisipaliteitsblad (draft values, Task 7) ------------------------
   // Placeholders are substituted by the components and MUST survive a rewrite:
   //   muni_bladtitel / muni_beskrywing      {q} = the municipality's display name

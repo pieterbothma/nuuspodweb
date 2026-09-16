@@ -30,6 +30,12 @@ vi.mock("@/lib/verkiesing/wyksoeker", async (oorspronklik) => ({
   haalStembriewe,
 }));
 
+// The strip's own read must never reach PostgREST from a test, env vars set or not.
+vi.mock("@/lib/supabase-rest", () => ({
+  lees: vi.fn(async () => null),
+  voegIn: vi.fn(async () => false),
+}));
+
 vi.mock("next/navigation", () => ({
   notFound: geenGevind,
   usePathname: () => "/wyk/10204009",
@@ -51,11 +57,12 @@ const STELLENBOSCH: Wyk = {
   provinsie: "Wes-Kaap",
 };
 
+// The row keeps the IEC's official English name; the page shows the Afrikaans display name.
 const KAAPSTAD: Wyk = {
   wyk_id: "19100055",
   wyk_nr: 55,
   muni_kode: "CPT",
-  muni_naam: "Stad Kaapstad",
+  muni_naam: "City of Cape Town",
   muni_tipe: "metro",
   distrik_kode: null,
   distrik_naam: null,
@@ -134,6 +141,9 @@ describe("/wyk/[wykId]", () => {
     expect(container.querySelectorAll("[data-stembrief]")).toHaveLength(2);
     expect(screen.getByText(vulIn(KOPIE.stembrief_teller, { n: 2, m: 2 }))).toBeTruthy();
     expect(screen.queryByText(/distriksraad/)).toBeNull();
+    // The metro's English row name never reaches the reader.
+    expect(screen.getByText(vulIn(KOPIE.stembrief_pv, { q: "Stad Kaapstad" }))).toBeTruthy();
+    expect(screen.queryByText(/City of Cape Town/)).toBeNull();
   });
 
   it("wys 'n stasie sonder adres met net sy naam", async () => {
@@ -174,6 +184,49 @@ describe("/wyk/[wykId]", () => {
     }
     // The independent row names no party, so it cannot be mistaken for one.
     expect(screen.getByText(KOPIE.onafhanklik)).toBeTruthy();
+  });
+
+  it("wys geen lysnommers voor die trekking nie", async () => {
+    // Real list positions exist in the rows, but the ballot is still alphabetical: printing
+    // them would contradict the "Alfabeties" label and put them in the wrong order.
+    stel(STELLENBOSCH, [stasie()], {
+      ...LEEG,
+      pv_plaaslik: [
+        partyLys({
+          kandidate: [
+            kandidaat({ volle_naam: "VOORBEELD, Abel", lys_posisie: 7 }),
+            kandidaat({ volle_naam: "VOORBEELD, Zelda", lys_posisie: 3 }),
+          ],
+        }),
+      ],
+      volgorde: "alfabeties",
+    });
+    const { container } = await wys("10204009");
+    expect(container.querySelectorAll("[data-lys-nr]")).toHaveLength(0);
+    const lys = container.querySelector("[data-ry='party'] ol");
+    expect(lys?.textContent).toBe("VOORBEELD, AbelVOORBEELD, Zelda");
+    expect(lys?.textContent).not.toMatch(/\d/);
+  });
+
+  it("wys die werklike lysposisies ná die trekking, nooit die arrayindeks nie", async () => {
+    stel(STELLENBOSCH, [stasie()], {
+      ...LEEG,
+      pv_plaaslik: [
+        partyLys({
+          posisie: 1,
+          kandidate: [
+            kandidaat({ volle_naam: "VOORBEELD, Een", lys_posisie: 3 }),
+            kandidaat({ volle_naam: "VOORBEELD, Twee", lys_posisie: 7 }),
+            // A row without a position leaves its cell empty rather than borrowing "3".
+            kandidaat({ volle_naam: "VOORBEELD, Drie", lys_posisie: null }),
+          ],
+        }),
+      ],
+      volgorde: "stembrief",
+    });
+    const { container } = await wys("10204009");
+    const nrs = [...container.querySelectorAll("[data-lys-nr]")].map((e) => e.textContent);
+    expect(nrs).toEqual(["3", "7", ""]);
   });
 
   it("wys 'Alfabeties' sonder stembriefvolgorde en 'Volgorde soos op die stembrief' daarmee", async () => {
