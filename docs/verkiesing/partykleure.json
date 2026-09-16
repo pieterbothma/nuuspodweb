@@ -1,0 +1,16 @@
+{
+  "_nota": "Goedgekeur deur Piet, 2026-09-16. Slegs vir uitslag- en koalisiegrafika (nooit op stembriewe, kandidaatlyste of wykblaaie nie). Elke staaf of segment dra ook die party se naam as teks. Nuuspod-rooi en die neon-verloop word nooit binne grafika gebruik nie.",
+  "partye": {
+    "AFRICAN NATIONAL CONGRESS": "#F2B200",
+    "DEMOCRATIC ALLIANCE": "#005BA6",
+    "UMKHONTO WESIZWE PARTY": "#1E7B3A",
+    "ECONOMIC FREEDOM FIGHTERS": "#852A2A",
+    "INKATHA FREEDOM PARTY": "#D6281F",
+    "VRYHEIDSFRONT PLUS": "#FF6600",
+    "ACTIONSA": "#05B615",
+    "PATRIOTIC ALLIANCE": "#8DB600"
+  },
+  "ander": "#B8BEC8",
+  "onafhanklik": "#4B5563",
+  "hersien": "Na die finale kandidaatlys, ingeval 'n party wat nie hier is nie 'n hoofdeelnemer word."
+}
