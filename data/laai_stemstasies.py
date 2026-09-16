@@ -160,10 +160,19 @@ def bou_stasie_ry(
             f"{muni_kolom!r} (wyk {wyk_id})"
         )
 
+    skoon_naam = naam.strip()
+    skoon_adres = (adres or "").strip()
+
+    # naam_soek/adres_soek are the stored, normalised columns `soek()` matches on
+    # (migration 20260916...stemstasies_soekkolomme). teks.normaliseer is the Python side
+    # of the SQL normaliseer_soekteks — the two must stay byte-identical, so a station
+    # named "MÔRELIG ..." is found by a query for "Morelig".
     ry = {
         "vd_nommer": vd_nommer.strip(),
-        "naam": naam.strip(),
-        "adres": (adres or "").strip(),
+        "naam": skoon_naam,
+        "naam_soek": teks.normaliseer(skoon_naam),
+        "adres": skoon_adres,
+        "adres_soek": teks.normaliseer(skoon_adres),
         "wyk_id": wyk_id,
         "muni_kode": muni_kode,
         "bron_lêer": bron_lêer,
@@ -179,7 +188,8 @@ def ontleed(
 ) -> list[dict]:
     """Ontleed 'n IEC-stemlokaal-PDF na 'n lys rye vir `stg_stemstasies`.
 
-    Sleutels: vd_nommer, naam, adres, wyk_id, muni_kode, bron_lêer, bron_ry. Rye wie se
+    Sleutels: vd_nommer, naam, naam_soek, adres, adres_soek, wyk_id, muni_kode,
+    bron_lêer, bron_ry. Rye wie se
     munisipaliteit nie opgelos kon word nie, word uitgesluit (sien `bou_stasie_ry`) —
     gebruik `ontleed_met_diagnostiek` om dit (en ander opsommings) ook te kry.
     """

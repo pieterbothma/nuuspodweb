@@ -47,7 +47,10 @@ def test_ontleed_wc_no_duplicate_vd(wc_rye):
 
 
 def test_ontleed_wc_rows_have_all_keys(wc_rye):
-    verwagte_sleutels = {"vd_nommer", "naam", "adres", "wyk_id", "muni_kode", "bron_lêer", "bron_ry"}
+    verwagte_sleutels = {
+        "vd_nommer", "naam", "naam_soek", "adres", "adres_soek",
+        "wyk_id", "muni_kode", "bron_lêer", "bron_ry",
+    }
     for ry in wc_rye[:20]:
         assert set(ry.keys()) == verwagte_sleutels
 
@@ -80,12 +83,24 @@ def test_bou_stasie_ry_uses_explicit_muni_kode():
     assert ry == {
         "vd_nommer": "97140078",
         "naam": "X SKOOL",
+        "naam_soek": "x skool",
         "adres": "X STRAAT",
+        "adres_soek": "x straat",
         "wyk_id": "19100001",
         "muni_kode": "CPT",
         "bron_lêer": "stemstasies-2026-WC.pdf",
         "bron_ry": 1001,
     }
+
+
+def test_bou_stasie_ry_normaliseer_naam_en_adres_vir_soek():
+    # soek() vergelyk teen hierdie kolomme, so akkente, koppeltekens en kassie moet
+    # dieselfde gevou word as wat die SQL normaliseer_soekteks doen.
+    ry, _metode, _probleem = ls.bou_stasie_ry(
+        _rou_ry(naam="MÔRELIG-SKOOL", adres="St. Johnstraat 5"), 1, 1, "x.pdf", {}, {}
+    )
+    assert ry["naam_soek"] == "morelig skool"
+    assert ry["adres_soek"] == "st. johnstraat 5"
 
 
 def test_bou_stasie_ry_falls_back_to_wyk_voorvoegsel():
