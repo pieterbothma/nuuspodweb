@@ -194,7 +194,7 @@ export function Stembriewe({ wyk, stembriewe }: { wyk: Wyk; stembriewe: Stembrie
 
   return (
     <section aria-labelledby="stembriewe-opskrif" className="flex flex-col gap-5">
-      <h2 id="stembriewe-opskrif" className="text-rooi-teks font-sans text-xs font-bold tracking-[0.22em] uppercase">
+      <h2 id="stembriewe-opskrif" className="text-rooi-teks font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase">
         {KOPIE.wyk_stembriewe_opskrif}
       </h2>
       {lys.map((blok, i) => (

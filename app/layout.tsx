@@ -26,6 +26,12 @@ const sourceSans = localFont({
       weight: "700",
       style: "normal",
     },
+    {
+      // Section headings only (text-rooi-teks eyebrows). Subset to Latin, like the other cuts.
+      path: "../public/fonts/SourceSans3-Black.ttf",
+      weight: "900",
+      style: "normal",
+    },
   ],
   variable: "--font-sans",
   display: "swap",

@@ -19,7 +19,7 @@ export function StemlokaleLys({ wykNr, stasies }: { wykNr: number; stasies: Stem
     <section id="stemlokale" aria-labelledby="stemlokale-opskrif" className="scroll-mt-24">
       <h2
         id="stemlokale-opskrif"
-        className="text-rooi-teks font-sans text-xs font-bold tracking-[0.22em] uppercase"
+        className="text-rooi-teks font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase"
       >
         {opskrif}
       </h2>

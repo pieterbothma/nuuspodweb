@@ -100,7 +100,7 @@ function KontesterendePartye({ partye, volgorde }: { partye: string[]; volgorde:
       <div className="flex items-center gap-3">
         <h2
           id="partye-opskrif"
-          className="text-rooi-teks flex-1 font-sans text-xs font-bold tracking-[0.22em] uppercase"
+          className="text-rooi-teks flex-1 font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase"
         >
           {KOPIE.muni_partye_opskrif}
         </h2>

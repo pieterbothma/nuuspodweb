@@ -57,7 +57,7 @@ export function WykNuus({ groepe, muniNaam, nou }: { groepe: NuusGroep[]; muniNa
   if (groepe.length === 0) return null;
   return (
     <section aria-labelledby="plaaslike-nuus" data-plaaslike-nuus className="scroll-mt-24">
-      <h2 id="plaaslike-nuus" className="text-rooi-teks font-sans text-xs font-bold tracking-[0.22em] uppercase">
+      <h2 id="plaaslike-nuus" className="text-rooi-teks font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase">
         {KOPIE.plaaslik_opskrif}
       </h2>
       <p className="text-grys mt-1.5 font-sans text-sm">{KOPIE.plaaslik_onderskrif}</p>
@@ -79,7 +79,7 @@ export function MuniNuus({ stories, muniNaam, nou }: { stories: Storie[]; muniNa
   if (stories.length === 0) return null;
   return (
     <section aria-labelledby="plaaslike-nuus" data-plaaslike-nuus className="scroll-mt-24">
-      <h2 id="plaaslike-nuus" className="text-rooi-teks font-sans text-xs font-bold tracking-[0.22em] uppercase">
+      <h2 id="plaaslike-nuus" className="text-rooi-teks font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase">
         {vulIn(KOPIE.plaaslik_muni_opskrif, { q: muniNaam })}
       </h2>
       <p className="text-grys mt-1.5 font-sans text-sm">{KOPIE.plaaslik_onderskrif}</p>

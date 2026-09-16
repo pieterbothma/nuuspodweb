@@ -6,7 +6,7 @@ export function Verkiesingsprogram({ episodes }: { episodes: Episode[] }) {
   const [nuutste, ...vorige] = episodes;
   return (
     <section id="program" aria-labelledby="program-kop" className="scroll-mt-24">
-      <h2 id="program-kop" className="font-sans text-xs font-bold tracking-[0.22em] text-rooi-teks uppercase">
+      <h2 id="program-kop" className="font-sans text-[0.8125rem] font-black tracking-[0.22em] text-rooi-teks uppercase">
         Verkiesings-Vrydag
       </h2>
       <p className="text-ink mt-2 font-display text-3xl">{KOPIE.program_ondertitel}</p>

@@ -6,7 +6,7 @@ export function GidsKaarte() {
   if (gidse.length === 0) return null;
   return (
     <section id="gidse" aria-labelledby="gidse-kop" className="scroll-mt-24">
-      <h2 id="gidse-kop" className="font-sans text-xs font-bold tracking-[0.22em] text-rooi-teks uppercase">
+      <h2 id="gidse-kop" className="font-sans text-[0.8125rem] font-black tracking-[0.22em] text-rooi-teks uppercase">
         Hoe om te stem
       </h2>
       <ul className="border-rand bg-rand mt-4 grid gap-px border sm:grid-cols-2">

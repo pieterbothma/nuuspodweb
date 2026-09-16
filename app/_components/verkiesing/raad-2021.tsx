@@ -165,7 +165,7 @@ export function Raad2021Tabel({ raad }: { raad: Raad2021 }) {
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h2
           id="raad-2021-opskrif"
-          className="text-rooi-teks flex-1 font-sans text-xs font-bold tracking-[0.22em] uppercase"
+          className="text-rooi-teks flex-1 font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase"
         >
           {KOPIE.muni_2021_opskrif}
         </h2>
