@@ -51,37 +51,27 @@ const KENTEKEN =
 const KNOPPIE =
   "border-rand text-ink inline-flex min-h-11 shrink-0 items-center gap-2 rounded border px-3 py-2 font-sans text-xs font-bold tracking-widest uppercase group-hover:border-ink";
 /**
- * One ballot-paper row: the text cell, then a logo cell and a mark cell divided by hairlines,
- * like the IEC's paper ballot. Every row has the same three cells at the same widths, so no
- * party or candidate takes more room than another.
+ * One ballot-paper row: the text cell, then a logo cell divided by a hairline, like the IEC's
+ * paper ballot. No mark box (Piet, 2026-09-16: it looked clickable). Every row has the same
+ * cells at the same widths, so no party or candidate takes more room than another.
  */
-const RY = "border-rand grid min-h-16 grid-cols-[minmax(0,1fr)_4rem_3.5rem] border-t sm:grid-cols-[minmax(0,1fr)_4.5rem_4rem]";
+const RY = "border-rand grid min-h-16 grid-cols-[minmax(0,1fr)_auto] border-t";
 const SEL_TEKS = "flex min-w-0 flex-col justify-center px-5 py-3.5 sm:px-6";
-const SEL_VAK = "border-rand flex items-center justify-center border-l";
+const SEL_VAK = "border-rand flex w-16 items-center justify-center border-l sm:w-18";
 
 /**
  * The party logo slot. `logoUrl` stays unset until official IEC logos are loaded; until then
- * every row, independents included, shows the same empty frame so no party stands out.
+ * nothing renders — an empty frame read as a box to tick (Piet, 2026-09-16), and no party
+ * gets a slot another lacks.
  */
 function LogoVak({ partyNaam, logoUrl }: { partyNaam: string | null; logoUrl?: string | null }) {
   return (
-    <div className={SEL_VAK} data-logo-vak={logoUrl ? "logo" : "leeg"}>
-      {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- small fixed-size logos, no layout shift
+    logoUrl ? (
+      <div className={SEL_VAK} data-logo-vak="logo">
+        {/* eslint-disable-next-line @next/next/no-img-element -- small fixed-size logos, no layout shift */}
         <img src={logoUrl} alt={partyNaam ?? ""} width={40} height={40} className="size-10 object-contain" />
-      ) : (
-        <span aria-hidden className="border-rand bg-paneel block size-10 border" />
-      )}
-    </div>
-  );
-}
-
-/** The empty square a voter marks with an X. Decorative: nothing is voted on this site. */
-function MerkVak() {
-  return (
-    <div className={SEL_VAK} data-merk-vak aria-hidden>
-      <span className="border-ink block size-7 border-[1.5px] sm:size-8" />
-    </div>
+      </div>
+    ) : null
   );
 }
 
@@ -128,7 +118,7 @@ function Naam({
   );
 }
 
-/** A ward candidate: name in ink, party (or "Onafhanklik") in grey, logo slot, mark box. */
+/** A ward candidate: name in ink, party (or "Onafhanklik") in grey, and the logo slot. */
 function KandidaatRy({ kandidaat }: { kandidaat: Kandidaat }) {
   return (
     <div data-ry="kandidaat" className={RY}>
@@ -139,7 +129,6 @@ function KandidaatRy({ kandidaat }: { kandidaat: Kandidaat }) {
         </p>
       </div>
       <LogoVak partyNaam={kandidaat.party_naam} />
-      <MerkVak />
     </div>
   );
 }
@@ -159,7 +148,7 @@ function PartyRy({ lys, volgorde }: { lys: PartyLys; volgorde: StembriefData["vo
   const wysNommers = volgorde === "stembrief";
   return (
     <details data-ry="party" className="border-rand group border-t">
-      <summary className="grid min-h-16 cursor-pointer list-none grid-cols-[minmax(0,1fr)_4rem_3.5rem] sm:grid-cols-[minmax(0,1fr)_4.5rem_4rem] [&::-webkit-details-marker]:hidden">
+      <summary className="grid min-h-16 cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] [&::-webkit-details-marker]:hidden">
         <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 sm:px-6">
           <span className="text-ink min-w-0 flex-1 basis-40 font-sans text-base font-bold">
             {lys.party_naam}
@@ -171,8 +160,7 @@ function PartyRy({ lys, volgorde }: { lys: PartyLys; volgorde: StembriefData["vo
           </span>
         </span>
         <LogoVak partyNaam={lys.party_naam} />
-        <MerkVak />
-      </summary>
+        </summary>
       {lys.kandidate.length === 0 ? (
         <p className="text-grys px-5 pb-3.5 font-sans text-[0.9375rem] sm:px-6">
           {KOPIE.kandidate_nog_nie_gelaai}

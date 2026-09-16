@@ -200,7 +200,7 @@ describe("/wyk/[wykId]", () => {
     expect(rye.some((r) => r.includes(KOPIE.kandidaat_sonder_naam))).toBe(true);
   });
 
-  it("gee elke kandidaat- en partyry dieselfde stembrief-selle: een logovak en een merkvak", async () => {
+  it("gee elke kandidaat- en partyry geen merkvak of leë logovak nie", async () => {
     stel(STELLENBOSCH, [stasie()], {
       ...LEEG,
       wyk: [kandidaat(), kandidaat({ volle_naam: "TWEE", party_naam: null, onafhanklik: true })],
@@ -210,13 +210,10 @@ describe("/wyk/[wykId]", () => {
     const rye = [...container.querySelectorAll("[data-ry='kandidaat'], [data-ry='party'] > summary")];
     expect(rye).toHaveLength(3);
     for (const ry of rye) {
-      expect(ry.querySelectorAll("[data-logo-vak]")).toHaveLength(1);
-      expect(ry.querySelectorAll("[data-merk-vak]")).toHaveLength(1);
+      expect(ry.querySelectorAll("[data-merk-vak]")).toHaveLength(0);
     }
-    // No official logos loaded yet: every slot, the independent's too, is the same empty frame.
-    expect(new Set([...container.querySelectorAll("[data-logo-vak]")].map((v) => v.getAttribute("data-logo-vak")))).toEqual(
-      new Set(["leeg"])
-    );
+    // No official logos loaded yet: no row shows an empty frame that looks like a box to tick.
+    expect(container.querySelectorAll("[data-logo-vak]")).toHaveLength(0);
   });
 
   it("wys geen lysnommers voor die trekking nie", async () => {
