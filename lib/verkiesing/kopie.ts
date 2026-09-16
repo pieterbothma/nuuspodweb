@@ -37,7 +37,7 @@ export const KOPIE = {
   held_boks_etiket: "BEVESTIG JOU STATUS",
   held_boks_titel: "Kyk of jy geregistreer is en waar jy stem",
   held_boks_skakel: "Sien meer",
-  // --- Wyk-soeker (draft values, Task 5) ---------------------------------
+  // --- Wyk-soeker (Gemini, Fase 2b) ---------------------------------
   // Placeholders are substituted by the component and MUST survive a rewrite. What each
   // one means is per slot:
   //   soek_resultate_telling      {n} = how many results, {q} = the reader's search term
@@ -62,7 +62,7 @@ export const KOPIE = {
   soek_wyk_nommer: "Wyk {n}",
   soek_wyk_aantal: "{n} wyke",
   soek_wyke_kies: "{q} val oor {n} wyke. Kies joune:",
-  soek_geen: "Niks gevind vir “{q}” nie.\nProbeer die naam van jou stemlokaal, of gebruik jou ligging.",
+  soek_geen: "Niks gevind vir “{q}” nie.\nProbeer die naam van jou stemlokaal of gebruik jou ligging.",
   soek_ligging_geweier: "Ons kon nie jou ligging kry nie.\nTik eerder jou voorstad, dorp of stemlokaal.",
   soek_ligging_buite:
     "Jou ligging val nie binne 'n wyk nie.\nDit gebeur naby die see of op die rand van 'n wyk. Soek eerder op jou stemlokaal.",
@@ -84,7 +84,7 @@ export const KOPIE = {
   terugvoer_ja: "Ja",
   terugvoer_nee: "Nee",
   terugvoer_dankie: "Dankie, dit help ons om die blad te verbeter.",
-  // --- Wykblad (draft values, Task 6) ------------------------------------
+  // --- Wykblad (Gemini, Fase 2b) ------------------------------------
   // Placeholders are substituted by the components and MUST survive a rewrite:
   //   {w} = the ward number        {n} = a count        {m} = a total
   //   {q} = a name (municipality, district, or an already-formatted date)
@@ -97,25 +97,25 @@ export const KOPIE = {
   //   stembrief_pv / stembrief_distrik {q} = the council's name
   //   laas_bygewerk                    {q} = the source date, already in Afrikaans
   //   og_wyk_sjabloon                  {n} = how many ward candidates
-  // wyk_raadslid_teks stays a [konsep] placeholder until Task 9 has fact-checked it
-  // against the Municipal Structures Act.
+  // wyk_raadslid_teks was fact-checked against the Municipal Structures Act (s73: the ward
+  // councillor chairs the ward committee).
   wyk_kruimel_tuis: "Verkiesing 2026",
   wyk_bladtitel: "Wyk {w} · {q} — Verkiesing 2026",
   wyk_beskrywing:
-    "Jou stembriewe, kandidate en stemlokale vir wyk {w} in {q}, vir die plaaslike verkiesing van 4 November 2026.",
+    "Jou stembriewe, kandidate en stemlokale vir wyk {w} in {q} vir die plaaslike verkiesing op 4 November 2026.",
   wyk_raadslid_opskrif: "Wat doen 'n wyksraadslid?",
   wyk_raadslid_teks:
-    "[konsep — Gemini skryf hierdie teks en gaan dit na teen die Wet op Munisipale Strukture: twee of drie sinne oor wat 'n wyksraadslid doen.]",
+    "'n Wyksraadslid word deur die kiesers van een wyk verkies om hulle in die raad te verteenwoordig. Dié raadslid lei ook die wykkomitee wat die gemeenskap se sienings na die raad bring.",
   wyk_stemlokale_opskrif: "{n} stemlokale in wyk {w}",
   wyk_stemlokale_opskrif_een: "1 stemlokaal in wyk {w}",
-  wyk_stemlokale_nota: "Jy stem net by die stemlokaal waar jy geregistreer is.",
+  wyk_stemlokale_nota: "Jy mag net stem by die stemlokaal waar jy geregistreer is.",
   wyk_stemlokale_geen: "Daar is nog geen stemlokale vir hierdie wyk om te wys nie.",
   wyk_stembriewe_opskrif: "Jou stembriewe",
   stembrief_teller: "Stembrief {n} van {m}",
   stembrief_wyk: "Wykstembrief",
-  stembrief_wyk_uitleg: "Jy kies een kandidaat as wyksraadslid vir wyk {w}.",
+  stembrief_wyk_uitleg: "Hiermee kies jy een kandidaat as wyksraadslid vir wyk {w}.",
   stembrief_pv: "Stembrief vir die {q}-raad",
-  stembrief_pv_uitleg: "Jy stem vir 'n party. Setels word volgens die partye se lyste gevul.",
+  stembrief_pv_uitleg: "Jy stem vir 'n party en die setels word uit die partye se lyste gevul.",
   stembrief_distrik: "Stembrief vir die {q}-distriksraad",
   stembrief_distrik_uitleg: "Jy stem vir 'n party in die distriksraad.",
   volgorde_alfabeties: "Alfabeties",
@@ -124,7 +124,7 @@ export const KOPIE = {
   wys_lys: "Wys lys",
   versteek_lys: "Versteek lys",
   kandidate_nog_nie_gelaai:
-    "Daar is nog geen kandidate vir hierdie stembrief om te wys nie. Die OVK se finale kandidaatlyste word op 16 September 2026 gepubliseer.",
+    "Daar is nog geen kandidate vir hierdie stembrief nie.",
   laas_bygewerk: "Laas bygewerk: {q}",
   bron_ovk:
     "Bron: OVK (IEC) · Munisipale Afbakeningsraad · Statistiek Suid-Afrika, Sensus 2011 (eie verwerking)",
@@ -137,10 +137,10 @@ export const KOPIE = {
   // it cannot name a ward. bron_nota_setels_2021 is passed in by the municipality page;
   // the ward page leaves the note unset.
   og_masthead: "Verkiesing 2026",
-  og_wyk_alt: "Nuuspod se wykblad vir die plaaslike verkiesing van 4 November 2026",
+  og_wyk_alt: "Nuuspod se wykblad vir die plaaslike verkiesing op 4 November 2026",
   kruimelspoor_etiket: "Kruimelspoor",
   bron_nota_setels_2021: "Setelberekening 2021 volgens die OVK se amptelike uitslae",
-  // --- Munisipaliteitsblad (draft values, Task 7) ------------------------
+  // --- Munisipaliteitsblad (Gemini, Fase 2b) ------------------------
   // Placeholders are substituted by the components and MUST survive a rewrite:
   //   muni_bladtitel / muni_beskrywing      {q} = the municipality's display name
   //   muni_onderskrif_distrik               {q} = the district's name
@@ -159,7 +159,7 @@ export const KOPIE = {
   muni_tipe_distrik: "Distriksraad",
   muni_bladtitel: "{q} — Verkiesing 2026",
   muni_beskrywing:
-    "Die wyke van {q}, die partye op die stembrief, en hoe die raad ná 2021 gelyk het — vir die plaaslike verkiesing van 4 November 2026.",
+    "Die wyke van {q}, die partye op die stembrief en hoe die raad ná 2021 gelyk het — vir die plaaslike verkiesing op 4 November 2026.",
   muni_onderskrif_distrik: "{q}-distrik",
   muni_wyke_aantal: "{n} wyke",
   muni_wyke_aantal_een: "1 wyk",
@@ -167,11 +167,11 @@ export const KOPIE = {
   muni_geen_wyke: "Hierdie raad het nie sy eie wyke nie.",
   muni_partye_opskrif: "Partye op die stembrief",
   muni_partye_nog_nie_gelaai:
-    "Daar is nog geen partye vir hierdie munisipaliteit om te wys nie. Die OVK se finale kandidaatlyste word op 16 September 2026 gepubliseer.",
+    "Daar is nog geen partye vir hierdie munisipaliteit nie.",
   muni_2021_opskrif: "Raad ná 2021 (amptelik)",
   muni_2021_raadsgrootte: "{n} setels",
   muni_2021_geen_meerderheid:
-    "Geen party het ná die verkiesing van 2021 'n meerderheid in hierdie raad gehad nie.",
+    "Geen party het ná die 2021-verkiesing 'n meerderheid in hierdie raad gehad nie.",
   muni_2021_kolom_party: "Party",
   muni_2021_kolom_wyk: "Wyksetels",
   muni_2021_kolom_pv: "PV-setels",
@@ -184,11 +184,11 @@ export const KOPIE = {
   muni_2021_wys_sonder_setels: "Wys ook partye sonder setels ({n})",
   muni_2021_versteek_sonder_setels: "Versteek partye sonder setels",
   muni_2021_sortering: "Gesorteer op partynaam",
-  // --- Bladsy nie gevind nie (draft values, Task 7) ----------------------
+  // --- Bladsy nie gevind nie (Gemini, Fase 2b) ----------------------
   nie_gevind_titel: "Bladsy nie gevind nie — Verkiesing 2026",
   nie_gevind_opskrif: "Bladsy nie gevind nie",
   nie_gevind_teks:
-    "Hierdie blad bestaan nie, of die wyk- of munisipaliteitskode in die adres is verkeerd.",
+    "Hierdie bladsy bestaan nie, of die wyk- of munisipaliteitskode in die adres is verkeerd.",
   nie_gevind_tuis: "Terug na die tuisblad",
   nie_gevind_soek: "Soek jou wyk",
   voet_bron: "Bron van verkiesingsinligting: OVK (IEC)",
