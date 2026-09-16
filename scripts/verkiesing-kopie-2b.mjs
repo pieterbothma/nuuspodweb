@@ -21,9 +21,17 @@ const WORTEL = new URL("..", import.meta.url).pathname;
 const PLAASLIK = process.argv.includes("--plaaslik");
 // `--uitslag2021` rewrites only the 2021 ward-result slots.
 const UITSLAG2021 = process.argv.includes("--uitslag2021");
+// `--kandidaat` rewrites only the nameless-candidate placeholder.
+const KANDIDAAT = process.argv.includes("--kandidaat");
 const UIT = join(
   WORTEL,
-  PLAASLIK ? "docs/verkiesing/ui-kopie-plaaslik.json" : UITSLAG2021 ? "docs/verkiesing/ui-kopie-uitslag2021.json" : "docs/verkiesing/ui-kopie-2b.json"
+  PLAASLIK
+    ? "docs/verkiesing/ui-kopie-plaaslik.json"
+    : UITSLAG2021
+      ? "docs/verkiesing/ui-kopie-uitslag2021.json"
+      : KANDIDAAT
+        ? "docs/verkiesing/ui-kopie-kandidaat.json"
+        : "docs/verkiesing/ui-kopie-2b.json"
 );
 
 function sleutel() {
@@ -66,7 +74,12 @@ const BRIEWE_UITSLAG2021 = {
   uitslag2021_versteek_klein: "Knoppie wat daardie partye weer versteek.",
 };
 
-const aktieweBriewe = () => (PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : BRIEWE);
+const BRIEWE_KANDIDAAT = {
+  kandidaat_sonder_naam: "Kort plekhouer op 'n stembrief waar die OVK 'n kandidaat se reël sonder naam gepubliseer het: die kandidaat bestaan, maar die OVK-lys noem geen naam nie. Geen skuld of spekulasie nie.",
+};
+
+const aktieweBriewe = () =>
+  PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : KANDIDAAT ? BRIEWE_KANDIDAAT : BRIEWE;
 
 const plekhouers = (s) => (s.match(/\{[a-z]\}/g) ?? []).sort().join(",");
 const woorde = (s) => s.split(/\s+/).filter(Boolean).length;

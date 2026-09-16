@@ -121,6 +121,8 @@ export const KOPIE = {
   volgorde_alfabeties: "Alfabeties",
   volgorde_stembrief: "Volgorde soos op die stembrief",
   onafhanklik: "Onafhanklik",
+  // A ballot line the OVK published without a name (Piet, 2026-09-16: keep the line).
+  kandidaat_sonder_naam: "Naam nie op die amptelike OVK-lys nie",
   wys_lys: "Wys lys",
   versteek_lys: "Versteek lys",
   kandidate_nog_nie_gelaai:

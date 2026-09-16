@@ -73,7 +73,7 @@ const LEEG: Stembriewe = { wyk: [], pv_plaaslik: [], pv_distrik: [], volgorde: "
 
 function kandidaat(oorskryf: Partial<Kandidaat> = {}): Kandidaat {
   return {
-    volle_naam: "VOORBEELD, Kandidaat Een",
+    volle_naam: "KANDIDAAT EEN",
     van: "VOORBEELD",
     party_naam: "PARTY A",
     onafhanklik: false,
@@ -168,7 +168,7 @@ describe("/wyk/[wykId]", () => {
 
   it("gebruik geen partykleur- of rooi-klasse op kandidaat- of partyrye nie", async () => {
     stel(STELLENBOSCH, [stasie()], {
-      wyk: [kandidaat(), kandidaat({ volle_naam: "VOORBEELD, Twee", party_naam: null, onafhanklik: true })],
+      wyk: [kandidaat(), kandidaat({ volle_naam: "TWEE", party_naam: null, onafhanklik: true })],
       pv_plaaslik: [partyLys(), partyLys({ party_naam: "PARTY B" })],
       pv_distrik: [partyLys({ party_naam: "PARTY C" })],
       volgorde: "alfabeties",
@@ -187,6 +187,19 @@ describe("/wyk/[wykId]", () => {
     expect(screen.getByText(KOPIE.onafhanklik)).toBeTruthy();
   });
 
+  it("wys voorname en van, en 'n plekhouer vir 'n ry wat die OVK sonder naam gepubliseer het", async () => {
+    stel(STELLENBOSCH, [stasie()], {
+      ...LEEG,
+      wyk: [kandidaat({ volle_naam: "", van: "" }), kandidaat({ volle_naam: "MAPHEELO AGNES", van: "BASSON" })],
+    });
+    const { container } = await wys("10204009");
+    const rye = [...container.querySelectorAll("[data-ry='kandidaat']")].map((r) => r.textContent ?? "");
+    // Order comes from the data layer (sorteerKandidate puts nameless rows last); here the
+    // page renders the rows as given, so only their content is checked.
+    expect(rye.some((r) => r.includes("MAPHEELO AGNES BASSON"))).toBe(true);
+    expect(rye.some((r) => r.includes(KOPIE.kandidaat_sonder_naam))).toBe(true);
+  });
+
   it("wys geen lysnommers voor die trekking nie", async () => {
     // Real list positions exist in the rows, but the ballot is still alphabetical: printing
     // them would contradict the "Alfabeties" label and put them in the wrong order.
@@ -195,8 +208,8 @@ describe("/wyk/[wykId]", () => {
       pv_plaaslik: [
         partyLys({
           kandidate: [
-            kandidaat({ volle_naam: "VOORBEELD, Abel", lys_posisie: 7 }),
-            kandidaat({ volle_naam: "VOORBEELD, Zelda", lys_posisie: 3 }),
+            kandidaat({ volle_naam: "ABEL", van: "AAN", lys_posisie: 7 }),
+            kandidaat({ volle_naam: "ZELDA", van: "ZULU", lys_posisie: 3 }),
           ],
         }),
       ],
@@ -205,7 +218,7 @@ describe("/wyk/[wykId]", () => {
     const { container } = await wys("10204009");
     expect(container.querySelectorAll("[data-lys-nr]")).toHaveLength(0);
     const lys = container.querySelector("[data-ry='party'] ol");
-    expect(lys?.textContent).toBe("VOORBEELD, AbelVOORBEELD, Zelda");
+    expect(lys?.textContent).toBe("ABEL AANZELDA ZULU");
     expect(lys?.textContent).not.toMatch(/\d/);
   });
 
@@ -216,10 +229,10 @@ describe("/wyk/[wykId]", () => {
         partyLys({
           posisie: 1,
           kandidate: [
-            kandidaat({ volle_naam: "VOORBEELD, Een", lys_posisie: 3 }),
-            kandidaat({ volle_naam: "VOORBEELD, Twee", lys_posisie: 7 }),
+            kandidaat({ volle_naam: "EEN", lys_posisie: 3 }),
+            kandidaat({ volle_naam: "TWEE", lys_posisie: 7 }),
             // A row without a position leaves its cell empty rather than borrowing "3".
-            kandidaat({ volle_naam: "VOORBEELD, Drie", lys_posisie: null }),
+            kandidaat({ volle_naam: "DRIE", lys_posisie: null }),
           ],
         }),
       ],

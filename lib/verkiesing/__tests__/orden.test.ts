@@ -63,3 +63,19 @@ describe("geenMeerderheid", () => {
     expect(geenMeerderheid({ raadsgrootte: 45, onafhanklike_setels: 0, rye: [] })).toBe(false);
   });
 });
+
+describe("kandidaatNaam", () => {
+  it("voeg voorname en van saam soos die OVK dit lys, en gee null sonder naam", async () => {
+    const { kandidaatNaam } = await import("../orden");
+    expect(kandidaatNaam({ volle_naam: "MAPHEELO AGNES", van: "BASSON" })).toBe("MAPHEELO AGNES BASSON");
+    expect(kandidaatNaam({ volle_naam: " ", van: "" })).toBeNull();
+  });
+
+  it("sit rye sonder naam laaste, in albei sorterings", async () => {
+    const { sorteerKandidate, sorteerLysKandidate } = await import("../orden");
+    const sonder = { volle_naam: "", van: "", party_naam: "P", onafhanklik: false, lys_posisie: null };
+    const met = { volle_naam: "ZED", van: "ZULU", party_naam: "P", onafhanklik: false, lys_posisie: null };
+    expect(sorteerKandidate([sonder, met]).map((k) => k.van)).toEqual(["ZULU", ""]);
+    expect(sorteerLysKandidate([sonder, met]).map((k) => k.van)).toEqual(["ZULU", ""]);
+  });
+});

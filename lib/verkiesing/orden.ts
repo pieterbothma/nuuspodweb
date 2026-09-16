@@ -53,6 +53,20 @@ export function vergelykNaam(a: string, b: string): number {
   return KOLLASIE.compare(a, b);
 }
 
+/**
+ * The name as the IEC lists it: first names, then surname, in its original capitals. `null`
+ * when the IEC published the row without either (the page then shows a placeholder).
+ */
+export function kandidaatNaam(k: Pick<Kandidaat, "volle_naam" | "van">): string | null {
+  const naam = [k.volle_naam, k.van].map((d) => (d ?? "").trim()).filter(Boolean).join(" ");
+  return naam || null;
+}
+
+/** Rows without a name go after every named row, so a gap never leads a list. */
+function naamloosLaaste(a: Kandidaat, b: Kandidaat): number {
+  return Number(kandidaatNaam(a) === null) - Number(kandidaatNaam(b) === null);
+}
+
 export function sorteerKandidate(
   kandidate: Kandidaat[],
   volgorde: Volgorde = "alfabeties"
@@ -62,7 +76,7 @@ export function sorteerKandidate(
   return [...kandidate].sort((a, b) =>
     volgorde === "stembrief" && a.lys_posisie != null && b.lys_posisie != null
       ? a.lys_posisie - b.lys_posisie
-      : KOLLASIE.compare(a.van, b.van) || KOLLASIE.compare(a.volle_naam, b.volle_naam)
+      : naamloosLaaste(a, b) || KOLLASIE.compare(a.van, b.van) || KOLLASIE.compare(a.volle_naam, b.volle_naam)
   );
 }
 
@@ -78,7 +92,7 @@ export function sorteerLysKandidate(kandidate: Kandidaat[]): Kandidaat[] {
     if (a.lys_posisie != null && b.lys_posisie != null) return a.lys_posisie - b.lys_posisie;
     if (a.lys_posisie != null) return -1;
     if (b.lys_posisie != null) return 1;
-    return KOLLASIE.compare(a.van, b.van) || KOLLASIE.compare(a.volle_naam, b.volle_naam);
+    return naamloosLaaste(a, b) || KOLLASIE.compare(a.van, b.van) || KOLLASIE.compare(a.volle_naam, b.volle_naam);
   });
 }
 

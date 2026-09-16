@@ -1,5 +1,6 @@
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { distrikNaam, muniNaam } from "@/lib/verkiesing/name";
+import { kandidaatNaam } from "@/lib/verkiesing/orden";
 import type {
   Kandidaat,
   PartyLys,
@@ -69,12 +70,36 @@ function Pyltjie() {
   );
 }
 
+/**
+ * First names and surname as the IEC lists them. A row the IEC published without a name is
+ * still a line on the ballot, so it shows a grey placeholder rather than disappearing.
+ */
+function Naam({
+  kandidaat,
+  className,
+  as = "p",
+}: {
+  kandidaat: Kandidaat;
+  className: string;
+  as?: "p" | "span";
+}) {
+  const naam = kandidaatNaam(kandidaat);
+  const Tag = as;
+  return naam ? (
+    <Tag data-kandidaat-naam className={`text-ink ${className}`}>{naam}</Tag>
+  ) : (
+    <Tag data-kandidaat-sonder-naam className={`text-grys italic ${className} font-normal`}>
+      {KOPIE.kandidaat_sonder_naam}
+    </Tag>
+  );
+}
+
 /** A ward candidate: name in ink, party (or "Onafhanklik") in grey. Nothing else. */
 function KandidaatRy({ kandidaat }: { kandidaat: Kandidaat }) {
   return (
     <div data-ry="kandidaat" className={RY}>
       <div className="min-w-0 flex-1">
-        <p className="text-ink font-sans text-base font-bold">{kandidaat.volle_naam}</p>
+        <Naam kandidaat={kandidaat} className="font-sans text-base font-bold" />
         <p className="text-grys font-sans text-sm">
           {kandidaat.party_naam ?? KOPIE.onafhanklik}
         </p>
@@ -115,7 +140,7 @@ function PartyRy({ lys, volgorde }: { lys: PartyLys; volgorde: StembriefData["vo
       ) : (
         <ol className="px-5 pb-3.5 sm:px-6">
           {lys.kandidate.map((k, i) => (
-            <li key={`${k.volle_naam}-${i}`} className="flex gap-3.5 py-1.5">
+            <li key={`${k.volle_naam}-${k.van}-${i}`} className="flex gap-3.5 py-1.5">
               {wysNommers && (
                 <span
                   data-lys-nr={k.lys_posisie ?? ""}
@@ -124,7 +149,7 @@ function PartyRy({ lys, volgorde }: { lys: PartyLys; volgorde: StembriefData["vo
                   {k.lys_posisie ?? ""}
                 </span>
               )}
-              <span className="text-ink font-sans text-[0.9375rem]">{k.volle_naam}</span>
+              <Naam kandidaat={k} className="font-sans text-[0.9375rem]" as="span" />
             </li>
           ))}
         </ol>
@@ -218,7 +243,7 @@ export function Stembriewe({ wyk, stembriewe }: { wyk: Wyk; stembriewe: Stembrie
                 <NogGeenKandidate />
               ) : (
                 blok.kandidate.map((k, j) => (
-                  <KandidaatRy key={`${k.volle_naam}-${j}`} kandidaat={k} />
+                  <KandidaatRy key={`${k.volle_naam}-${k.van}-${j}`} kandidaat={k} />
                 ))
               )
             ) : blok.lyste.length === 0 ? (
