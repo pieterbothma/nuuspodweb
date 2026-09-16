@@ -86,7 +86,8 @@ const BRIEWE_UITVOU = {
   uitvou_wys_kandidate: "Kort knoppie wat 'n stembrief se volledige kandidaatlys oopmaak; {n} = hoeveel kandidate. Tot 5 woorde.",
   uitvou_wys_partye: "Kort knoppie wat die volledige lys partye (op 'n stembrief of in 'n munisipaliteit) oopmaak; {n} = hoeveel partye.",
   uitvou_wys_berigte: "Kort knoppie wat 'n lys plaaslike nuusopskrifte oopmaak; {n} = hoeveel berigte.",
-  uitvou_wys_uitslag: "Kort knoppie wat die tabel met die 2021-uitslag oopmaak.",
+  uitvou_wys_stemlokale: "Kort knoppie wat die lys stemlokale in 'n wyk oopmaak; {n} = hoeveel stemlokale.",
+  uitvou_wys_uitslag: "Kort knoppie wat die tabel met die 2021-uitslag oopmaak (die opskrif daarbo noem reeds 2021).",
   uitvou_versteek: "Een woord op dieselfde knoppie wanneer die lys oop is: maak dit weer toe.",
 };
 

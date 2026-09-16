@@ -219,6 +219,7 @@ export const KOPIE = {
   uitvou_wys_kandidate: "Wys al {n} kandidate",
   uitvou_wys_partye: "Wys al {n} partye",
   uitvou_wys_berigte: "Wys al {n} berigte",
+  uitvou_wys_stemlokale: "Wys al {n} stemlokale",
   uitvou_wys_uitslag: "Wys die uitslag",
   uitvou_versteek: "Versteek",
   // --- Bladsy nie gevind nie (Gemini, Fase 2b) ----------------------

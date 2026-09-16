@@ -41,3 +41,7 @@ Second run (same day, adds `uitslag2021_wys_klein` and `uitslag2021_versteek_kle
 `node scripts/verkiesing-kopie-2b.mjs --uitvou` → `ui-kopie-uitvou.json` (5 slots). Piet asked for long lists behind a button so phone readers don't scroll endlessly. Edits after Gemini:
 
 - uitvou_wys_uitslag: "Wys die uitslae" -> "Wys die uitslag". The button opens one ward's (or one council's) single result, so the singular is correct.
+
+Second run (same day, adds `uitvou_wys_stemlokale`, taken as written). Edits after Gemini:
+
+- uitvou_wys_uitslag: "Wys die 2021-uitslae" -> "Wys die uitslag". The heading right above already says 2021, and it is one result (kept the first run's edit).

@@ -298,4 +298,20 @@ describe("/wyk/[wykId]", () => {
     expect(container.querySelector("[data-uitvou='pv_distrik']")).toBeNull();
     expect(container.querySelectorAll("[data-stembrief='pv_distrik'] [data-ry='party']")).toHaveLength(1);
   });
+
+  it("vou meer as vyf stemlokale toe en laat vyf oop", async () => {
+    const ses = Array.from({ length: 6 }, (_, i) => stasie({ vd_nommer: `1020400900${i}`, naam: `SKOOL ${i}` }));
+    stel(STELLENBOSCH, ses);
+    const { container } = await wys("10204009");
+    const lys = container.querySelector("#stemlokale details[data-uitvou='stemlokale']") as HTMLDetailsElement;
+    expect(lys.open).toBe(false);
+    expect(lys.querySelector("summary")?.textContent).toContain(vulIn(KOPIE.uitvou_wys_stemlokale, { n: 6 }));
+    expect(lys.querySelectorAll("[data-stasie]")).toHaveLength(6);
+    cleanup();
+
+    stel(STELLENBOSCH, ses.slice(0, 5));
+    const vyf = await wys("10204009");
+    expect(vyf.container.querySelector("[data-uitvou='stemlokale']")).toBeNull();
+    expect(vyf.container.querySelectorAll("[data-stasie]")).toHaveLength(5);
+  });
 });
