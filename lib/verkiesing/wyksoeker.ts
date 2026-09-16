@@ -44,6 +44,24 @@ export type Stemstasie = {
   adres: string | null;
 };
 
+/**
+ * One row of the `soek` RPC's result — a place (main place or municipality) or a voting
+ * station matched by name. `wyk_ids`/`wyk_nrs` are parallel arrays: a place can span more
+ * than one ward, a station belongs to exactly one. `teiken` is the id to navigate to
+ * (a ward id for a single-ward match, otherwise null and the UI offers a municipality/list
+ * view instead). Re-exported here so `/api/soek` and its callers share one type.
+ */
+export type SoekRy = {
+  soort: "plek" | "stemlokaal";
+  etiket: string;
+  muni_kode: string;
+  muni_naam: string;
+  wyk_ids: string[];
+  wyk_nrs: number[];
+  teiken: string | null;
+  rang: number;
+};
+
 export type Stembriewe = {
   wyk: Kandidaat[];
   pv_plaaslik: PartyLys[];
