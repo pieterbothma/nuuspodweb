@@ -22,6 +22,12 @@ always written, even when `hoof()` ultimately returns 1. The error text is alway
 `str(httpx.HTTPError)` (which httpx never populates with request headers), so it
 never carries the secret key.
 
+Fase 2b (Task 10) adds a candidate section (counts vs the OVK's published totals, per
+province, unknown wards, duplicates, empty names, ID-shaped fields, wards without a
+ward candidate) with hard gates that apply only once stg_kandidate has rows, and turns
+the published-version section into a real diff of every stg_ table against its public
+table (DIFF_SPEK). Candidate checks reuse `laai_kandidate`'s own helpers.
+
 Run: cd data && uv run --with pdfplumber,pyshp,shapely,pyproj,httpx,pytest python kontroleer.py
 """
 
@@ -36,6 +42,7 @@ from typing import Callable
 
 import httpx
 
+import laai_kandidate as lk
 from lib import omgewing, supabase, teks
 
 BASIS_PAD = Path(__file__).parent
@@ -55,18 +62,34 @@ MAKS_PLEKKE_SONDER_WYK = 3
 # The only places allowed to have no ward: harbour slivers entirely in the sea.
 BEKENDE_HAWE_SP_KODES = frozenset({"199056003", "199057014", "199063016"})
 
-# Publieke teëhangers van elke gelaaide stg_-tabel, vir die §5.3-diff teen die tans
-# gepubliseerde weergawe (geen publiseer-stap in hierdie taak nie — sien spec §5.3).
-PUBLIEKE_TABELLE = (
-    "munisipaliteite",
-    "wyke",
-    "stemstasies",
-    "plekke",
-    "plek_wyke",
-    "plek_aliasse",
-    "raad_uitslae_2021",
-    "raad_grootte_2021",
-)
+# Publish diff: every public table against its stg_ twin, as {table: (natural key,
+# compared columns)}. Geometry is not compared (too heavy over REST; a geometry-only
+# change shows as "in pas"), and plek_aliasse.id is left out because the public id is
+# generated on publish. partye/kandidate ids ARE compared: the loader assigns them and
+# publiseer_tabel keeps them.
+DIFF_SPEK: dict[str, tuple[tuple[str, ...], str]] = {
+    "munisipaliteite": (("kode",), "kode,naam,tipe,distrik_kode,provinsie"),
+    "wyke": (("wyk_id",), "wyk_id,wyk_nr,muni_kode"),
+    "stemstasies": (
+        ("vd_nommer",),
+        "vd_nommer,naam,naam_soek,adres,adres_soek,wyk_id,muni_kode,bron_lêer,bron_ry",
+    ),
+    "plekke": (("sp_kode",), "sp_kode,naam,naam_soek,mp_naam,mp_naam_soek,landelik"),
+    "plek_wyke": (("sp_kode", "wyk_id"), "sp_kode,wyk_id,oorvleueling"),
+    "plek_aliasse": (("alias", "sp_kode"), "alias,sp_kode,muni_kode"),
+    "raad_uitslae_2021": (("muni_kode", "party_naam"), "muni_kode,party_naam,setels_wyk,setels_pv,setels_totaal"),
+    "raad_grootte_2021": (("muni_kode",), "muni_kode,raadsgrootte_totaal,onafhanklike_setels"),
+    "partye": (("id",), "id,naam,afkorting"),
+    "kandidate": (
+        ("id",),
+        "id,muni_kode,stembrief,wyk_id,lys_posisie,party_id,onafhanklik,volle_naam,van,bron_lêer,bron_ry",
+    ),
+    "stembrief_volgorde": (("muni_kode", "stembrief", "party_id"), "muni_kode,stembrief,party_id,posisie"),
+}
+PUBLIEKE_TABELLE = tuple(DIFF_SPEK)
+
+# Candidates: list wards without a ward candidate individually only when there are few.
+MAKS_WYKE_SONDER_KANDIDAAT_LYS = 50
 
 # Besluite-item #3: die 4 groot plattelandse plekke wat selfs een-op-'n-slag oor
 # PostgREST se 8s statement_timeout val (Task 5) — sp_kode's direk gegee (soos die
@@ -321,6 +344,167 @@ def evalueer_harde_hekke(
             foute.append(f"rade (stg_raad_grootte_2021): {raad_res['grootte_totaal']}, verwag {VERWAG_RADE_2021}")
 
     return foute
+
+
+def ontleed_kandidate(
+    rye: list[dict], partye: list[dict], wyk_muni: dict[str, str], muni_provinsie: dict[str, str]
+) -> dict:
+    """Candidate checks over rows read back from stg_kandidate / stg_partye (pure).
+
+    Reuses the loader's own counting, duplicate key and personal-data guard, so the
+    report and the loader can never disagree about what a duplicate or an ID-shaped
+    field is.
+    """
+    tellings = lk.tel_stembriewe(rye)
+    onbekende_wyk = sorted({r["wyk_id"] for r in rye if r.get("wyk_id") and r["wyk_id"] not in wyk_muni})
+    met_kandidaat = {r["wyk_id"] for r in rye if r.get("stembrief") == "wyk" and r.get("wyk_id")}
+    wyke_sonder: dict[str, list[str]] = defaultdict(list)
+    for wyk_id in sorted(set(wyk_muni) - met_kandidaat):
+        wyke_sonder[wyk_muni[wyk_id]].append(wyk_id)
+    return {
+        "gelaai": True,
+        "totaal": len(rye),
+        "partye_totaal": len(partye),
+        "tellings": tellings,
+        "per_provinsie": lk.per_groep(rye, lambda r: muni_provinsie.get(r.get("muni_kode"), "ONBEKEND")),
+        "onbekende_wyk": onbekende_wyk,
+        "duplikate": len(lk.vind_duplikate(rye)),
+        "leë_name": sum(1 for r in rye if not (r.get("volle_naam") or "").strip() or not (r.get("van") or "").strip()),
+        "id_vorm": lk.kontroleer_id_skans(rye, partye),
+        "id_foute": lk.kontroleer_ids(rye, "stg_kandidate") + lk.kontroleer_ids(partye, "stg_partye"),
+        "wyke_sonder_kandidaat": dict(sorted(wyke_sonder.items())),
+        "iec_besluite": lk.vergelyk_met_iec(tellings),
+    }
+
+
+def evalueer_kandidaat_hekke(res: dict | None) -> list[str]:
+    """Candidate hard gates. Not loaded (or failed to gather — already in hard_gefaal
+    via veilig()) is never a failure. A total that differs from the OVK's figures is a
+    decision in the report, not a gate."""
+    if not res or not res.get("gelaai"):
+        return []
+    foute: list[str] = []
+    if res["onbekende_wyk"]:
+        foute.append(
+            f"kandidate: {len(res['onbekende_wyk'])} wyk_id(s) nie in stg_wyke nie {res['onbekende_wyk'][:20]}"
+        )
+    if res["id_vorm"]:
+        foute.append(f"kandidate: {len(res['id_vorm'])} ID-vormige veld(e) (moet 0 wees) — sien die kandidaat-afdeling")
+    if res["duplikate"]:
+        foute.append(f"kandidate: {res['duplikate']} duplikaatgroep(e)")
+    if res["leë_name"]:
+        foute.append(f"kandidate: {res['leë_name']} ry(e) met 'n leë naam of van")
+    foute.extend(f"kandidate: {f}" for f in res["id_foute"])
+    if res["partye_totaal"] == 0:
+        foute.append("kandidate gelaai maar stg_partye is leeg")
+    return foute
+
+
+def formatteer_kandidaat_afdeling(res: dict | None, sectie_foute: dict[str, str]) -> list[str]:
+    """Markdown lines for the candidate section (pure)."""
+    fout = formatteer_afdeling_fout("kandidate", sectie_foute)
+    if fout:
+        return [f"- {fout}"]
+    if not res or not res.get("gelaai"):
+        partye = (res or {}).get("partye_totaal", 0)
+        return [
+            "- stg_kandidate: **nog nie gelaai nie** (0 rye) — geen kandidaat-hek is van toepassing nie.",
+            f"- stg_partye: {partye} rye" + ("" if partye == 0 else " (ONVERWAGS: partye sonder kandidate)"),
+        ]
+
+    t = res["tellings"]
+    g = lk.getal
+    r: list[str] = [
+        f"- stg_kandidate: **{g(res['totaal'])}** rye; stg_partye: **{g(res['partye_totaal'])}**; "
+        f"onafhanklikes: **{g(t['wyk_onafhanklik'])}**",
+        "",
+        "| Stembrief | Gelaai | OVK | Verskil |",
+        "|---|---:|---:|---:|",
+        f"| wyk (party) | {g(t['wyk_party'])} | {g(lk.IEC_WYK_PARTY)} | {g(t['wyk_party'] - lk.IEC_WYK_PARTY)} |",
+        f"| wyk (onafhanklik) | {g(t['wyk_onafhanklik'])} | {g(lk.IEC_WYK_ONAFHANKLIK)} | "
+        f"{g(t['wyk_onafhanklik'] - lk.IEC_WYK_ONAFHANKLIK)} |",
+        f"| PV (pv_plaaslik {g(t['pv_plaaslik'])} + pv_distrik {g(t['pv_distrik'])}) | {g(t['pv'])} | "
+        f"{g(lk.IEC_PV)} | {g(t['pv'] - lk.IEC_PV)} |",
+        f"| **totaal** | **{g(t['totaal'])}** | **{g(lk.IEC_TOTAAL)}** | {g(t['totaal'] - lk.IEC_TOTAAL)} |",
+        "",
+    ]
+    if res["iec_besluite"]:
+        r.append(
+            f"**Besluit nodig** (geen outomatiese fout nie — die OVK korrigeer tot {lk.IEC_REGSTELLING_TOT}): "
+            + "; ".join(res["iec_besluite"])
+        )
+    else:
+        r.append("Presies gelyk aan die OVK se gepubliseerde totale.")
+    r.append("")
+    r.append("### Kandidate per provinsie")
+    r.append("| Provinsie | wyk (party) | onafhanklik | pv_plaaslik | pv_distrik | totaal |")
+    r.append("|---|---:|---:|---:|---:|---:|")
+    for prov, pt in res["per_provinsie"].items():
+        r.append(
+            f"| {prov} | {g(pt['wyk_party'])} | {g(pt['wyk_onafhanklik'])} | {g(pt['pv_plaaslik'])} | "
+            f"{g(pt['pv_distrik'])} | {g(pt['totaal'])} |"
+        )
+    r.append("")
+    r.append("### Kandidaat-hekke")
+    r.append(f"- wyk_id nie in stg_wyke nie: **{len(res['onbekende_wyk'])}**")
+    for wyk_id in res["onbekende_wyk"][:50]:
+        r.append(f"  - `{wyk_id}`")
+    r.append(f"- duplikaatgroepe (muni_kode, stembrief, wyk_id, volle_naam, van, party_id): **{res['duplikate']}**")
+    r.append(f"- leë naam of van: **{res['leë_name']}**")
+    r.append(f"- ID-vormige velde (6+-syferreeks, wyk_id nie 8 syfers, ens.; moet 0 wees): **{len(res['id_vorm'])}**")
+    for f in res["id_vorm"][:20]:
+        r.append(f"  - {f}")
+    r.append(f"- nul/duplikaat id's: **{len(res['id_foute'])}**")
+    for f in res["id_foute"]:
+        r.append(f"  - {f}")
+    r.append("")
+    sonder = res["wyke_sonder_kandidaat"]
+    totaal_sonder = sum(len(v) for v in sonder.values())
+    r.append(f"### Wyke sonder 'n wykkandidaat: {g(totaal_sonder)}")
+    if totaal_sonder and totaal_sonder <= MAKS_WYKE_SONDER_KANDIDAAT_LYS:
+        for muni, wyke in sonder.items():
+            r.append(f"- {muni}: " + ", ".join(f"`{w}`" for w in wyke))
+    elif totaal_sonder:
+        r.append("Te veel om te lys — per munisipaliteit: " + ", ".join(f"{m} ({len(w)})" for m, w in sonder.items()))
+    return r
+
+
+def formatteer_nie_gelaai(ng: dict) -> list[str]:
+    """The "not yet loaded" lines: candidates drop out once loaded; ballot order stays
+    listed until it is loaded (OVK ballot draw, 23 Sep)."""
+    r: list[str] = []
+    if ng["kandidate_totaal"] == 0:
+        r.append("- stg_kandidate: 0 rye (soos verwag tot die OVK die finale lys publiseer — `laai_kandidate.py`)")
+    if ng["stembrief_volgorde_totaal"] == 0:
+        r.append("- stg_stembrief_volgorde: 0 rye (soos verwag tot die stembrieftrekking op 23 Sep)")
+    else:
+        r.append(f"- stg_stembrief_volgorde: {ng['stembrief_volgorde_totaal']} rye — gelaai (volgorde 23 Sep)")
+    return r
+
+
+def vergelyk_tabelle(stg_rye: list[dict], publieke_rye: list[dict], sleutel: tuple[str, ...]) -> dict:
+    """Rows added / removed / changed between a stg_ table and its public table, matched
+    on the natural `sleutel` (pure). Up to 5 example keys per kind."""
+
+    def k(ry: dict) -> str:
+        return "|".join(str(ry.get(s)) for s in sleutel)
+
+    stg = {k(r): r for r in stg_rye}
+    pub = {k(r): r for r in publieke_rye}
+    toegevoeg = sorted(set(stg) - set(pub))
+    verwyder = sorted(set(pub) - set(stg))
+    verander = sorted(x for x in set(stg) & set(pub) if stg[x] != pub[x])
+    # A duplicate natural key on either side would hide rows; count it as a change.
+    dubbel = (len(stg_rye) - len(stg)) + (len(publieke_rye) - len(pub))
+    return {
+        "stg": len(stg_rye),
+        "publiek": len(publieke_rye),
+        "toegevoeg": len(toegevoeg),
+        "verwyder": len(verwyder),
+        "verander": len(verander) + dubbel,
+        "gelyk": not (toegevoeg or verwyder or verander or dubbel),
+        "voorbeelde": {"toegevoeg": toegevoeg[:5], "verwyder": verwyder[:5], "verander": verander[:5]},
+    }
 
 
 def formatteer_landelike_plekke(per_plek: dict[str, dict]) -> str:
@@ -611,8 +795,44 @@ def gather_nie_gelaai(klient: httpx.Client) -> dict:
     }
 
 
-def gather_publieke_diff(klient: httpx.Client) -> dict:
-    return {"tellings": {tabel: telling(klient, tabel) for tabel in PUBLIEKE_TABELLE}}
+def gather_kandidate(klient: httpx.Client, muni_provinsie: dict[str, str]) -> dict:
+    """Candidate section. Reads the full rows only once candidates are loaded; the rows
+    are handed back (`_rye`) so the publish diff need not read stg_kandidate twice."""
+    totaal = telling(klient, "stg_kandidate")
+    partye_totaal = telling(klient, "stg_partye")
+    if totaal == 0:
+        return {"gelaai": False, "totaal": 0, "partye_totaal": partye_totaal}
+    rye = supabase.kry_alles(
+        "stg_kandidate", {"select": DIFF_SPEK["kandidate"][1]}, orde="id,bron_lêer,bron_ry", klient=klient
+    )
+    partye = supabase.kry_alles("stg_partye", {"select": DIFF_SPEK["partye"][1]}, orde="naam", klient=klient)
+    wyk_muni = {
+        r["wyk_id"]: r["muni_kode"]
+        for r in supabase.kry_alles("stg_wyke", {"select": "wyk_id,muni_kode"}, orde="wyk_id", klient=klient)
+    }
+    res = ontleed_kandidate(rye, partye, wyk_muni, muni_provinsie)
+    res["_rye"] = {"stg_kandidate": rye, "stg_partye": partye}
+    return res
+
+
+def gather_publieke_diff(klient: httpx.Client, voorafgelees: dict[str, list[dict]] | None = None) -> dict:
+    """Compare every stg_ table with its public table (DIFF_SPEK). Two empty sides are
+    counted, not read."""
+    voorafgelees = voorafgelees or {}
+    tabelle: dict[str, dict] = {}
+    for tabel, (sleutel, kolomme) in DIFF_SPEK.items():
+        stg_n = telling(klient, f"stg_{tabel}")
+        pub_n = telling(klient, tabel)
+        if stg_n == 0 and pub_n == 0:
+            tabelle[tabel] = vergelyk_tabelle([], [], sleutel)
+            continue
+        orde = ",".join(sleutel)
+        stg_rye = voorafgelees.get(f"stg_{tabel}")
+        if stg_rye is None:
+            stg_rye = supabase.kry_alles(f"stg_{tabel}", {"select": kolomme}, orde=orde, klient=klient) if stg_n else []
+        pub_rye = supabase.kry_alles(tabel, {"select": kolomme}, orde=orde, klient=klient) if pub_n else []
+        tabelle[tabel] = vergelyk_tabelle(stg_rye, pub_rye, sleutel)
+    return {"tabelle": tabelle}
 
 
 def gather_landelike_plekke(klient: httpx.Client) -> dict:
@@ -677,7 +897,9 @@ def skryf_verslag(**kw) -> None:
         f"onbekende wyk <= {MAKS_STASIES_MET_ONBEKENDE_WYK}, plekke sonder wyk <= "
         f"{MAKS_PLEKKE_SONDER_WYK} en presies die bekende hawe-snippers, geen duplikaat "
         "natuurlike sleutels nie, geen alias met 0 subplekke nie, wyk-selftoets, 4 "
-        "plattelandse plekke, Brooklyn/Waterkloof."
+        "plattelandse plekke, Brooklyn/Waterkloof. Sodra kandidate gelaai is ook: geen "
+        "kandidaat-wyk_id buite stg_wyke nie, geen ID-vormige veld nie, geen duplikate, leë "
+        "name of nul/duplikaat id's nie (die OVK-totaal is 'n besluit, nie 'n hek nie)."
     )
     r.append("")
     if hard_gefaal:
@@ -875,21 +1097,16 @@ def skryf_verslag(**kw) -> None:
     r.append("")
 
     # --- Nog nie gelaai nie ---------------------------------------------------------------
+    r.append("## Kandidate")
+    r.extend(formatteer_kandidaat_afdeling(kw["kandidate_res"], sectie_foute))
+    r.append("")
+
     r.append("## Nog nie gelaai nie")
-    r.append("Kandidate (16 Sep), stembriefvolgorde (23 Sep).")
     fout = formatteer_afdeling_fout("nog_nie_gelaai", sectie_foute)
     if fout:
         r.append(f"- {fout}")
     else:
-        ng = kw["nie_gelaai_res"]
-        r.append(
-            f"- stg_kandidate: {ng['kandidate_totaal']} rye "
-            f"({'soos verwag — leeg' if ng['kandidate_totaal'] == 0 else 'ONVERWAGS NIE LEEG NIE'})"
-        )
-        r.append(
-            f"- stg_stembrief_volgorde: {ng['stembrief_volgorde_totaal']} rye "
-            f"({'soos verwag — leeg' if ng['stembrief_volgorde_totaal'] == 0 else 'ONVERWAGS NIE LEEG NIE'})"
-        )
+        r.extend(formatteer_nie_gelaai(kw["nie_gelaai_res"]))
     r.append("")
 
     # --- Diff teen gepubliseerde weergawe ---------------------------------------------------
@@ -898,21 +1115,31 @@ def skryf_verslag(**kw) -> None:
     if fout:
         r.append(f"- {fout}")
     else:
-        tellings = kw["publiek_res"]["tellings"]
-        if all(n == 0 for n in tellings.values()):
-            r.append(
-                "Geen publieke tabel dra enige ry nie — daar was nog nooit 'n publiseer-stap "
-                "vir hierdie fase nie. Die eerste publiseer sal dus elke stg_-ry as "
-                "\"toegevoeg\" oordra; daar is niks om te verwyder of te verander nie."
-            )
-        else:
-            for tabel, n in tellings.items():
-                r.append(f"- `{tabel}`: {n} rye tans gepubliseer")
+        tabelle = kw["publiek_res"]["tabelle"]
+        r.append(
+            "Elke `stg_`-tabel teen sy publieke tabel, gepaar op die natuurlike sleutel: wat 'n "
+            "publiseer sou byvoeg, verwyder of verander. Geometrie (`wyke.geom`, `plekke.geom`) "
+            "en `plek_aliasse.id` word nie vergelyk nie. Geen hek nie — verskille is die punt "
+            "van 'n publiseer."
+        )
         r.append("")
-        r.append("| Publieke tabel | Rye |")
-        r.append("|---|---:|")
-        for tabel, n in tellings.items():
-            r.append(f"| {tabel} | {n} |")
+        r.append("| Tabel | stg_ | publiek | toegevoeg | verwyder | verander | Stand |")
+        r.append("|---|---:|---:|---:|---:|---:|---|")
+        for tabel, d in tabelle.items():
+            if d["stg"] == 0 and d["publiek"] == 0:
+                stand = "albei leeg"
+            elif d["gelyk"]:
+                stand = "in pas"
+            else:
+                stand = "**verskil**"
+            r.append(
+                f"| {tabel} | {d['stg']} | {d['publiek']} | {d['toegevoeg']} | {d['verwyder']} | "
+                f"{d['verander']} | {stand} |"
+            )
+        for tabel, d in tabelle.items():
+            for soort, sleutels in d["voorbeelde"].items():
+                if sleutels:
+                    r.append(f"- `{tabel}` {soort}, bv.: " + ", ".join(f"`{x}`" for x in sleutels))
     r.append("")
 
     # --- Besluite nodig -------------------------------------------------------------------
@@ -1009,6 +1236,16 @@ def skryf_verslag(**kw) -> None:
     )
     volgende += 1
 
+    kandidate_res = kw["kandidate_res"]
+    if kandidate_res and kandidate_res.get("gelaai") and kandidate_res["iec_besluite"]:
+        r.append(
+            f"{volgende}. **Kandidaattotale verskil van die OVK s'n** — "
+            + "; ".join(kandidate_res["iec_besluite"])
+            + f". Die OVK korrigeer sy lyste tot {lk.IEC_REGSTELLING_TOT}: publiseer so, of wag "
+            "vir 'n nuwe lys en herlaai?"
+        )
+        volgende += 1
+
     r.append(
         f"{volgende}. **\"Mahikeng\" (huidige amptelike spelling) kom nie in die bron voor "
         "nie** — net die ouer \"Mafikeng\" (7 subplekke, NW383). Voorstel: 'n soek-alias "
@@ -1071,7 +1308,10 @@ def hoof() -> int:
         plekke_res = v("plekke", lambda: gather_plekke(klient, muni_naam))
         raad_res = v("raadsetels_2021", lambda: gather_raadsetels(klient))
         nie_gelaai_res = v("nog_nie_gelaai", lambda: gather_nie_gelaai(klient))
-        publiek_res = v("gepubliseerde_weergawe", lambda: gather_publieke_diff(klient))
+        kandidate_res = v("kandidate", lambda: gather_kandidate(klient, muni_provinsie))
+        voorafgelees = kandidate_res.pop("_rye", None) if kandidate_res else None
+        hard_gefaal.extend(evalueer_kandidaat_hekke(kandidate_res))
+        publiek_res = v("gepubliseerde_weergawe", lambda: gather_publieke_diff(klient, voorafgelees))
 
         landelik_res = v("landelike_plekke", lambda: gather_landelike_plekke(klient))
         if landelik_res:
@@ -1122,6 +1362,7 @@ def hoof() -> int:
         plekke_res=plekke_res,
         raad_res=raad_res,
         nie_gelaai_res=nie_gelaai_res,
+        kandidate_res=kandidate_res,
         publiek_res=publiek_res,
         landelik_res=landelik_res,
         smoke_resultate=smoke_resultate,
@@ -1144,6 +1385,18 @@ def hoof() -> int:
         )
     if raad_res:
         print(f"Raadsetel-rye: {raad_res['uitslae_totaal']}, rade sonder meerderheid: {len(raad_res['geen_meerderheid'])}")
+    if kandidate_res:
+        if kandidate_res.get("gelaai"):
+            t = kandidate_res["tellings"]
+            print(
+                f"Kandidate: {lk.getal(t['totaal'])} (OVK {lk.getal(lk.IEC_TOTAAL)}), "
+                f"partye: {kandidate_res['partye_totaal']}"
+            )
+        else:
+            print("Kandidate: nog nie gelaai nie")
+    if publiek_res:
+        verskil = [t for t, d in publiek_res["tabelle"].items() if not d["gelyk"]]
+        print(f"Publiseer-diff: {'alles in pas' if not verskil else 'verskil in ' + ', '.join(verskil)}")
     if selftoets is not None:
         print(f"Wyk-selftoets: {selftoets['selftoets_geslaag']} geslaag / {selftoets['selftoets_gefaal']} gefaal")
     print(f"Kontrole-tyd: {kontrole_tyd:.1f}s")
