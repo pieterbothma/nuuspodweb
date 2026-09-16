@@ -19,7 +19,12 @@ const MODEL = "gemini-3.5-flash";
 const WORTEL = new URL("..", import.meta.url).pathname;
 // `--plaaslik` rewrites only the local-news slots and writes their own provenance file.
 const PLAASLIK = process.argv.includes("--plaaslik");
-const UIT = join(WORTEL, PLAASLIK ? "docs/verkiesing/ui-kopie-plaaslik.json" : "docs/verkiesing/ui-kopie-2b.json");
+// `--uitslag2021` rewrites only the 2021 ward-result slots.
+const UITSLAG2021 = process.argv.includes("--uitslag2021");
+const UIT = join(
+  WORTEL,
+  PLAASLIK ? "docs/verkiesing/ui-kopie-plaaslik.json" : UITSLAG2021 ? "docs/verkiesing/ui-kopie-uitslag2021.json" : "docs/verkiesing/ui-kopie-2b.json"
+);
 
 function sleutel() {
   const env = readFileSync(join(homedir(), "nuuspod/.env.local"), "utf8");
@@ -43,7 +48,25 @@ function leesGleuwe() {
   return gleuwe;
 }
 
-const aktieweBriewe = () => (PLAASLIK ? BRIEWE_PLAASLIK : BRIEWE);
+const BRIEWE_UITSLAG2021 = {
+  uitslag2021_opskrif: "Klein etiket in HOOFLETTERS bo die 2021-wykuitslag op 'n wykblad.",
+  uitslag2021_onderskrif: "Een of twee sinne: dit is die OVK se amptelike uitslag van die wykstembrief in die plaaslike verkiesing van 2021, en hierdie wyk bestaan uit presies dieselfde stemdistrikte as toe (dus dieselfde gebied).",
+  uitslag2021_hernommer: "Kort sin wanneer die wyk hernommer is: in 2021 was hierdie selfde gebied wyk {n}.",
+  uitslag2021_kolom_party: "Tabelkolom: party.",
+  uitslag2021_kolom_stemme: "Tabelkolom: stemme.",
+  uitslag2021_kolom_persent: "Tabelkolom: persentasie (kort, bv. '%').",
+  uitslag2021_onafhanklik: "Etiket vir die ry van onafhanklike kandidate op die wykstembrief (die OVK tel moontlik meer as een saam).",
+  uitslag2021_geregistreer: "Etiket: aantal geregistreerde kiesers.",
+  uitslag2021_stemdeelname: "Etiket: stemdeelname (persentasie van geregistreerde kiesers wat gestem het).",
+  uitslag2021_bedorwe: "Etiket: bedorwe stemme.",
+  uitslag2021_verander: "Een sin: hierdie wyk se grense het sedert 2021 verander, daarom pas geen 2021-wykuitslag presies nie. (Word gevolg deur 'n skakel.)",
+  uitslag2021_verander_skakel: "Kort skakelteks na die munisipale raad se amptelike uitslag van 2021.",
+  uitslag2021_bron: "Bronvermelding: die OVK se amptelike uitslae per stemdistrik van 2021, opgetel vir hierdie wyk.",
+  uitslag2021_wys_klein: "Knoppie wat partye met minder as 1% van die stemme wys; {n} = hoeveel partye.",
+  uitslag2021_versteek_klein: "Knoppie wat daardie partye weer versteek.",
+};
+
+const aktieweBriewe = () => (PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : BRIEWE);
 
 const plekhouers = (s) => (s.match(/\{[a-z]\}/g) ?? []).sort().join(",");
 const woorde = (s) => s.split(/\s+/).filter(Boolean).length;
@@ -148,6 +171,7 @@ const FEITE = [
   "'n Wyksraadslid word deur die kiesers van een wyk verkies, verteenwoordig daardie wyk in die munisipale raad, en is die voorsitter van die wykkomitee wat die gemeenskap se sienings na die raad bring.",
   "In elke munisipaliteit met wyke word ongeveer die helfte van die raad as wyksraadslede verkies; die res van die setels word uit partye se lyste gevul (proporsionele verteenwoordiging), sodat die raad as geheel die partye se steun weerspieël.",
   "Kiesers in 'n plaaslike munisipaliteit kry 3 stembriewe: wyk, die plaaslike raad se PV-stembrief, en die distriksraad se PV-stembrief. Kiesers in 'n metro kry 2: wyk en die metroraad se PV-stembrief.",
+  "Die vorige plaaslike verkiesing was op 1 November 2021; die OVK publiseer amptelike uitslae per stemdistrik.",
   "Die data kom van die OVK (IEC), die Munisipale Afbakeningsraad en Statistiek Suid-Afrika (Sensus 2011), met Nuuspod se eie verwerking.",
 ];
 

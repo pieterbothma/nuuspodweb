@@ -5,12 +5,19 @@ import { BronStrook, haalBronDatum, OVK_LYS_SKAKEL } from "@/app/_components/ver
 import { Kopstuk } from "@/app/_components/verkiesing/kopstuk";
 import { Stembriewe, vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { StemlokaleLys } from "@/app/_components/verkiesing/stemlokale-lys";
+import { Uitslag2021 } from "@/app/_components/verkiesing/uitslag-2021";
 import { WykNuus } from "@/app/_components/verkiesing/plaaslike-nuus";
 import { haalWykNuus } from "@/lib/verkiesing/plaaslik";
 import { Voet } from "@/app/_components/verkiesing/voet";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
-import { geldigeWykId, haalStembriewe, haalStemstasies, haalWyk } from "@/lib/verkiesing/wyksoeker";
+import {
+  geldigeWykId,
+  haalStembriewe,
+  haalStemstasies,
+  haalWyk,
+  haalWykUitslag2021,
+} from "@/lib/verkiesing/wyksoeker";
 
 /**
  * The page a voter lands on: their ballots, what a ward councillor does, and their ward's
@@ -68,11 +75,12 @@ export default async function WykBladsy({ params }: Props) {
   const wyk = await haalWyk(wykId);
   if (!wyk) notFound();
 
-  const [stasies, stembriewe, bronDatum, nuus] = await Promise.all([
+  const [stasies, stembriewe, bronDatum, nuus, uitslag2021] = await Promise.all([
     haalStemstasies(wyk.wyk_id),
     haalStembriewe(wyk),
     haalBronDatum(),
     haalWykNuus(wyk.wyk_id),
+    haalWykUitslag2021(wyk.wyk_id),
   ]);
 
   const SKAKEL =
@@ -125,6 +133,9 @@ export default async function WykBladsy({ params }: Props) {
 
           <div className="lg:col-start-1 lg:row-start-1">
             <Stembriewe wyk={wyk} stembriewe={stembriewe} />
+            <div className="mt-10">
+              <Uitslag2021 uitslag={uitslag2021} wykNr={wyk.wyk_nr} muniKode={wyk.muni_kode} />
+            </div>
           </div>
         </div>
 

@@ -456,3 +456,36 @@ export async function haalAlleWykIds(): Promise<{ wyk_id: string }[]> {
 export async function haalAlleMuniKodes(): Promise<{ kode: string }[]> {
   return leesAlles<{ kode: string }>("munisipaliteite?select=kode&order=kode.asc", KAS_WYKE);
 }
+
+/** The official 2021 ward result for a 2026 ward with exactly the same voting districts. */
+export type WykUitslag2021 = {
+  wyk_id_2021: string;
+  wyk_nr_2021: number;
+  geregistreer: number;
+  geldige_stemme: number;
+  bedorwe_stemme: number;
+  /** Votes per party on the 2021 ward ballot, alphabetical; "INDEPENDENT" as the IEC names it. */
+  rye: { party_naam: string; stemme: number }[];
+};
+
+/**
+ * `null` when the database could not be read (the page then shows nothing about 2021);
+ * `"verander"` when the ward exists but was redrawn since 2021 (no matching row); otherwise
+ * the result. Keeping the two apart stops an outage from telling readers the boundaries moved.
+ */
+export async function haalWykUitslag2021(wykId: string): Promise<WykUitslag2021 | "verander" | null> {
+  if (!geldigeWykId(wykId)) return null;
+  const opsomming = await lees<Omit<WykUitslag2021, "rye">>(
+    `wyk_2021_opsomming?wyk_id=eq.${wykId}&select=wyk_id_2021,wyk_nr_2021,geregistreer,geldige_stemme,bedorwe_stemme&limit=1`,
+    KAS_WYKE
+  );
+  if (opsomming === null) return null;
+  const o = opsomming[0];
+  if (!o) return "verander";
+  const rye = await lees<{ party_naam: string; stemme: number }>(
+    `wyk_uitslae_2021?wyk_id=eq.${wykId}&select=party_naam,stemme`,
+    KAS_WYKE
+  );
+  if (!rye || rye.length === 0) return null;
+  return { ...o, rye: [...rye].sort((a, b) => vergelykNaam(a.party_naam, b.party_naam)) };
+}

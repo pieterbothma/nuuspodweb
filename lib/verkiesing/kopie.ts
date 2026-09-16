@@ -184,6 +184,24 @@ export const KOPIE = {
   muni_2021_wys_sonder_setels: "Wys ook partye sonder setels ({n})",
   muni_2021_versteek_sonder_setels: "Versteek partye sonder setels",
   muni_2021_sortering: "Gesorteer op partynaam",
+  // --- Wykuitslag 2021 (Gemini) --------------------------------------------
+  // uitslag2021_hernommer {n} = the 2021 ward number. The "verander" pair is shown on a ward
+  // whose voting districts differ from every 2021 ward; the link goes to the municipality page.
+  uitslag2021_opskrif: "WYKUITSLAG 2021",
+  uitslag2021_onderskrif: "Die OVK se amptelike uitslag van die wykstembrief in 2021. Hierdie wyk bestaan uit presies dieselfde stemdistrikte as toe.",
+  uitslag2021_hernommer: "In 2021 was hierdie selfde gebied wyk {n}.",
+  uitslag2021_kolom_party: "Party",
+  uitslag2021_kolom_stemme: "Stemme",
+  uitslag2021_kolom_persent: "%",
+  uitslag2021_onafhanklik: "Onafhanklike kandidaat of kandidate",
+  uitslag2021_geregistreer: "Geregistreerde kiesers",
+  uitslag2021_stemdeelname: "Stemdeelname",
+  uitslag2021_bedorwe: "Bedorwe stemme",
+  uitslag2021_verander: "Hierdie wyk se grense het sedert 2021 verander, daarom pas geen 2021-wykuitslag presies nie.",
+  uitslag2021_verander_skakel: "Sien die raad se amptelike uitslag van 2021",
+  uitslag2021_wys_klein: "Wys ook partye met minder as 1% ({n})",
+  uitslag2021_versteek_klein: "Versteek partye met minder as 1%",
+  uitslag2021_bron: "Bron: OVK se amptelike uitslae per stemdistrik van 2021, opgetel vir hierdie wyk.",
   // --- Plaaslike nuus (Gemini) --------------------------------------------
   // Placeholders: plaaslik_dorp {q} = a town name; plaaslik_munisipaliteit and
   // plaaslik_muni_opskrif {q} = the municipality's display name.

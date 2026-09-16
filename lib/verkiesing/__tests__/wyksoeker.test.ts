@@ -366,3 +366,25 @@ describe("kas-etikette", () => {
     }
   });
 });
+
+describe("haalWykUitslag2021", () => {
+  it("gee die uitslag alfabeties terug vir 'n onveranderde wyk", async () => {
+    const { haalWykUitslag2021 } = await import("../wyksoeker");
+    stubFetch([
+      [/wyk_2021_opsomming\?wyk_id=eq\.19100027/, [{ wyk_id_2021: "19100027", wyk_nr_2021: 27, geregistreer: 15273, geldige_stemme: 8495, bedorwe_stemme: 29 }]],
+      [/wyk_uitslae_2021\?wyk_id=eq\.19100027/, [{ party_naam: "VRYHEIDSFRONT PLUS", stemme: 385 }, { party_naam: "AFRICAN NATIONAL CONGRESS", stemme: 305 }]],
+    ]);
+    const uit = await haalWykUitslag2021("19100027");
+    expect(uit).not.toBe("verander");
+    expect(uit && uit !== "verander" && uit.rye.map((r) => r.party_naam)).toEqual(["AFRICAN NATIONAL CONGRESS", "VRYHEIDSFRONT PLUS"]);
+  });
+
+  it("sê 'verander' net as die databasis werk maar geen ry het nie, en null by 'n onderbreking", async () => {
+    const { haalWykUitslag2021 } = await import("../wyksoeker");
+    stubFetch([[/wyk_2021_opsomming/, []]]);
+    expect(await haalWykUitslag2021("19100001")).toBe("verander");
+    stubFetch([[/wyk_2021_opsomming/, null]]);
+    expect(await haalWykUitslag2021("19100001")).toBeNull();
+    expect(await haalWykUitslag2021("nie-'n-wyk")).toBeNull();
+  });
+});
