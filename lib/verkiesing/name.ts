@@ -63,20 +63,6 @@ const DISTRIKTE: Record<string, string> = {
   DC48: "Wesrand",
 };
 
-/**
- * The stored official name of each district above, so a caller that holds only the name can
- * still resolve it: `MuniOpsomming` carries `distrik_naam` but not `distrik_kode`, and adding
- * the code would mean changing the data layer. An index into `DISTRIKTE`, not a second source
- * of truth — the code always wins when it is known.
- */
-const DISTRIK_KODE_PER_NAAM: Record<string, string> = {
-  "West Coast": "DC1",
-  "Cape Winelands": "DC2",
-  "Garden Route": "DC4",
-  "Central Karoo": "DC5",
-  "West Rand": "DC48",
-};
-
 /** "Western Cape" → "Wes-Kaap". Anything else comes back unchanged. */
 export function provinsieNaam(provinsie: string): string {
   return PROVINSIES[provinsie] ?? provinsie;
@@ -93,11 +79,10 @@ export function muniNaam(kode: string, naam: string): string {
 
 /**
  * The name to show for a district council. `kode` is the district's own code (which is also
- * its municipality code — a district is a row in `munisipaliteite`) and may be null when the
- * caller only has the stored name; the name is then used to find the code. An unknown
- * district keeps its stored name.
+ * its municipality code — a district is a row in `munisipaliteite`); `naam` is the stored
+ * name. Only the code selects a translation, so a name alone never renames anything. An
+ * unknown district keeps its stored name, and an empty name falls back to the code.
  */
-export function distrikNaam(kode: string | null | undefined, naam: string): string {
-  const k = kode ?? DISTRIK_KODE_PER_NAAM[naam];
-  return (k ? DISTRIKTE[k] : undefined) ?? (naam || kode || "");
+export function distrikNaam(kode: string, naam: string): string {
+  return DISTRIKTE[kode] ?? (naam || kode);
 }

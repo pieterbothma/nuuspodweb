@@ -9,7 +9,7 @@ import { Voet } from "@/app/_components/verkiesing/voet";
 import { WykRooster } from "@/app/_components/verkiesing/wyk-rooster";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { distrikNaam, muniNaam, provinsieNaam } from "@/lib/verkiesing/name";
-import { vergelykNaam } from "@/lib/verkiesing/orden";
+import { vergelykNaam, type Volgorde } from "@/lib/verkiesing/orden";
 import { geldigeMuniKode, haalMuni, type MuniOpsomming } from "@/lib/verkiesing/wyksoeker";
 
 /**
@@ -34,8 +34,8 @@ type Props = { params: Promise<{ kode: string }> };
 function onderskrif(muni: MuniOpsomming): string[] {
   const dele: string[] = [];
   if (muni.distrik_naam) {
-    // MuniOpsomming has no distrik_kode, so the helper resolves it from the stored name.
-    dele.push(vulIn(KOPIE.muni_onderskrif_distrik, { q: distrikNaam(null, muni.distrik_naam) }));
+    const q = distrikNaam(muni.distrik_kode ?? "", muni.distrik_naam);
+    dele.push(vulIn(KOPIE.muni_onderskrif_distrik, { q }));
   }
   dele.push(provinsieNaam(muni.provinsie));
   if (muni.wyke.length === 1) dele.push(KOPIE.muni_wyke_aantal_een);
@@ -86,11 +86,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** The contesting parties, alphabetically, with equal space each and no colour or logo. */
-function KontesterendePartye({ partye }: { partye: string[] }) {
-  // `haalKontesterendePartye` already sorts, but the "Alfabeties" chip is a claim about
-  // what the reader is looking at, so this component makes it true itself.
-  const gesorteer = [...partye].sort(vergelykNaam);
+/**
+ * The contesting parties with equal space each and no colour or logo: alphabetical before the
+ * ballot draw, in drawn ballot order after it. The chip is a claim about what the reader is
+ * looking at, so before the draw this component sorts itself rather than trusting its input.
+ */
+function KontesterendePartye({ partye, volgorde }: { partye: string[]; volgorde: Volgorde }) {
+  const gesorteer = volgorde === "stembrief" ? partye : [...partye].sort(vergelykNaam);
   return (
     <section aria-labelledby="partye-opskrif" className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
@@ -101,7 +103,7 @@ function KontesterendePartye({ partye }: { partye: string[] }) {
           {KOPIE.muni_partye_opskrif}
         </h2>
         <span className="border-rand text-grys shrink-0 border px-2.5 py-1 font-sans text-[0.6875rem] font-bold tracking-[0.16em] whitespace-nowrap uppercase">
-          {KOPIE.volgorde_alfabeties}
+          {volgorde === "stembrief" ? KOPIE.volgorde_stembrief : KOPIE.volgorde_alfabeties}
         </span>
       </div>
       {gesorteer.length === 0 ? (
@@ -179,7 +181,7 @@ export default async function MuniBladsy({ params }: Props) {
                 section is absent rather than empty. */}
             {muni.raad2021 && <Raad2021Tabel raad={muni.raad2021} />}
           </div>
-          <KontesterendePartye partye={muni.partye} />
+          <KontesterendePartye partye={muni.partye} volgorde={muni.volgorde} />
         </div>
 
         {/* The footer asks the feedback question, so the strip does not — the reader is

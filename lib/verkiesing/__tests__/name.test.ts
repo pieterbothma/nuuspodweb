@@ -77,23 +77,16 @@ describe("distrikNaam", () => {
     expect(distrikNaam("DC10", "Sarah Baartman")).toBe("Sarah Baartman");
   });
 
-  it("los dit op uit die naam alleen, vir 'n oproeper sonder die kode", () => {
-    // MuniOpsomming carries distrik_naam but not distrik_kode.
-    expect(distrikNaam(null, "Cape Winelands")).toBe("Kaapse Wynland");
-    expect(distrikNaam(undefined, "West Rand")).toBe("Wesrand");
-    expect(distrikNaam(null, "Overberg")).toBe("Overberg");
-  });
-
   it("val terug op die naam, en dan op die kode — nooit op 'n leë string nie", () => {
     expect(distrikNaam("DC99", "Nuwe Distrik")).toBe("Nuwe Distrik");
-    expect(distrikNaam(null, "Nuwe Distrik")).toBe("Nuwe Distrik");
     expect(distrikNaam("DC2", "")).toBe("Kaapse Wynland");
     expect(distrikNaam("DC99", "")).toBe("DC99");
-    expect(distrikNaam(null, "")).toBe("");
+    expect(distrikNaam("", "")).toBe("");
   });
 
-  it("gee die kode voorkeur bo die naam-indeks", () => {
-    // A row whose name has changed must not be renamed by the old name's entry.
+  it("vertaal net op die kode, nooit op die Engelse naam nie", () => {
+    // Only the code selects a translation: a stored name that matches one of the five
+    // English names must not rename a different district.
     expect(distrikNaam("DC3", "Cape Winelands")).toBe("Cape Winelands");
   });
 });

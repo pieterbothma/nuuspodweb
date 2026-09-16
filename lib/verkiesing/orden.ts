@@ -67,6 +67,22 @@ export function sorteerKandidate(
 }
 
 /**
+ * One party's own PR list, in the party's own ranking: `lys_posisie` ascending, always —
+ * before and after the ballot draw. This orders candidates inside a single party and so ranks
+ * nothing between parties; the draw only decides where the party sits on the ballot
+ * (`sorteerPartyLyste`). A row without a position is never given one: it goes after every
+ * positioned row, alphabetically, so a gap in the source never reshuffles the ranked part.
+ */
+export function sorteerLysKandidate(kandidate: Kandidaat[]): Kandidaat[] {
+  return [...kandidate].sort((a, b) => {
+    if (a.lys_posisie != null && b.lys_posisie != null) return a.lys_posisie - b.lys_posisie;
+    if (a.lys_posisie != null) return -1;
+    if (b.lys_posisie != null) return 1;
+    return KOLLASIE.compare(a.van, b.van) || KOLLASIE.compare(a.volle_naam, b.volle_naam);
+  });
+}
+
+/**
  * Ballot order only once every list carries a drawn position; a partially drawn ballot
  * would mix two orderings, which is worse than staying alphabetical. Never by list length.
  */

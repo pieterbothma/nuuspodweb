@@ -144,7 +144,7 @@ describe("haalStembriewe", () => {
     { volle_naam: "Carl Cele", van: "CELE", onafhanklik: false, lys_posisie: 1, partye: { naam: "AAA" } },
   ];
 
-  it("groepeer PR-rye per party en bly alfabeties voor die trekking", async () => {
+  it("groepeer PR-rye per party: partye alfabeties voor die trekking, name volgens lysposisie", async () => {
     stubFetch([
       [/kandidate\?wyk_id=eq/, [wykRy]],
       [/stembrief=eq\.pv_plaaslik/, pvRye],
@@ -155,8 +155,9 @@ describe("haalStembriewe", () => {
     expect(uit.volgorde).toBe("alfabeties");
     expect(uit.pv_plaaslik.map((p) => p.party_naam)).toEqual(["AAA", "ZZZ"]);
     expect(uit.pv_plaaslik.map((p) => p.posisie)).toEqual([null, null]);
-    // Within the ZZZ list, alphabetical while the ballot order is not yet drawn.
-    expect(uit.pv_plaaslik[1].kandidate.map((k) => k.van)).toEqual(["ABERG", "ZULU"]);
+    // Within the ZZZ list the party's own list position orders the names, even before the
+    // draw: it ranks candidates inside one party, never parties against each other.
+    expect(uit.pv_plaaslik[1].kandidate.map((k) => k.van)).toEqual(["ZULU", "ABERG"]);
     expect(uit.wyk).toHaveLength(1);
     expect(uit.wyk[0].party_naam).toBe("AAA");
   });
@@ -276,6 +277,49 @@ describe("haalMuni", () => {
     ]);
     const uit = await haalMuni("WC024");
     expect(uit!.partye).toEqual(["DA", "VF Plus"]);
+    expect(uit!.volgorde).toBe("alfabeties");
+  });
+
+  it("gee die distrik se kode saam", async () => {
+    stubFetch([
+      [/munisipaliteite\?kode=eq\.WC024/, [{ kode: "WC024", naam: "Stellenbosch", tipe: "plaaslik", distrik_kode: "DC2", provinsie: "Western Cape" }]],
+      [/munisipaliteite\?kode=eq\.DC2/, [{ naam: "Cape Winelands" }]],
+      [/./, []],
+    ]);
+    const uit = await haalMuni("WC024");
+    expect(uit!.distrik_kode).toBe("DC2");
+  });
+
+  it("volg die getrekte PV-stembrief ná die trekking; partye net op wykstembriewe kom daarna, alfabeties", async () => {
+    stubFetch([
+      [/munisipaliteite\?kode=eq\.WC024/, [{ kode: "WC024", naam: "Stellenbosch", tipe: "plaaslik", distrik_kode: null, provinsie: "Western Cape" }]],
+      [/stembrief_volgorde\?muni_kode=eq\.WC024/, [
+        { stembrief: "pv_plaaslik", posisie: 2, partye: { naam: "AAA" } },
+        { stembrief: "pv_plaaslik", posisie: 1, partye: { naam: "ZZZ" } },
+        { stembrief: "wyk", posisie: 1, partye: { naam: "MMM" } },
+        { stembrief: "wyk", posisie: 2, partye: { naam: "BBB" } },
+        { stembrief: "wyk", posisie: 3, partye: { naam: "AAA" } },
+      ]],
+      [/./, []],
+    ]);
+    const uit = await haalMuni("WC024");
+    expect(uit!.volgorde).toBe("stembrief");
+    expect(uit!.partye).toEqual(["ZZZ", "AAA", "BBB", "MMM"]);
+  });
+
+  it("lees 'n distriksraad se volgorde van die pv_distrik-stembrief", async () => {
+    stubFetch([
+      [/munisipaliteite\?kode=eq\.DC2/, [{ kode: "DC2", naam: "Cape Winelands", tipe: "distrik", distrik_kode: null, provinsie: "Western Cape" }]],
+      [/stembrief_volgorde\?muni_kode=eq\.DC2/, [
+        { stembrief: "pv_plaaslik", posisie: 1, partye: { naam: "AAA" } },
+        { stembrief: "pv_distrik", posisie: 1, partye: { naam: "ZZZ" } },
+        { stembrief: "pv_distrik", posisie: 2, partye: { naam: "AAA" } },
+      ]],
+      [/./, []],
+    ]);
+    const uit = await haalMuni("DC2");
+    expect(uit!.volgorde).toBe("stembrief");
+    expect(uit!.partye).toEqual(["ZZZ", "AAA"]);
   });
 });
 

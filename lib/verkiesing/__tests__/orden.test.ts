@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { geenMeerderheid, sorteerKandidate, sorteerPartyLyste } from "../orden";
+import { geenMeerderheid, sorteerKandidate, sorteerLysKandidate, sorteerPartyLyste } from "../orden";
 
 describe("sorteerKandidate", () => {
   it("sorteer alfabeties op van, dan volle naam, met Afrikaanse kollasie", () => {
@@ -19,6 +19,18 @@ describe("sorteerKandidate", () => {
       "stembrief"
     );
     expect(uit.map((k) => k.van)).toEqual(["A", "B"]);
+  });
+});
+
+describe("sorteerLysKandidate", () => {
+  it("volg altyd die party se eie lys_posisie; rye sonder posisie kom laaste, alfabeties", () => {
+    const uit = sorteerLysKandidate([
+      { volle_naam: "Zed", van: "ZULU", party_naam: "P", onafhanklik: false, lys_posisie: null },
+      { volle_naam: "Bea", van: "BOTHA", party_naam: "P", onafhanklik: false, lys_posisie: 2 },
+      { volle_naam: "Ari", van: "ABERG", party_naam: "P", onafhanklik: false, lys_posisie: null },
+      { volle_naam: "Cas", van: "CRONJE", party_naam: "P", onafhanklik: false, lys_posisie: 1 },
+    ]);
+    expect(uit.map((k) => k.van)).toEqual(["CRONJE", "BOTHA", "ABERG", "ZULU"]);
   });
 });
 

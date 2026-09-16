@@ -2,6 +2,7 @@ import { lees } from "@/lib/supabase-rest";
 import {
   geenMeerderheid,
   sorteerKandidate,
+  sorteerLysKandidate,
   sorteerPartyLyste,
   vergelykNaam,
   type Kandidaat,
@@ -79,9 +80,14 @@ export type MuniOpsomming = {
   naam: string;
   tipe: string;
   provinsie: string;
+  /** The district council's own code; null for a metro and for a district itself. */
+  distrik_kode: string | null;
   distrik_naam: string | null;
   wyke: { wyk_id: string; wyk_nr: number }[];
+  /** Contesting parties, already in `volgorde` — the page shows them as given. */
   partye: string[];
+  /** Which ordering `partye` is in, so the page's chip can say so. */
+  volgorde: Volgorde;
   raad2021: Raad2021 | null;
 };
 
@@ -240,11 +246,7 @@ export async function haalStemstasies(wykId: string): Promise<Stemstasie[]> {
 }
 
 /** Groups PR candidates per party and attaches each party's drawn ballot position. */
-function groepeerPerParty(
-  rye: KandidaatRy[],
-  posisies: Map<string, number>,
-  volgorde: Volgorde
-): PartyLys[] {
+function groepeerPerParty(rye: KandidaatRy[], posisies: Map<string, number>): PartyLys[] {
   const perParty = new Map<string, Kandidaat[]>();
   for (const ry of rye) {
     const k = naKandidaat(ry);
@@ -258,10 +260,10 @@ function groepeerPerParty(
   const lyste: PartyLys[] = [...perParty].map(([party_naam, kandidate]) => ({
     party_naam,
     posisie: posisies.get(party_naam) ?? null,
-    // Within one list the ordering follows the same flag the page shows the reader:
-    // alphabetical before the draw, the official list position after it. Comparing
-    // candidates inside a single party never ranks parties against each other.
-    kandidate: sorteerKandidate(kandidate, volgorde),
+    // A party's own list is the party's own ranking, so it follows `lys_posisie` in both
+    // windows. It orders candidates inside one party and ranks nothing between parties —
+    // the draw (via `posisies`) only decides where the party sits on the ballot.
+    kandidate: sorteerLysKandidate(kandidate),
   }));
   return sorteerPartyLyste(lyste);
 }
@@ -313,41 +315,72 @@ export async function haalStembriewe(wyk: Wyk): Promise<Stembriewe> {
 
   return {
     wyk: sorteerKandidate((wykRye ?? []).map(naKandidaat), volgorde),
-    pv_plaaslik: groepeerPerParty(
-      plaaslikRye ?? [],
-      posisies("pv_plaaslik", wyk.muni_kode),
-      volgorde
-    ),
+    pv_plaaslik: groepeerPerParty(plaaslikRye ?? [], posisies("pv_plaaslik", wyk.muni_kode)),
     pv_distrik: distrik
-      ? groepeerPerParty(distrikRye ?? [], posisies("pv_distrik", distrik), volgorde)
+      ? groepeerPerParty(distrikRye ?? [], posisies("pv_distrik", distrik))
       : [],
     volgorde,
   };
 }
 
 /**
- * The distinct party names contesting a municipality. PostgREST has no DISTINCT, so prefer
- * the ballot draw (exactly one row per contesting party) and fall back to paging the
- * candidate rows before the draw. Empty until candidate lists are loaded.
+ * The distinct party names contesting a municipality, and which order they are in.
+ *
+ * PostgREST has no DISTINCT, so prefer the ballot draw (one row per party per ballot) and
+ * fall back to paging the candidate rows before the draw. Empty until candidate lists are
+ * loaded.
+ *
+ * The order signal matches the ward page's: "stembrief" once `stembrief_volgorde` has rows
+ * for this council's own PR ballot (`pv_plaaslik` for a local municipality or a metro,
+ * `pv_distrik` for a district council — both keyed by the council's own code), otherwise
+ * "alfabeties". In ballot order the parties on that PR ballot come first by their drawn
+ * position; a party drawn only onto the ward ballots has no PR position and follows,
+ * alphabetically, rather than being given a number. Never by seats, votes or list size.
  */
-async function haalKontesterendePartye(kode: string): Promise<string[]> {
-  const trekking = await lees<{ partye: Ingebed<{ naam: string }> }>(
-    `stembrief_volgorde?muni_kode=eq.${kode}&select=partye(naam)`,
+async function haalKontesterendePartye(
+  kode: string,
+  tipe: string
+): Promise<{ partye: string[]; volgorde: Volgorde }> {
+  const pvStembrief = tipe === "distrik" ? "pv_distrik" : "pv_plaaslik";
+  const trekking = await lees<{ stembrief: string; posisie: number; partye: Ingebed<{ naam: string }> }>(
+    `stembrief_volgorde?muni_kode=eq.${kode}&select=stembrief,posisie,partye(naam)`,
     KAS_KANDIDATE
   );
-  const bron =
-    trekking && trekking.length > 0
-      ? trekking
-      : await leesAlles<{ partye: Ingebed<{ naam: string }> }>(
-          `kandidate?muni_kode=eq.${kode}&select=partye(naam)&order=id.asc`,
-          KAS_KANDIDATE
-        );
+
+  if (trekking && trekking.length > 0) {
+    const pvPosisie = new Map<string, number>();
+    const name = new Set<string>();
+    for (const ry of trekking) {
+      const naam = een(ry.partye)?.naam;
+      if (!naam) continue;
+      name.add(naam);
+      if (ry.stembrief === pvStembrief) pvPosisie.set(naam, ry.posisie);
+    }
+    if (pvPosisie.size > 0) {
+      const partye = [...name].sort((a, b) => {
+        const pa = pvPosisie.get(a);
+        const pb = pvPosisie.get(b);
+        if (pa != null && pb != null) return pa - pb;
+        if (pa != null) return -1;
+        if (pb != null) return 1;
+        return vergelykNaam(a, b);
+      });
+      return { partye, volgorde: "stembrief" };
+    }
+    // Drawn rows exist but none for this council's PR ballot: stay alphabetical.
+    return { partye: [...name].sort(vergelykNaam), volgorde: "alfabeties" };
+  }
+
+  const kandidate = await leesAlles<{ partye: Ingebed<{ naam: string }> }>(
+    `kandidate?muni_kode=eq.${kode}&select=partye(naam)&order=id.asc`,
+    KAS_KANDIDATE
+  );
   const name = new Set<string>();
-  for (const ry of bron) {
+  for (const ry of kandidate) {
     const naam = een(ry.partye)?.naam;
     if (naam) name.add(naam);
   }
-  return [...name].sort(vergelykNaam);
+  return { partye: [...name].sort(vergelykNaam), volgorde: "alfabeties" };
 }
 
 async function haalRaad2021(kode: string): Promise<Raad2021 | null> {
@@ -390,13 +423,13 @@ export async function haalMuni(kode: string): Promise<MuniOpsomming | null> {
   const muni = rye?.[0];
   if (!muni) return null;
 
-  const [distrik_naam, wyke, partye, raad2021] = await Promise.all([
+  const [distrik_naam, wyke, kontesterend, raad2021] = await Promise.all([
     muni.distrik_kode ? haalMuniNaam(muni.distrik_kode) : Promise.resolve(null),
     leesAlles<{ wyk_id: string; wyk_nr: number }>(
       `wyke?muni_kode=eq.${kode}&select=wyk_id,wyk_nr&order=wyk_nr.asc`,
       KAS_WYKE
     ),
-    haalKontesterendePartye(kode),
+    haalKontesterendePartye(kode, muni.tipe),
     haalRaad2021(kode),
   ]);
 
@@ -405,9 +438,11 @@ export async function haalMuni(kode: string): Promise<MuniOpsomming | null> {
     naam: muni.naam,
     tipe: muni.tipe,
     provinsie: muni.provinsie,
+    distrik_kode: muni.distrik_kode ?? null,
     distrik_naam,
     wyke,
-    partye,
+    partye: kontesterend.partye,
+    volgorde: kontesterend.volgorde,
     raad2021,
   };
 }

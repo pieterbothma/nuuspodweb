@@ -65,9 +65,11 @@ function muni(oorskryf: Partial<MuniOpsomming> = {}): MuniOpsomming {
     naam: "Stellenbosch",
     tipe: "plaaslik",
     provinsie: "Western Cape",
+    distrik_kode: "DC2",
     distrik_naam: "Cape Winelands",
     wyke: wyke(23),
     partye: [],
+    volgorde: "alfabeties",
     raad2021: STELLENBOSCH_RAAD,
     ...oorskryf,
   };
@@ -248,6 +250,23 @@ describe("/munisipaliteit/[kode]", () => {
       .toEqual(["PARTY A", "PARTY B"]);
   });
 
+  it("wys partye alfabeties voor die trekking, selfs as die invoer nie gesorteer is nie", async () => {
+    haalMuni.mockResolvedValue(muni({ partye: ["ZZZ", "AAA"], volgorde: "alfabeties" }));
+    const { container } = await wys("WC024");
+    expect([...container.querySelectorAll("[data-kontesterende-party]")].map((e) => e.textContent))
+      .toEqual(["AAA", "ZZZ"]);
+    expect(screen.getByText(KOPIE.volgorde_alfabeties)).toBeTruthy();
+  });
+
+  it("wys partye in stembriefvolgorde ná die trekking, met die ooreenstemmende etiket", async () => {
+    haalMuni.mockResolvedValue(muni({ partye: ["ZZZ", "AAA"], volgorde: "stembrief" }));
+    const { container } = await wys("WC024");
+    expect([...container.querySelectorAll("[data-kontesterende-party]")].map((e) => e.textContent))
+      .toEqual(["ZZZ", "AAA"]);
+    expect(screen.getByText(KOPIE.volgorde_stembrief)).toBeTruthy();
+    expect(screen.queryByText(KOPIE.volgorde_alfabeties)).toBeNull();
+  });
+
   it("gebruik geen partykleure op die raadstabel of die partylys nie", async () => {
     haalMuni.mockResolvedValue(muni({ partye: ["PARTY A"] }));
     const { container } = await wys("WC024");
@@ -270,7 +289,7 @@ describe("/munisipaliteit/[kode]", () => {
     cleanup();
 
     // A district whose name is a proper name keeps it.
-    haalMuni.mockResolvedValue(muni({ kode: "EC109", distrik_naam: "Sarah Baartman" }));
+    haalMuni.mockResolvedValue(muni({ kode: "EC109", distrik_kode: "DC10", distrik_naam: "Sarah Baartman" }));
     const tweede = await wys("EC109");
     expect(tweede.container.querySelector("[data-distrik]")?.textContent).toBe(
       vulIn(KOPIE.muni_onderskrif_distrik, { q: "Sarah Baartman" })
