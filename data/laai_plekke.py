@@ -53,6 +53,7 @@ Vier modusse (`ontleed_argumente` ontleed die CLI-argumente hieronder):
 from __future__ import annotations
 
 import csv
+import re
 import sys
 import time
 import zipfile
@@ -123,6 +124,23 @@ def na_sp_kode(sp_code: float | str) -> str:
     return str(int(sp_code))
 
 
+MP_LANDELIKE_AGTERVOEGSEL = re.compile(r"\s+(NU|SH)$")
+
+
+def na_mp_naam_soek(mp_naam: str | None) -> str | None:
+    """Normalised main-place name for `stg_plekke.mp_naam_soek` (migration
+    20260916062706_wyksoeker_rpcs), the column `soek()` matches a query like "Soweto" on.
+
+    MainPlace names carry the same " NU"/" SH" rural suffixes as sub-place names (527 of
+    22 196 rows), so they are stripped first. Must stay byte-identical to the SQL side,
+    `normaliseer_soekteks(regexp_replace(mp_naam, '\\s+(NU|SH)$', ''))`, which is also
+    what backfilled the existing rows.
+    """
+    if mp_naam is None:
+        return None
+    return teks.normaliseer(MP_LANDELIKE_AGTERVOEGSEL.sub("", mp_naam))
+
+
 def bou_plek_rye(vorm_rekord_pare: list[tuple[Any, dict]]) -> tuple[list[dict], list[str]]:
     """Bou stg_plekke-rye. Gee (rye, oorgeslaan_leë_geom) terug (sp_kode-lys)."""
     rye: list[dict] = []
@@ -142,6 +160,7 @@ def bou_plek_rye(vorm_rekord_pare: list[tuple[Any, dict]]) -> tuple[list[dict], 
                 "naam": naam,
                 "naam_soek": teks.normaliseer(naam),
                 "mp_naam": rekord["MP_NAME"],
+                "mp_naam_soek": na_mp_naam_soek(rekord["MP_NAME"]),
                 "landelik": landelik,
                 "geom": ewkt,
             }

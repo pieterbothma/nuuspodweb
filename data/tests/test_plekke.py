@@ -59,9 +59,19 @@ def test_bou_plek_rye_shape(sp_rekords):
     rye, oorgeslaan_geom = lp.bou_plek_rye(vorm_rekord_pare[:50])
     assert oorgeslaan_geom == [] or isinstance(oorgeslaan_geom, list)
     for ry in rye:
-        assert set(ry.keys()) == {"sp_kode", "naam", "naam_soek", "mp_naam", "landelik", "geom"}
+        assert set(ry.keys()) == {
+            "sp_kode", "naam", "naam_soek", "mp_naam", "mp_naam_soek", "landelik", "geom",
+        }
         assert ry["sp_kode"].isdigit()
         assert ry["geom"].startswith("SRID=4326;")
+
+
+def test_na_mp_naam_soek_stroop_landelike_agtervoegsel_en_normaliseer():
+    assert lp.na_mp_naam_soek("Soweto") == "soweto"
+    assert lp.na_mp_naam_soek("Emalahleni NU") == "emalahleni"
+    assert lp.na_mp_naam_soek("Hartebeesfontein SH") == "hartebeesfontein"
+    assert lp.na_mp_naam_soek("Khâi-Ma") == "khai ma"
+    assert lp.na_mp_naam_soek(None) is None
 
 
 def test_sp_kode_is_clean_integer_text(sp_rekords):
@@ -322,10 +332,13 @@ def test_bou_alias_rye_skei_opgelos_van_onopgelos():
 
 def test_aliasse_csv_finale_rye_en_teikens():
     rye = {ry["alias"]: ry for ry in lp.lees_aliasse_csv(lp.ALIASSE_CSV_PAD)}
-    assert len(rye) == 9
+    assert len(rye) == 10
     # Curated targets are an owner decision for Fase 2b — not in the CSV now.
     for verwyder in ("Pretoria-Oos", "Johannesburg-Suid", "Kaapse Vlakte"):
         assert verwyder not in rye
+    # Fase 2b (Piet, 2026-09-15): "Mahikeng" searches the Mafikeng main place (NW383).
+    assert rye["Mahikeng"]["mp_naam"] == "Mafikeng"
+    assert rye["Mahikeng"]["naam"] == ""
     # Stats SA spells the Port Elizabeth main place "Port Elizaberth".
     assert rye["Port Elizabeth"]["mp_naam"] == "Port Elizaberth"
     assert rye["Gqeberha"]["mp_naam"] == "Port Elizaberth"
