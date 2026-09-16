@@ -21,7 +21,7 @@ function ry(oorskryf: Partial<SoekRy> = {}): SoekRy {
     adres: null,
     wyk_ids: ["19100056"],
     wyk_nrs: [56],
-    teiken: "19100056",
+    teiken: "/wyk/19100056",
     rang: 1,
     ...oorskryf,
   };
@@ -185,7 +185,7 @@ describe("WykSoeker", () => {
   });
 
   it("navigeer na die teiken met Enter", async () => {
-    stelSoek([ry({ teiken: "19100056" })]);
+    stelSoek([ry({ teiken: "/wyk/19100056" })]);
     const gebruiker = userEvent.setup();
     render(<WykSoeker />);
 
@@ -196,15 +196,29 @@ describe("WykSoeker", () => {
     expect(stoot).toHaveBeenCalledWith("/wyk/19100056");
   });
 
+  it("volg 'n stemlokaal se teiken presies, anker ingesluit", async () => {
+    stelSoek([
+      ry({ soort: "stemlokaal", etiket: "KAYA MANDI HIGH SCHOOL", teiken: "/wyk/10204009#stemlokale" }),
+    ]);
+    const gebruiker = userEvent.setup();
+    render(<WykSoeker />);
+
+    await gebruiker.type(soekboks(), "Kaya Mandi");
+    await screen.findByRole("option", { name: /KAYA MANDI/ });
+
+    await gebruiker.keyboard("{ArrowDown}{Enter}");
+    expect(stoot).toHaveBeenCalledWith("/wyk/10204009#stemlokale");
+  });
+
   it("hanteer pyltjies en Escape volgens die combobox-patroon", async () => {
     stelSoek([
-      ry({ etiket: "Brooklyn", wyk_ids: ["19100056"], wyk_nrs: [56], teiken: "19100056" }),
+      ry({ etiket: "Brooklyn", wyk_ids: ["19100056"], wyk_nrs: [56], teiken: "/wyk/19100056" }),
       ry({
         etiket: "Brooklyn",
         muni_naam: "Stad Kaapstad",
         wyk_ids: ["19100055"],
         wyk_nrs: [55],
-        teiken: "19100055",
+        teiken: "/wyk/19100055",
         rang: 2,
       }),
     ]);
@@ -374,7 +388,7 @@ describe("WykSoeker", () => {
         etiket: `Brooklyn ${i + 1}`,
         wyk_ids: [`191000${String(i).padStart(2, "0")}`],
         wyk_nrs: [i + 1],
-        teiken: `191000${String(i).padStart(2, "0")}`,
+        teiken: `/wyk/191000${String(i).padStart(2, "0")}`,
         rang: i + 1,
       })
     );
@@ -394,8 +408,8 @@ describe("WykSoeker", () => {
 
   it("laat val 'n stadige antwoord vir 'n ou navraag", async () => {
     const sluis: { los: (() => void) | null } = { los: null };
-    const stadigeRye = [ry({ etiket: "STADIGE OU ANTWOORD", teiken: "19100001" })];
-    const vinnigeRye = [ry({ etiket: "Brooklyn Vinnig", teiken: "19100002" })];
+    const stadigeRye = [ry({ etiket: "STADIGE OU ANTWOORD", teiken: "/wyk/19100001" })];
+    const vinnigeRye = [ry({ etiket: "Brooklyn Vinnig", teiken: "/wyk/19100002" })];
     const haal = vi.fn(async (url: string, _init?: RequestInit) => {
       const q = new URL(url, "http://t").searchParams.get("q");
       if (q === "Broo") {

@@ -234,7 +234,8 @@ export function WykSoeker() {
     }
     if (o.ry.teiken) {
       setOop(false);
-      router.push(`/wyk/${o.ry.teiken}`);
+      // The RPC returns a ready path: `/wyk/<id>`, or `/wyk/<id>#stemlokale` for a station.
+      router.push(o.ry.teiken);
       return;
     }
     // A place spanning several wards has nowhere of its own to go: open its chooser and
