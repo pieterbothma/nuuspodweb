@@ -145,6 +145,47 @@ def test_wyk_nrs_volg_dieselfde_orde_as_wyk_ids():
         assert [int(w[-3:]) for w in ry["wyk_ids"]] == ry["wyk_nrs"]
 
 
+def test_plek_ry_dra_n_provinsie_en_geen_adres():
+    # Mockup: "Brooklyn — Stad Tshwane · Gauteng"
+    rye = [
+        r for r in roep_soek("Brooklyn")
+        if r["soort"] == "plek" and r["muni_naam"] == "City of Tshwane"
+    ]
+    assert len(rye) == 1
+    assert rye[0]["etiket"] == "Brooklyn"
+    assert rye[0]["provinsie"] == "Gauteng"
+    assert rye[0]["adres"] is None
+
+
+def test_stemlokaal_ry_dra_n_provinsie_en_n_adres():
+    # Mockup: "BROOKLYN PRIMARY SCHOOL — Stad Tshwane · 279 Murray Street"
+    rye = [
+        r for r in roep_soek("Brooklyn")
+        if r["soort"] == "stemlokaal" and r["etiket"] == "BROOKLYN PRIMARY SCHOOL"
+    ]
+    assert len(rye) == 1
+    assert rye[0]["muni_naam"] == "City of Tshwane"
+    assert rye[0]["provinsie"] == "Gauteng"
+    assert rye[0]["adres"] == "279 MURRAY STREET BROOKLYN PRETORIA"
+
+
+def test_elke_ry_dra_n_provinsie():
+    for navraag in ("Brooklyn", "Kaapstad", "Soweto", "Kaya Mandi High", "Stellenbosch"):
+        for ry in roep_soek(navraag):
+            assert ry["provinsie"], (navraag, ry["etiket"])
+            if ry["soort"] == "plek":
+                assert ry["adres"] is None, (navraag, ry["etiket"])
+
+
+def test_rang_ordening_is_bepaalbaar_oor_herhaalde_oproepe():
+    # Die brief se ordening laat gelykopstande toe (Brooklyn se CPT- en TSH-rye is op elke
+    # voorgeskrewe sleutel gelyk), so muni_kode + wyk_ids breek dit — die lys mag nie
+    # tussen oproepe rondspring nie.
+    eerste = [(r["etiket"], r["muni_kode"], r["rang"]) for r in roep_soek("Brooklyn")]
+    for _ in range(3):
+        assert [(r["etiket"], r["muni_kode"], r["rang"]) for r in roep_soek("Brooklyn")] == eerste
+
+
 def test_teiken_is_nul_wanneer_daar_meer_as_een_wyk_is():
     rye = roep_soek("Soweto")
     for ry in rye:
