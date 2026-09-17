@@ -5,7 +5,7 @@ import { Kopstuk } from "@/app/_components/verkiesing/kopstuk";
 import { vulIn } from "@/app/_components/verkiesing/stembriewe";
 import { Voet } from "@/app/_components/verkiesing/voet";
 import { KOPIE } from "@/lib/verkiesing/kopie";
-import { haalPartyverklaring, paragrawe, partyLogo } from "@/lib/verkiesing/partye";
+import { haalPartyverklaring, paragrawe, partyLogo, partyTeksKleur } from "@/lib/verkiesing/partye";
 
 /**
  * One approved party statement on its own page: logo, party, date, the Afrikaans headline and
@@ -66,7 +66,7 @@ export default async function VerklaringBladsy({ params }: Props) {
               <img src={logo} alt={vulIn(KOPIE.partye_logo_alt, { q: v.party })} width={64} height={64} className="size-16 shrink-0 object-contain" />
             )}
             <div className="min-w-0">
-              <p className="text-ink font-sans text-sm font-bold tracking-[0.14em] uppercase">{v.party}</p>
+              <p data-party-naam className={`${partyTeksKleur(v.party)} font-sans text-sm font-bold tracking-[0.14em] uppercase`}>{v.party}</p>
               <time dateTime={v.gepubliseer_om} className="text-grys font-sans text-sm">
                 {DATUM.format(new Date(v.gepubliseer_om))}
               </time>

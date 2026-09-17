@@ -72,13 +72,25 @@ describe("Partyverklarings", () => {
     }
   });
 
-  it("gives no card a colour token, arbitrary colour or inline style", () => {
-    const { container } = render(<Partyverklarings verklarings={[v("ActionSA"), v("GOOD")]} nou={nou} />);
+  it("colours only the party name, every party in its own colour, and nothing else in the card", () => {
+    const partye = [
+      "ActionSA", "African Christian Democratic Party (ACDP)", "African National Congress (ANC)", "Al Jama-ah",
+      "Build One South Africa (BOSA)", "Democratic Alliance (DA)", "Economic Freedom Fighters (EFF)", "GOOD",
+      "Inkatha Freedom Party (IFP)", "uMkhonto weSizwe Party (MK)", "Vryheidsfront Plus (VF Plus)",
+    ];
+    const { container } = render(<Partyverklarings verklarings={partye.map((p) => v(p))} nou={nou} />);
+    const kleure = new Set<string>();
     for (const kaart of container.querySelectorAll("[data-partyverklaring]")) {
+      const naam = kaart.querySelector("[data-party-naam]")!;
+      const kleur = (naam.getAttribute("class") ?? "").match(/text-\[#[0-9a-f]{6}\]/)?.[0];
+      expect(kleur, kaart.getAttribute("data-partyverklaring")!).toBeTruthy();
+      kleure.add(kleur!);
       for (const el of [kaart, ...kaart.querySelectorAll("*")]) {
+        if (el === naam) continue;
         expect(el.getAttribute("class") ?? "").not.toMatch(/rooi|siaan|neon|\[#|#[0-9a-fA-F]{3}/);
         expect(el.getAttribute("style")).toBeNull();
       }
     }
+    expect(kleure.size).toBe(partye.length);
   });
 });

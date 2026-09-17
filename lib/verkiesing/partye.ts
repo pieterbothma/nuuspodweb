@@ -42,6 +42,36 @@ export function partyLogo(party: string): string | null {
   return LOGO[party] ? `/partye/${LOGO[party]}.png` : null;
 }
 
+/**
+ * The party name on a statement card and page is printed in the party's colour (Piet,
+ * 2026-09-17). Scope: party statements ONLY — ballots, candidate lists and ward pages stay
+ * colourless, and docs/verkiesing/partykleure.json is still never imported.
+ *
+ * Hues follow the approved palette in that file, plus the parties it didn't cover (ACDP,
+ * Al Jama-ah, BOSA, GOOD) from their logos; VF Plus is green at Piet's request. Every party
+ * gets a colour, and each text shade is darkened only as far as needed to reach WCAG AA
+ * (4.5:1 on white) for small text, so ANC gold reads as dark gold. Full class strings are
+ * written out so Tailwind can see them.
+ */
+const TEKSKLEUR: Record<string, string> = {
+  ActionSA: "text-[#048710]",
+  "African Christian Democratic Party (ACDP)": "text-[#007caa]",
+  "African National Congress (ANC)": "text-[#966e00]",
+  "Al Jama-ah": "text-[#1e8449]",
+  "Build One South Africa (BOSA)": "text-[#c44b28]",
+  "Democratic Alliance (DA)": "text-[#005ba6]",
+  "Economic Freedom Fighters (EFF)": "text-[#852a2a]",
+  GOOD: "text-[#bd531a]",
+  "Inkatha Freedom Party (IFP)": "text-[#d6281f]",
+  "uMkhonto weSizwe Party (MK)": "text-[#1e7b3a]",
+  "Vryheidsfront Plus (VF Plus)": "text-[#00843d]",
+};
+
+/** The party's text colour class; a party without one falls back to ink, like every other label. */
+export function partyTeksKleur(party: string): string {
+  return TEKSKLEUR[party] ?? "text-ink";
+}
+
 /** The statement's paragraphs, as the translation separated them. */
 export function paragrawe(teks: string): string[] {
   return teks.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
