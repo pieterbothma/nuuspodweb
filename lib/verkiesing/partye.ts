@@ -48,7 +48,8 @@ export function partyLogo(party: string): string | null {
  * colourless, and docs/verkiesing/partykleure.json is still never imported.
  *
  * Hues follow the approved palette in that file, plus the parties it didn't cover (ACDP,
- * Al Jama-ah, BOSA, GOOD) from their logos; VF Plus is green at Piet's request. Every party
+ * Al Jama-ah, BOSA, GOOD) from their logos; VF Plus green and EFF clean red (not the palette's
+ * maroon) at Piet's request. Every party
  * gets a colour, and each text shade is darkened only as far as needed to reach WCAG AA
  * (4.5:1 on white) for small text, so ANC gold reads as dark gold. Full class strings are
  * written out so Tailwind can see them.
@@ -60,7 +61,7 @@ const TEKSKLEUR: Record<string, string> = {
   "Al Jama-ah": "text-[#1e8449]",
   "Build One South Africa (BOSA)": "text-[#c44b28]",
   "Democratic Alliance (DA)": "text-[#005ba6]",
-  "Economic Freedom Fighters (EFF)": "text-[#852a2a]",
+  "Economic Freedom Fighters (EFF)": "text-[#e0001b]",
   GOOD: "text-[#bd531a]",
   "Inkatha Freedom Party (IFP)": "text-[#d6281f]",
   "uMkhonto weSizwe Party (MK)": "text-[#1e7b3a]",
