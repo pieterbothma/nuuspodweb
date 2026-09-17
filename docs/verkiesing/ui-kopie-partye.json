@@ -1,8 +1,11 @@
 {
   "partye_opskrif": "WAT DIE PARTYE SÊ",
-  "partye_onderskrif": "Die jongste amptelike verklaring van elke party in die Parlement, alfabeties gerangskik. Nuuspod vertaal dit met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.",
+  "partye_onderskrif": "Die jongste amptelike verklaring van elke party in die Parlement, in alfabetiese volgorde. Nuuspod vertaal Engelse verklarings met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.",
   "partye_lees": "Lees die verklaring",
-  "partye_versteek": "Maak toe",
+  "partye_bladtitel": "{q} — Verkiesing 2026",
+  "partye_beskrywing": "Die amptelike verklaring van {q}, met KI in Afrikaans vertaal.",
+  "partye_logo_alt": "Logo van {q}",
+  "partye_terug": "Terug na wat die partye sê",
   "partye_vertaal_etiket": "Met KI uit Engels vertaal. Oorspronklike verklaring:",
   "partye_afrikaans_etiket": "Deur die party self in Afrikaans gepubliseer:"
 }

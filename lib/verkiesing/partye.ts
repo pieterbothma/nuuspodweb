@@ -8,6 +8,7 @@ import { vergelykNaam } from "./orden";
  * nothing unapproved can reach this file.
  */
 export interface Partyverklaring {
+  id: number;
   party: string;
   bron_url: string;
   titel_oorspronklik: string;
@@ -16,6 +17,34 @@ export interface Partyverklaring {
   /** False when the party published in Afrikaans and the text is shown as published. */
   vertaal: boolean;
   gepubliseer_om: string;
+}
+
+/**
+ * Each party's logo, taken from the party's own website and normalised to the same 256 px
+ * square (public/partye/). Every card and page shows its party's logo at the same size, so no
+ * party is set apart. A party without an entry shows no image — never a stand-in.
+ */
+const LOGO: Record<string, string> = {
+  ActionSA: "actionsa",
+  "African Christian Democratic Party (ACDP)": "acdp",
+  "African National Congress (ANC)": "anc",
+  "Al Jama-ah": "al-jama-ah",
+  "Build One South Africa (BOSA)": "bosa",
+  "Democratic Alliance (DA)": "da",
+  "Economic Freedom Fighters (EFF)": "eff",
+  GOOD: "good",
+  "Inkatha Freedom Party (IFP)": "ifp",
+  "uMkhonto weSizwe Party (MK)": "mk",
+  "Vryheidsfront Plus (VF Plus)": "vf-plus",
+};
+
+export function partyLogo(party: string): string | null {
+  return LOGO[party] ? `/partye/${LOGO[party]}.png` : null;
+}
+
+/** The statement's paragraphs, as the translation separated them. */
+export function paragrawe(teks: string): string[] {
+  return teks.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 }
 
 /** Statements older than this leave the home page: it is about this fortnight. */
@@ -34,24 +63,39 @@ export function ordenVerklarings(lys: Partyverklaring[]): Partyverklaring[] {
   return [...perParty.values()].sort((a, b) => vergelykNaam(a.party, b.party));
 }
 
-export async function haalPartyverklarings(): Promise<Partyverklaring[]> {
+async function rpc(naam: string, args: Record<string, unknown>): Promise<Partyverklaring[]> {
   const url = process.env.SUPABASE_URL;
   const sleutel = process.env.SUPABASE_PUBLISHABLE_KEY;
   if (!url || !sleutel) return [];
   try {
-    const res = await fetch(`${url}/rest/v1/rpc/partyverklarings_nuutste`, {
+    const res = await fetch(`${url}/rest/v1/rpc/${naam}`, {
       method: "POST",
       headers: { apikey: sleutel, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_dae: DAE }),
+      body: JSON.stringify(args),
       next: { tags: ["partye"], revalidate: 3600 },
     });
     if (!res.ok) {
-      console.error(`[partye] partyverklarings_nuutste: ${res.status}`);
+      console.error(`[partye] ${naam}: ${res.status}`);
       return [];
     }
-    return ordenVerklarings((await res.json()) as Partyverklaring[]);
+    return (await res.json()) as Partyverklaring[];
   } catch (err) {
-    console.error("[partye] partyverklarings_nuutste:", err);
+    console.error(`[partye] ${naam}:`, err);
     return [];
   }
+}
+
+export async function haalPartyverklarings(): Promise<Partyverklaring[]> {
+  return ordenVerklarings(await rpc("partyverklarings_nuutste", { p_dae: DAE }));
+}
+
+/** An id from the URL: digits only, so nothing else ever reaches the database. */
+export function geldigeVerklaringId(id: string): boolean {
+  return /^[1-9]\d{0,15}$/.test(id);
+}
+
+export async function haalPartyverklaring(id: string): Promise<Partyverklaring | null> {
+  if (!geldigeVerklaringId(id)) return null;
+  const [v] = await rpc("partyverklaring", { p_id: Number(id) });
+  return v ?? null;
 }

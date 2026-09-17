@@ -98,8 +98,11 @@ const BRIEWE_UITVOU = {
 const BRIEWE_PARTYE = {
   partye_opskrif: "Klein etiket in HOOFLETTERS bo 'n blok op die tuisblad met die amptelike verklarings van politieke partye.",
   partye_onderskrif: "Een of twee sinne wat die leser moet weet om die blok te vertrou: dit is elke party in die Parlement se jongste amptelike verklaring (een per party), in alfabetiese volgorde; Nuuspod vertaal dit met KI in Afrikaans en 'n mens kontroleer dit voordat dit verskyn. Geen party word genoem nie.",
-  partye_lees: "Knoppie wat die hele vertaalde verklaring oopmaak.",
-  partye_versteek: "Knoppie wat die verklaring weer toemaak.",
+  partye_lees: "Kort skakelteks op 'n kaart wat na die blad met die hele vertaalde verklaring gaan.",
+  partye_bladtitel: "Blaaiertitel van die blad met een verklaring. {q} = die Afrikaanse opskrif van die verklaring. Eindig met ' — Verkiesing 2026'.",
+  partye_beskrywing: "Meta-beskrywing vir soekenjins en deelkaarte: dit is die party se amptelike verklaring, met KI in Afrikaans vertaal. {q} = die party se naam. Geen ander bewering nie.",
+  partye_logo_alt: "Alt-teks vir die party se logo. {q} = die party se naam.",
+  partye_terug: "Skakel onderaan 'n verklaring terug na die tuisblad se blok met die partye se verklarings.",
   partye_vertaal_etiket: "Kort etiket voor 'n skakel na die oorspronklike Engelse verklaring: die teks hierbo is met KI uit Engels vertaal.",
   partye_afrikaans_etiket: "Kort etiket voor 'n skakel na die oorspronklike: hierdie party het die verklaring self in Afrikaans gepubliseer (dus nie vertaal nie).",
 };

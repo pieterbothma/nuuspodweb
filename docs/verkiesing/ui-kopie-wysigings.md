@@ -53,3 +53,7 @@ Second run (same day, adds `uitvou_wys_stemlokale`, taken as written). Edits aft
 `node scripts/verkiesing-kopie-2b.mjs --partye` → `ui-kopie-partye.json` (6 slots). Edits after Gemini:
 
 - partye_onderskrif: "Die jongste amptelike verklaring van elke party in die Parlement, alfabeties gerangskik. Nuuspod vertaal dit met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn." -> "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, alfabeties gerangskik. Nuuspod vertaal dit met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.". Only 11 of the 18 parties in Parliament have a newsroom we can read; "elke party in die Parlement" would promise all of them.
+
+Second run (same day, adds the statement-page slots `partye_bladtitel`, `partye_beskrywing`, `partye_logo_alt`, `partye_terug`, taken as written; `partye_lees` now links to a page). Edits after Gemini:
+
+- partye_onderskrif: kept the first run's corrected wording. Gemini again wrote "elke party in die Parlement", which would promise all 18 parties.

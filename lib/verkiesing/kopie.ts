@@ -224,7 +224,12 @@ export const KOPIE = {
   partye_onderskrif:
     "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, alfabeties gerangskik. Nuuspod vertaal dit met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.",
   partye_lees: "Lees die verklaring",
-  partye_versteek: "Maak toe",
+  // Statement page. partye_bladtitel {q} = the Afrikaans headline; partye_beskrywing and
+  // partye_logo_alt {q} = the party's display name.
+  partye_bladtitel: "{q} — Verkiesing 2026",
+  partye_beskrywing: "Die amptelike verklaring van {q}, met KI in Afrikaans vertaal.",
+  partye_logo_alt: "Logo van {q}",
+  partye_terug: "Terug na wat die partye sê",
   partye_vertaal_etiket: "Met KI uit Engels vertaal. Oorspronklike verklaring:",
   partye_afrikaans_etiket: "Deur die party self in Afrikaans gepubliseer:",
   // --- Bladsy nie gevind nie (Gemini, Fase 2b) ----------------------
