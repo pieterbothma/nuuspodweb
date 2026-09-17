@@ -56,26 +56,22 @@ function groepOpskrif(g: NuusGroep, muniNaam: string): string {
 
 export function WykNuus({ groepe, muniNaam, nou }: { groepe: NuusGroep[]; muniNaam: string; nou: Date }) {
   if (groepe.length === 0) return null;
-  const aantal = groepe.reduce((som, g) => som + g.stories.length, 0);
   return (
     <section aria-labelledby="plaaslike-nuus" data-plaaslike-nuus className="scroll-mt-24">
       <h2 id="plaaslike-nuus" className="text-rooi-teks font-sans text-[0.8125rem] font-black tracking-[0.22em] uppercase">
         {KOPIE.plaaslik_opskrif}
       </h2>
       <p className="text-grys mt-1.5 font-sans text-sm">{KOPIE.plaaslik_onderskrif}</p>
-      <div className="mt-4">
-        <Uitvou naam="plaaslike-nuus" aantal={aantal} wys={vulIn(KOPIE.uitvou_wys_berigte, { n: aantal })}>
-          <div className="mt-5 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
-            {groepe.map((g) => (
-              <div key={g.vlak} data-nuus-vlak={g.vlak}>
-                <h3 className="text-siaan-teks font-sans text-sm font-black">{groepOpskrif(g, muniNaam)}</h3>
-                {/* The neighbourhood group always names each story's place: "Uit jou omgewing"
-                    alone does not say which suburb a headline is about. */}
-                <Lys stories={g.stories} nou={nou} wysPlek={g.vlak === "wyk" || (g.vlak === "dorp" && g.plek === null)} />
-              </div>
-            ))}
+      {/* Always open on the ward page (Piet, 2026-09-17): a few headlines, no button. */}
+      <div className="mt-5 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
+        {groepe.map((g) => (
+          <div key={g.vlak} data-nuus-vlak={g.vlak}>
+            <h3 className="text-siaan-teks font-sans text-sm font-black">{groepOpskrif(g, muniNaam)}</h3>
+            {/* The neighbourhood group always names each story's place: "Uit jou omgewing"
+                alone does not say which suburb a headline is about. */}
+            <Lys stories={g.stories} nou={nou} wysPlek={g.vlak === "wyk" || (g.vlak === "dorp" && g.plek === null)} />
           </div>
-        </Uitvou>
+        ))}
       </div>
     </section>
   );

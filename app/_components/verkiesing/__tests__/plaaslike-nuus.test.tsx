@@ -37,6 +37,15 @@ describe("WykNuus", () => {
   });
 });
 
+describe("WykNuus sonder knoppie", () => {
+  it("shows every headline straight away, however many there are", () => {
+    const stories = Array.from({ length: 9 }, (_, i) => ({ vlak: "munisipaliteit" as const, ...storie(`Storie ${i}`, "Tshwane") }));
+    const { container } = render(<WykNuus muniNaam="Tshwane" nou={nou} groepe={[{ vlak: "munisipaliteit", plek: null, stories }]} />);
+    expect(container.querySelector("details")).toBeNull();
+    expect(container.querySelectorAll("[data-plaaslike-storie]")).toHaveLength(9);
+  });
+});
+
 describe("MuniNuus", () => {
   it("labels town stories with their place and leaves municipality-wide stories unlabelled", () => {
     const { container } = render(
