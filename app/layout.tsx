@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import Script from "next/script";
 import "./globals.css";
 
 const dmSerifDisplay = localFont({
@@ -37,6 +38,8 @@ const sourceSans = localFont({
   display: "swap",
 });
 
+const GA_ID = "G-MKXWBN2L9W";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.nuuspod.co.za"),
   title: "Verkiesing 2026 — Nuuspod",
@@ -62,7 +65,18 @@ export default function RootLayout({
       lang="af"
       className={`${dmSerifDisplay.variable} ${sourceSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {children}
+        {/* Google Analytics 4 (Piet, 2026-09-17). afterInteractive: loads once the page is
+            usable, so it never delays the first paint. */}
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA_ID}');`}
+        </Script>
+      </body>
     </html>
   );
 }
