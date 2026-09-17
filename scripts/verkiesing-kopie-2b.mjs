@@ -97,7 +97,7 @@ const BRIEWE_UITVOU = {
 
 const BRIEWE_PARTYE = {
   partye_opskrif: "Klein etiket in HOOFLETTERS bo 'n blok op die tuisblad met die amptelike verklarings van politieke partye.",
-  partye_onderskrif: "Een of twee sinne wat die leser moet weet om die blok te vertrou: dit is die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer (een per party), met die nuutste bo-aan; Nuuspod vertaal dit met KI in Afrikaans en 'n mens kontroleer dit voordat dit verskyn. Geen party word genoem nie.",
+  partye_onderskrif: "Een sin wat die leser moet weet om die blok te vertrou: dit is die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer (een per party), met die nuutste bo-aan. Moenie die vertaling of goedkeuring noem nie (Piet, 17 Sep 2026). Geen party word genoem nie.",
   partye_lees: "Kort skakelteks op 'n kaart wat na die blad met die hele vertaalde verklaring gaan.",
   partye_bladtitel: "Blaaiertitel van die blad met een verklaring. {q} = die Afrikaanse opskrif van die verklaring. Eindig met ' — Verkiesing 2026'.",
   partye_beskrywing: "Meta-beskrywing vir soekenjins en deelkaarte: dit is die party se amptelike verklaring, met KI in Afrikaans vertaal. {q} = die party se naam. Geen ander bewering nie.",

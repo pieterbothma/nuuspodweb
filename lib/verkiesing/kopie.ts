@@ -222,7 +222,7 @@ export const KOPIE = {
   // Official party statements, translated and approved (spec 2026-09-17-partyverklarings).
   partye_opskrif: "WAT DIE PARTYE SÊ",
   partye_onderskrif:
-    "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, met die nuutste bo-aan. Nuuspod vertaal Engelse verklarings met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.",
+    "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, met die nuutste bo-aan.",
   partye_lees: "Lees die verklaring",
   // Statement page. partye_bladtitel {q} = the Afrikaans headline; partye_beskrywing and
   // partye_logo_alt {q} = the party's display name.
