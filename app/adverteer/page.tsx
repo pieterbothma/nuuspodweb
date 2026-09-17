@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
 import {
   Chyron,
@@ -126,21 +127,27 @@ export default async function Adverteer() {
       {/* Masthead */}
       <header className="border-rand bg-grond/95 sticky top-0 z-20 border-b backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-3 sm:px-8">
-          <Image
-            src="/logo.jpg"
-            alt=""
-            width={40}
-            height={40}
-            className="rounded-full"
-          />
-          <div className="flex-1 leading-none">
-            <div className="text-ink font-display text-xl tracking-[0.14em]">
-              NUUSPOD
-            </div>
-            <div className="text-grys mt-1 font-sans text-[0.7rem]">
-              met Izak du Plessis
-            </div>
-          </div>
+          {/* The logo goes home, like the masthead on every other page. */}
+          <Link
+            href="/"
+            className="flex flex-1 items-center gap-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rooi"
+          >
+            <Image
+              src="/logo.jpg"
+              alt=""
+              width={40}
+              height={40}
+              className="rounded-full"
+            />
+            <span className="leading-none">
+              <span className="text-ink block font-display text-xl tracking-[0.14em]">
+                NUUSPOD
+              </span>
+              <span className="text-grys mt-1 block font-sans text-[0.7rem]">
+                met Izak du Plessis
+              </span>
+            </span>
+          </Link>
           <a
             href={WHATSAPP}
             target="_blank"
