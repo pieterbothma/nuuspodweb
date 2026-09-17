@@ -25,6 +25,8 @@ const UITSLAG2021 = process.argv.includes("--uitslag2021");
 const KANDIDAAT = process.argv.includes("--kandidaat");
 // `--uitvou` rewrites only the show/hide button labels for long lists.
 const UITVOU = process.argv.includes("--uitvou");
+// `--partye` rewrites only the "Wat die partye sê" block's labels.
+const PARTYE = process.argv.includes("--partye");
 const UIT = join(
   WORTEL,
   PLAASLIK
@@ -35,7 +37,9 @@ const UIT = join(
         ? "docs/verkiesing/ui-kopie-kandidaat.json"
         : UITVOU
           ? "docs/verkiesing/ui-kopie-uitvou.json"
-          : "docs/verkiesing/ui-kopie-2b.json"
+          : PARTYE
+            ? "docs/verkiesing/ui-kopie-partye.json"
+            : "docs/verkiesing/ui-kopie-2b.json"
 );
 
 function sleutel() {
@@ -91,8 +95,17 @@ const BRIEWE_UITVOU = {
   uitvou_versteek: "Een woord op dieselfde knoppie wanneer die lys oop is: maak dit weer toe.",
 };
 
+const BRIEWE_PARTYE = {
+  partye_opskrif: "Klein etiket in HOOFLETTERS bo 'n blok op die tuisblad met die amptelike verklarings van politieke partye.",
+  partye_onderskrif: "Een of twee sinne wat die leser moet weet om die blok te vertrou: dit is elke party in die Parlement se jongste amptelike verklaring (een per party), in alfabetiese volgorde; Nuuspod vertaal dit met KI in Afrikaans en 'n mens kontroleer dit voordat dit verskyn. Geen party word genoem nie.",
+  partye_lees: "Knoppie wat die hele vertaalde verklaring oopmaak.",
+  partye_versteek: "Knoppie wat die verklaring weer toemaak.",
+  partye_vertaal_etiket: "Kort etiket voor 'n skakel na die oorspronklike Engelse verklaring: die teks hierbo is met KI uit Engels vertaal.",
+  partye_afrikaans_etiket: "Kort etiket voor 'n skakel na die oorspronklike: hierdie party het die verklaring self in Afrikaans gepubliseer (dus nie vertaal nie).",
+};
+
 const aktieweBriewe = () =>
-  PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : KANDIDAAT ? BRIEWE_KANDIDAAT : UITVOU ? BRIEWE_UITVOU : BRIEWE;
+  PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : KANDIDAAT ? BRIEWE_KANDIDAAT : UITVOU ? BRIEWE_UITVOU : PARTYE ? BRIEWE_PARTYE : BRIEWE;
 
 const plekhouers = (s) => (s.match(/\{[a-z]\}/g) ?? []).sort().join(",");
 const woorde = (s) => s.split(/\s+/).filter(Boolean).length;
@@ -199,6 +212,7 @@ const FEITE = [
   "Kiesers in 'n plaaslike munisipaliteit kry 3 stembriewe: wyk, die plaaslike raad se PV-stembrief, en die distriksraad se PV-stembrief. Kiesers in 'n metro kry 2: wyk en die metroraad se PV-stembrief.",
   "Die vorige plaaslike verkiesing was op 1 November 2021; die OVK publiseer amptelike uitslae per stemdistrik.",
   "Die data kom van die OVK (IEC), die Munisipale Afbakeningsraad en Statistiek Suid-Afrika (Sensus 2011), met Nuuspod se eie verwerking.",
+  "Die tuisblad wys die amptelike persverklarings van die partye met setels in die Nasionale Vergadering (die Parlement): per party net die jongste een, in alfabetiese volgorde van die partyname. Engelse verklarings word met KI in Afrikaans vertaal; 'n redakteur by Nuuspod keur elke verklaring goed voordat dit verskyn. Party wat self in Afrikaans publiseer, word nie vertaal nie.",
 ];
 
 function prompt(gleuwe) {

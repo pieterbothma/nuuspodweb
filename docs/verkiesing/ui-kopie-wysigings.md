@@ -46,3 +46,10 @@ Second run (same day, adds `uitvou_wys_stemlokale`, taken as written). Edits aft
 
 - uitvou_wys_uitslag: "Wys die 2021-uitslae" -> "Wys die uitslag". The heading right above already says 2021, and it is one result (kept the first run's edit).
 - uitvou_wys_uitslag: "Wys die uitslag" -> "Wys die 2021-uitslag". Piet's wording (16 Sep 2026): the year on the button itself.
+
+
+# Wat die partye sê (gemini-3.5-flash, 17 Sep 2026)
+
+`node scripts/verkiesing-kopie-2b.mjs --partye` → `ui-kopie-partye.json` (6 slots). Edits after Gemini:
+
+- partye_onderskrif: "Die jongste amptelike verklaring van elke party in die Parlement, alfabeties gerangskik. Nuuspod vertaal dit met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn." -> "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, alfabeties gerangskik. Nuuspod vertaal dit met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.". Only 11 of the 18 parties in Parliament have a newsroom we can read; "elke party in die Parlement" would promise all of them.

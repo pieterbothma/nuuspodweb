@@ -3,6 +3,7 @@ import { GidsKaarte } from "./_components/verkiesing/gids-kaarte";
 import { Kopstuk } from "./_components/verkiesing/kopstuk";
 import { Nuusstroom } from "./_components/verkiesing/nuusstroom";
 import { OvkAksies } from "./_components/verkiesing/ovk-aksies";
+import { Partyverklarings } from "./_components/verkiesing/partyverklarings";
 import { Verkiesingsprogram } from "./_components/verkiesing/verkiesingsprogram";
 import { Voet } from "./_components/verkiesing/voet";
 import { WatKom } from "./_components/verkiesing/wat-kom";
@@ -10,10 +11,11 @@ import { WykSoeker } from "./_components/verkiesing/wyk-soeker";
 import { spesialeStemStatus, STEMDAG } from "@/lib/verkiesing/datums";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { haalEpisodes, haalStroom } from "@/lib/verkiesing/lees";
+import { haalPartyverklarings } from "@/lib/verkiesing/partye";
 
 export default async function Tuis() {
   const nou = new Date();
-  const [stroom, episodes] = await Promise.all([haalStroom(), haalEpisodes()]);
+  const [stroom, episodes, verklarings] = await Promise.all([haalStroom(), haalEpisodes(), haalPartyverklarings()]);
   const spesialeStem = spesialeStemStatus(nou);
 
   return (
@@ -42,17 +44,24 @@ export default async function Tuis() {
           </div>
         </section>
 
-        <OvkAksies spesialeStem={spesialeStem} />
-
-        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[1fr_22rem]">
-          <div className="grid content-start gap-14">
+        {/* Piet, 2026-09-16: search, then what the parties say. The IEC actions, episodes and
+            guides follow; "Wat ander berig" stays beside the main column. Until a statement
+            is approved the party block renders nothing and the rest simply moves up. */}
+        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="grid min-w-0 content-start gap-14">
+            <Partyverklarings verklarings={verklarings} nou={nou} />
             <WatKom nou={nou} />
-            <Verkiesingsprogram episodes={episodes} />
-            <GidsKaarte />
           </div>
           <aside>
             <Nuusstroom items={stroom} nou={nou} />
           </aside>
+        </div>
+
+        <OvkAksies spesialeStem={spesialeStem} />
+
+        <div className="mx-auto grid max-w-6xl gap-14 px-5 py-12 sm:px-8">
+          <Verkiesingsprogram episodes={episodes} />
+          <GidsKaarte />
         </div>
       </main>
       <Voet />

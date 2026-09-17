@@ -218,6 +218,15 @@ export const KOPIE = {
   uitvou_wys_stemlokale: "Wys al {n} stemlokale",
   uitvou_wys_uitslag: "Wys die 2021-uitslag",
   uitvou_versteek: "Versteek",
+  // --- Wat die partye sê (Gemini) -----------------------------------------
+  // Official party statements, translated and approved (spec 2026-09-17-partyverklarings).
+  partye_opskrif: "WAT DIE PARTYE SÊ",
+  partye_onderskrif:
+    "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, alfabeties gerangskik. Nuuspod vertaal dit met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.",
+  partye_lees: "Lees die verklaring",
+  partye_versteek: "Maak toe",
+  partye_vertaal_etiket: "Met KI uit Engels vertaal. Oorspronklike verklaring:",
+  partye_afrikaans_etiket: "Deur die party self in Afrikaans gepubliseer:",
   // --- Bladsy nie gevind nie (Gemini, Fase 2b) ----------------------
   nie_gevind_titel: "Bladsy nie gevind nie — Verkiesing 2026",
   nie_gevind_opskrif: "Bladsy nie gevind nie",
