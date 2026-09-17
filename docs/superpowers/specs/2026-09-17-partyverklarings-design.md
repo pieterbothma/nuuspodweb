@@ -18,7 +18,7 @@ Press statements are written to be republished, so no outlet's work is taken.
 | When | Hourly, 06:00–21:00 SAST. |
 | Afrikaans | Faithful full translation by Gemini, never a summary. VF+ publishes in Afrikaans already: shown as published. |
 | Approval | Nothing goes live without a tap. Each new statement goes to the Nuuspod Telegram bot (`TELEGRAM_ALLOWED_CHAT_IDS`, Piet and Izak) with **Goedkeur / Verwerp**. First tap wins; the other chat's message updates. |
-| Balance | One card per party (its latest approved statement). Cards in alphabetical party order, never newest-first, so publishing volume buys no prominence. |
+| Balance | One card per party (its latest approved statement). Launched in alphabetical party order; changed to newest first on 2026-09-17 at Piet's request (a party that publishes more often will more often be on top, but still has one card). |
 | Labels | Every card: party name, Afrikaans headline and text, "Persverklaring van {party}, deur KI in Afrikaans vertaal" (or "soos gepubliseer" for VF+), date, original headline verbatim with a link. |
 | Home page | Countdown + ward search on top, then "Wat die partye sê" as the main column. IEC actions, episodes, guides and "Wat ander berig" move below / aside. |
 
@@ -27,7 +27,7 @@ How this squares with the hard rules (§3 of the election spec):
   translated, labelled as AI-translated, linked to the original, and approved by a human.
   No Nuuspod-written sentence about a party is added.
 - Rule 2 (human gate): kept — the Telegram tap.
-- Rule 3 (neutral positioning): alphabetical cards, one per party, no colours or logos.
+- Rule 3 (neutral positioning): one card per party, every party the same card; newest first since 2026-09-17 (Piet). Logos and party-coloured names on these cards only, also at Piet's request.
 - Rule 5 (headlines verbatim): the original headline is shown verbatim next to the translation.
 
 ## 3. Sources (verified 2026-09-16)
@@ -98,10 +98,10 @@ approver's message to "Goedgekeur deur X" / "Verwerp deur X" without buttons; on
 
 - `lib/verkiesing/partye.ts`: `haalPartyverklarings()` — latest approved statement per party,
   cached with tag `partye`, `revalidate: 3600`. `/api/herlaai` accepts `partye`.
-- `app/_components/verkiesing/partyverklarings.tsx`: section "Wat die partye sê", cards in
-  alphabetical party order; each card collapsed to headline + first paragraph with
-  "Lees die hele verklaring" (`<details>`, no JS), label, date, original headline + link ↗.
-  Renders nothing when no statement is approved yet.
+- `app/_components/verkiesing/partyverklarings.tsx`: section "Wat die partye sê", one card per
+  party, newest first. Each card (logo, party name in the party's colour, age, headline) links to
+  `/verklaring/[id]`, which shows the full text, the AI-translation label and the original
+  headline + link ↗. Renders nothing when no statement is approved yet.
 - Home page order: hero (countdown + search) → Wat die partye sê → IEC actions → Wat kom /
   episodes / guides, with "Wat ander berig" in the aside.
 - All copy via `KOPIE`, written by Gemini (`--partye` mode), logged in `ui-kopie-wysigings.md`.
@@ -111,8 +111,8 @@ approver's message to "Goedgekeur deur X" / "Verwerp deur X" without buttons; on
 - Admin: each adapter parses a saved fixture; baseline run inserts nothing as `wag`; the check
   flags a dropped number and a dropped name; callback payload fits 64 bytes; a second tap
   doesn't change a decided row; the allowlist still guards callbacks.
-- Site: cards alphabetical regardless of input order; one card per party; no party colours or
-  red inside cards; nothing renders for an empty list; unapproved rows are never requested
+- Site: cards newest first regardless of input order; one card per party; only the party name
+  is coloured; nothing renders for an empty list; unapproved rows are never requested
   (the query filters on status).
 
 ## 8. Out of scope (for now)

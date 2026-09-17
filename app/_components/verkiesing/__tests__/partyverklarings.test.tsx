@@ -24,7 +24,7 @@ function v(party: string, gepubliseer_om = "2026-09-16T12:00:00Z", oorskryf: Par
 }
 
 describe("ordenVerklarings", () => {
-  it("keeps one statement per party, the latest, in alphabetical party order — never newest first", () => {
+  it("keeps one statement per party, the latest, newest first", () => {
     const uit = ordenVerklarings([
       v("Vryheidsfront Plus (VF Plus)", "2026-09-17T09:00:00Z"),
       v("ActionSA", "2026-09-10T09:00:00Z"),
@@ -32,8 +32,9 @@ describe("ordenVerklarings", () => {
       v("ActionSA", "2026-09-12T09:00:00Z"),
       v("Al Jama-ah", "2026-09-01T09:00:00Z"),
     ]);
-    expect(uit.map((x) => x.party)).toEqual(["ActionSA", "African National Congress (ANC)", "Al Jama-ah", "Vryheidsfront Plus (VF Plus)"]);
-    expect(uit[0].gepubliseer_om).toBe("2026-09-12T09:00:00Z");
+    expect(uit.map((x) => x.party)).toEqual(["Vryheidsfront Plus (VF Plus)", "African National Congress (ANC)", "ActionSA", "Al Jama-ah"]);
+    // ActionSA's older statement (10 Sep) is dropped for its newer one (12 Sep).
+    expect(uit[2].gepubliseer_om).toBe("2026-09-12T09:00:00Z");
   });
 });
 

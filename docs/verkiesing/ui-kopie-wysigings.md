@@ -57,3 +57,7 @@ Second run (same day, adds `uitvou_wys_stemlokale`, taken as written). Edits aft
 Second run (same day, adds the statement-page slots `partye_bladtitel`, `partye_beskrywing`, `partye_logo_alt`, `partye_terug`, taken as written; `partye_lees` now links to a page). Edits after Gemini:
 
 - partye_onderskrif: kept the first run's corrected wording. Gemini again wrote "elke party in die Parlement", which would promise all 18 parties.
+
+Third run (17 Sep 2026, Piet: newest first instead of alphabetical). Edits after Gemini:
+
+- partye_onderskrif: "Hier is die jongste amptelike verklaring van elke party in die Parlement, met die nuutste een bo-aan. Nuuspod vertaal Engelse verklarings met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn." -> "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, met die nuutste bo-aan. Nuuspod vertaal Engelse verklarings met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.". Kept the qualifier: only parties with a readable newsroom appear, not all 18.

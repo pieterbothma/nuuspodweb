@@ -5,7 +5,7 @@ import { relatieweTyd } from "@/lib/verkiesing/stroom";
 import { vulIn } from "./stembriewe";
 
 /**
- * The parties' own statements, one card per party in alphabetical order (the data layer
+ * The parties' own statements, one card per party, newest first (the data layer
  * sorts). Every card is built the same way: logo, party, age, headline, one link. Each logo
  * sits in the same fixed square, and only the party's name carries its colour (Piet,
  * 2026-09-17) — every party gets one. No red, and the card never says which party published

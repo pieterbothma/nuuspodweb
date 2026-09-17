@@ -82,8 +82,9 @@ export function paragrawe(teks: string): string[] {
 const DAE = 14;
 
 /**
- * One card per party, in alphabetical party order with the shared Afrikaans collator. Never
- * newest first: how often a party publishes must not decide where it stands.
+ * One card per party (its latest statement), newest first (Piet, 2026-09-17; it was
+ * alphabetical at launch). A party still gets exactly one card however often it publishes.
+ * Ties on the same timestamp fall back to the party name, so the order never flickers.
  */
 export function ordenVerklarings(lys: Partyverklaring[]): Partyverklaring[] {
   const perParty = new Map<string, Partyverklaring>();
@@ -91,7 +92,9 @@ export function ordenVerklarings(lys: Partyverklaring[]): Partyverklaring[] {
     const bestaande = perParty.get(v.party);
     if (!bestaande || v.gepubliseer_om > bestaande.gepubliseer_om) perParty.set(v.party, v);
   }
-  return [...perParty.values()].sort((a, b) => vergelykNaam(a.party, b.party));
+  return [...perParty.values()].sort(
+    (a, b) => b.gepubliseer_om.localeCompare(a.gepubliseer_om) || vergelykNaam(a.party, b.party)
+  );
 }
 
 async function rpc(naam: string, args: Record<string, unknown>): Promise<Partyverklaring[]> {
