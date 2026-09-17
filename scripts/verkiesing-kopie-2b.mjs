@@ -27,6 +27,8 @@ const KANDIDAAT = process.argv.includes("--kandidaat");
 const UITVOU = process.argv.includes("--uitvou");
 // `--partye` rewrites only the "Wat die partye sê" block's labels.
 const PARTYE = process.argv.includes("--partye");
+// `--ovk` rewrites only the "Die nuutste van die IEC" link label (the heading is Piet's own).
+const OVK = process.argv.includes("--ovk");
 const UIT = join(
   WORTEL,
   PLAASLIK
@@ -39,7 +41,9 @@ const UIT = join(
           ? "docs/verkiesing/ui-kopie-uitvou.json"
           : PARTYE
             ? "docs/verkiesing/ui-kopie-partye.json"
-            : "docs/verkiesing/ui-kopie-2b.json"
+            : OVK
+              ? "docs/verkiesing/ui-kopie-ovk.json"
+              : "docs/verkiesing/ui-kopie-2b.json"
 );
 
 function sleutel() {
@@ -107,8 +111,12 @@ const BRIEWE_PARTYE = {
   partye_afrikaans_etiket: "Kort etiket voor 'n skakel na die oorspronklike: hierdie party het die verklaring self in Afrikaans gepubliseer (dus nie vertaal nie).",
 };
 
+const BRIEWE_OVK = {
+  ovk_nuus_alles: "Kort skakelteks onder 'n lys van die jongste persverklarings van die IEC, na die volledige lys persverklarings op die IEC se webwerf. Gebruik 'IEC', nie 'OVK' nie.",
+};
+
 const aktieweBriewe = () =>
-  PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : KANDIDAAT ? BRIEWE_KANDIDAAT : UITVOU ? BRIEWE_UITVOU : PARTYE ? BRIEWE_PARTYE : BRIEWE;
+  PLAASLIK ? BRIEWE_PLAASLIK : UITSLAG2021 ? BRIEWE_UITSLAG2021 : KANDIDAAT ? BRIEWE_KANDIDAAT : UITVOU ? BRIEWE_UITVOU : PARTYE ? BRIEWE_PARTYE : OVK ? BRIEWE_OVK : BRIEWE;
 
 const plekhouers = (s) => (s.match(/\{[a-z]\}/g) ?? []).sort().join(",");
 const woorde = (s) => s.split(/\s+/).filter(Boolean).length;

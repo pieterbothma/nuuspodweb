@@ -3,6 +3,7 @@ import { GidsKaarte } from "./_components/verkiesing/gids-kaarte";
 import { Kopstuk } from "./_components/verkiesing/kopstuk";
 import { Nuusstroom } from "./_components/verkiesing/nuusstroom";
 import { OvkAksies } from "./_components/verkiesing/ovk-aksies";
+import { OvkNuus } from "./_components/verkiesing/ovk-nuus";
 import { Partyverklarings } from "./_components/verkiesing/partyverklarings";
 import { Verkiesingsprogram } from "./_components/verkiesing/verkiesingsprogram";
 import { Voet } from "./_components/verkiesing/voet";
@@ -11,11 +12,17 @@ import { WykSoeker } from "./_components/verkiesing/wyk-soeker";
 import { spesialeStemStatus, STEMDAG } from "@/lib/verkiesing/datums";
 import { KOPIE } from "@/lib/verkiesing/kopie";
 import { haalEpisodes, haalStroom } from "@/lib/verkiesing/lees";
+import { haalOvkNuus } from "@/lib/verkiesing/ovk";
 import { haalPartyverklarings } from "@/lib/verkiesing/partye";
 
 export default async function Tuis() {
   const nou = new Date();
-  const [stroom, episodes, verklarings] = await Promise.all([haalStroom(), haalEpisodes(), haalPartyverklarings()]);
+  const [stroom, episodes, verklarings, ovkNuus] = await Promise.all([
+    haalStroom(),
+    haalEpisodes(),
+    haalPartyverklarings(),
+    haalOvkNuus(),
+  ]);
   const spesialeStem = spesialeStemStatus(nou);
 
   return (
@@ -50,6 +57,7 @@ export default async function Tuis() {
         <div className="mx-auto grid max-w-6xl gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="grid min-w-0 content-start gap-14">
             <Partyverklarings verklarings={verklarings} nou={nou} />
+            <OvkNuus items={ovkNuus} />
             <WatKom nou={nou} />
           </div>
           <aside>

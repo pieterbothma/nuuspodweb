@@ -62,3 +62,9 @@ Third run (17 Sep 2026, Piet: newest first instead of alphabetical). Edits after
 
 - partye_onderskrif: "Hier is die jongste amptelike verklaring van elke party in die Parlement, met die nuutste een bo-aan. Nuuspod vertaal Engelse verklarings met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn." -> "Die jongste amptelike verklaring van elke party in die Parlement wat verklarings op sy webwerf publiseer, met die nuutste bo-aan. Nuuspod vertaal Engelse verklarings met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn.". Kept the qualifier: only parties with a readable newsroom appear, not all 18.
 - partye_onderskrif (Piet, 17 Sep 2026): dropped the second sentence "Nuuspod vertaal Engelse verklarings met KI in Afrikaans, en 'n redakteur keur dit goed voor dit verskyn." The brief now says not to mention translation or approval; each statement page still carries its own "Met KI uit Engels vertaal" label.
+
+
+# Die nuutste van die IEC (17 Sep 2026)
+
+- ovk_nuus_opskrif: "DIE NUUTSTE VAN DIE IEC" — Piet's own wording, not generated.
+- `node scripts/verkiesing-kopie-2b.mjs --ovk` → `ui-kopie-ovk.json` (1 slot, `ovk_nuus_alles`). Taken as written.

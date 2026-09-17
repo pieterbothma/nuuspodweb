@@ -5,7 +5,8 @@ import { revalidateTag } from "next/cache";
 // data/publiseer.py posts one of these per publish run.
 // `plaaslik` is posted by the admin cron when community headlines are linked to wards.
 // `partye` is posted when Piet or Izak approves a party statement in Telegram.
-const TAGS = new Set(["nuusstroom", "episodes", "wyke", "kandidate", "plaaslik", "partye"]);
+// `ovk` is posted by the hq job when new IEC press releases are loaded.
+const TAGS = new Set(["nuusstroom", "episodes", "wyke", "kandidate", "plaaslik", "partye", "ovk"]);
 
 /** Called by the admin when Piet hides a headline or a new episode lands. */
 export async function POST(req: Request) {

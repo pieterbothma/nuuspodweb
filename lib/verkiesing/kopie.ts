@@ -232,6 +232,10 @@ export const KOPIE = {
   partye_terug: "Terug na wat die partye sê",
   partye_vertaal_etiket: "Met KI uit Engels vertaal. Oorspronklike verklaring:",
   partye_afrikaans_etiket: "Deur die party self in Afrikaans gepubliseer:",
+  // --- Die nuutste van die IEC -------------------------------------------
+  // ovk_nuus_opskrif is Piet's own wording (17 Sep 2026); the rest via Gemini.
+  ovk_nuus_opskrif: "DIE NUUTSTE VAN DIE IEC",
+  ovk_nuus_alles: "Alle IEC-persverklarings",
   // --- Bladsy nie gevind nie (Gemini, Fase 2b) ----------------------
   nie_gevind_titel: "Bladsy nie gevind nie — Verkiesing 2026",
   nie_gevind_opskrif: "Bladsy nie gevind nie",
