@@ -10,6 +10,11 @@ vi.mock("@/lib/verkiesing/wyksoeker", () => ({
   haalAlleMuniKodes: (...args: unknown[]) => haalAlleMuniKodes(...args),
 }));
 
+const haalPartyverklarings = vi.fn(async () => [] as { id: number; gepubliseer_om: string }[]);
+vi.mock("@/lib/verkiesing/partye", () => ({
+  haalPartyverklarings: (...args: unknown[]) => haalPartyverklarings(...(args as [])),
+}));
+
 import sitemap from "../sitemap";
 
 describe("sitemap", () => {
@@ -58,5 +63,12 @@ describe("sitemap", () => {
       expect.arrayContaining(["https://www.nuuspod.co.za/", "https://www.nuuspod.co.za/adverteer"])
     );
     expect(uit.some((u) => u.url.includes("/wyk/"))).toBe(false);
+  });
+  it("lys die goedgekeurde partyverklarings wat nou op die tuisblad is", async () => {
+    haalAlleWykIds.mockResolvedValue([]);
+    haalAlleMuniKodes.mockResolvedValue([]);
+    haalPartyverklarings.mockResolvedValue([{ id: 42, gepubliseer_om: "2026-09-16T13:16:01Z" }]);
+    const uit = await sitemap();
+    expect(uit.find((u) => u.url === "https://www.nuuspod.co.za/verklaring/42")?.lastModified).toBe("2026-09-16T13:16:01Z");
   });
 });

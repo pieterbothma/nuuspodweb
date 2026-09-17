@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { gepubliseerdeGidse } from "@/lib/verkiesing/gidse";
+import { haalPartyverklarings } from "@/lib/verkiesing/partye";
 import { haalAlleMuniKodes, haalAlleWykIds } from "@/lib/verkiesing/wyksoeker";
 
 const BASIS = "https://www.nuuspod.co.za";
@@ -29,9 +30,11 @@ function statieseBladsye(): MetadataRoute.Sitemap {
  * here still falls back to an empty list instead of taking the static entries down with it.
  */
 async function dinamieseBladsye(): Promise<MetadataRoute.Sitemap> {
-  const [wyke, munisipaliteite] = await Promise.all([
+  const [wyke, munisipaliteite, verklarings] = await Promise.all([
     haalAlleWykIds().catch(() => []),
     haalAlleMuniKodes().catch(() => []),
+    // The statements on the home page right now (approved only, one per party).
+    haalPartyverklarings().catch(() => []),
   ]);
 
   return [
@@ -44,6 +47,12 @@ async function dinamieseBladsye(): Promise<MetadataRoute.Sitemap> {
       url: `${BASIS}/munisipaliteit/${m.kode}`,
       changeFrequency: "weekly" as const,
       priority: 0.7,
+    })),
+    ...verklarings.map((v) => ({
+      url: `${BASIS}/verklaring/${v.id}`,
+      lastModified: v.gepubliseer_om,
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
     })),
   ];
 }
