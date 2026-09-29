@@ -19,6 +19,15 @@ export function Voet() {
               {KOPIE.voet_real411_skakel} ↗︎
             </a>
           </p>
+          <p>
+            Gebou deur{" "}
+            <a
+              href="https://www.aitsa.tech/af"
+              className="text-ink underline decoration-rand underline-offset-4 hover:decoration-rooi focus-visible:outline-2 focus-visible:outline-rooi"
+            >
+              AITSA
+            </a>
+          </p>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2 font-sans text-xs font-bold tracking-widest uppercase">
           <a href="https://www.youtube.com/@Nuuspod" target="_blank" rel="noopener" className="font-bold text-ink hover:text-rooi focus-visible:outline-2 focus-visible:outline-rooi">YouTube</a>
