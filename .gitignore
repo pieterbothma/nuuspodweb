@@ -28,13 +28,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# verkiesing data loaders
-/data/uitvoer/
-
-# python
-__pycache__/
-*.pyc
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
@@ -46,4 +39,6 @@ __pycache__/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-/data/bron/
+
+# Leftover election data (local only)
+/data

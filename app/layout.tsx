@@ -27,12 +27,6 @@ const sourceSans = localFont({
       weight: "700",
       style: "normal",
     },
-    {
-      // Section headings only (text-rooi-teks eyebrows). Subset to Latin, like the other cuts.
-      path: "../public/fonts/SourceSans3-Black.ttf",
-      weight: "900",
-      style: "normal",
-    },
   ],
   variable: "--font-sans",
   display: "swap",
@@ -41,13 +35,14 @@ const sourceSans = localFont({
 const GA_ID = "G-MKXWBN2L9W";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.nuuspod.co.za"),
-  title: "Verkiesing 2026 — Nuuspod",
+  metadataBase: new URL("https://nuuspod.co.za"),
+  title: "Adverteer by Nuuspod — Afrikaanse nuus, elke weeksdag regstreeks",
   description:
-    "Die plaaslike verkiesing van 4 November 2026 in Afrikaans: belangrike datums, hoe om te stem, en Verkiesings-Vrydag met Izak du Plessis.",
+    "Nuuspod met Izak du Plessis bereik gemiddeld 14 miljoen mense per maand op Facebook en YouTube. Sien die advertensiepakkette en tariewe.",
   openGraph: {
-    title: "Verkiesing 2026 — Nuuspod",
-    description: "Alles wat jy nodig het om op 4 November te stem, in Afrikaans.",
+    title: "Adverteer by Nuuspod",
+    description:
+      "Afrikaanse nuusbulletin, elke weeksdag regstreeks. Gemiddeld 14 miljoen kyke per maand.",
     url: "https://nuuspod.co.za",
     siteName: "Nuuspod",
     locale: "af_ZA",
@@ -67,8 +62,6 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         {children}
-        {/* Google Analytics 4 (Piet, 2026-09-17). afterInteractive: loads once the page is
-            usable, so it never delays the first paint. */}
         <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`window.dataLayer = window.dataLayer || [];

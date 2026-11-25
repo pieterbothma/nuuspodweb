@@ -6,48 +6,20 @@
 }
 
 @theme {
-  /* Lig-neon: light mode everywhere, with the cyan-to-red gradient kept for
-     borders only (see .neon-raam / .neon-raam-dun below). */
-  --color-grond: #ffffff;
-  --color-paneel: #fafafa;
-  --color-rand: #e5e5e5;
-  --color-ink: #0b0d10;
-  --color-grys: #6b7280;
+  /* Sampled from the Nuuspod cover art and the on-air graphics, so the site
+     and the social cards read as one brand. */
+  --color-swart: #05070a;
+  --color-paneel: #11161c;
+  --color-rand: #1e2630;
   --color-rooi: #e53935;
-  /* Section headings: the brand red darkened just enough for small text on white
-     (5.6:1; #e53935 is 4.2:1, below WCAG AA for 12px). */
-  --color-rooi-teks: #c62828;
-  /* News group sub-headings ("In Parow"): the brand cyan darkened to 5.1:1 on white, so
-     they read apart from the red section headings and the ink headlines. */
-  --color-siaan-teks: #00779a;
-  --color-neon-siaan: #00d2fa;
-  --color-neon-rooi: #fa2229;
-}
-
-:root {
-  color-scheme: light;
+  --color-siaan: #0faed3;
+  --color-papier: #f4f1e9;
+  --color-grys: #8b939e;
 }
 
 body {
-  background-color: var(--color-grond);
-  color: var(--color-ink);
-}
-
-/* Single-element neon borders: a transparent border painted with the
-   gradient in the border-box, with the page background filling the
-   padding-box so the middle stays flat. */
-.neon-raam {
-  border: 3px solid transparent;
-  background:
-    linear-gradient(var(--color-grond), var(--color-grond)) padding-box,
-    linear-gradient(120deg, var(--color-neon-siaan), var(--color-neon-rooi)) border-box;
-}
-
-.neon-raam-dun {
-  border: 2px solid transparent;
-  background:
-    linear-gradient(var(--color-grond), var(--color-grond)) padding-box,
-    linear-gradient(120deg, var(--color-neon-siaan), var(--color-neon-rooi)) border-box;
+  background-color: var(--color-swart);
+  color: var(--color-papier);
 }
 
 /* The logo's waveform, flattened into a rule under the masthead. */
